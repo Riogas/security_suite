@@ -43,6 +43,8 @@ export default function LoginPage() {
 
     if (Object.keys(newErrors).length === 0) {
       try {
+        setLoading(true); // 👈 Esto activa la animación
+        
         const res = await apiLogin(email, password); // 👈 Llamada real a la API
         console.log("✅ Login exitoso:", res.data);
 
