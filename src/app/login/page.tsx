@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/useTheme";
 import { useState } from "react";
 import { toast } from "sonner"; // 👈 Notificaciones visuales
 import { apiLogin } from "@/services/api"; // 👈 Importa tu API
+import { useRouter } from "next/navigation"; // 👈 Para redirección
 
 
 export default function LoginPage() {
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
 
   const validateEmail = (value: string) =>
@@ -44,9 +46,14 @@ export default function LoginPage() {
     if (Object.keys(newErrors).length === 0) {
       try {
         setLoading(true); // 👈 Esto activa la animación
-        
+
         const res = await apiLogin(email, password); // 👈 Llamada real a la API
-        console.log("✅ Login exitoso:", res.data);
+        // Asume que la respuesta tiene la forma { data: any }
+        const response = res as { data: any };
+        console.log("✅ Login exitoso:", response.data);
+
+        // Guardar datos de sesión
+        localStorage.setItem("user", JSON.stringify(response.data.user));
 
         toast.success("Inicio de sesión exitoso", {
           description: "Redirigiendo al panel...",
@@ -54,9 +61,10 @@ export default function LoginPage() {
         });
 
         // Aquí podrías guardar el token y redirigir, por ejemplo:
-        // localStorage.setItem("token", res.data.token);
+        // localStorage.setItem("token", response.data.token);
         // router.push("/dashboard");
-
+        router.push("/dashboard");
+        
       } catch (error: any) {
         console.error("❌ Error al iniciar sesión:", error);
 
