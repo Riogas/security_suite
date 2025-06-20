@@ -3,11 +3,11 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Loader2 } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { useState } from "react";
 import { toast } from "sonner"; // 👈 Notificaciones visuales
-
+import { apiLogin } from "@/services/api"; // 👈 Importa tu API
 
 
 export default function LoginPage() {
@@ -16,11 +16,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [loading, setLoading] = useState(false);
+
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: typeof errors = {};
 
@@ -40,18 +42,55 @@ export default function LoginPage() {
     }
 
     if (Object.keys(newErrors).length === 0) {
-      console.log("✅ Datos válidos, enviar login...");
+      try {
+        const res = await apiLogin(email, password); // 👈 Llamada real a la API
+        console.log("✅ Login exitoso:", res.data);
 
-      toast.success("Inicio de sesión exitoso", {
-        description: "Redirigiendo al panel...",
-        duration: 3000
-      });
-      // Aquí podrías hacer fetch, Firebase, etc.
+        toast.success("Inicio de sesión exitoso", {
+          description: "Redirigiendo al panel...",
+          duration: 3000
+        });
+
+        // Aquí podrías guardar el token y redirigir, por ejemplo:
+        // localStorage.setItem("token", res.data.token);
+        // router.push("/dashboard");
+
+      } catch (error: any) {
+        console.error("❌ Error al iniciar sesión:", error);
+
+        toast.error("Login fallido", {
+          description:
+            error.response?.data?.message || "Verifica tus credenciales.",
+          duration: 4000,
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 relative">
+        {/* SVG decorativo de fondo */}
+        <svg
+            className="absolute inset-0 w-full h-full -z-10 opacity-25 blur-2xl"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="none"
+            viewBox="0 0 1200 1200"
+            fill="none"
+        >
+            <path
+            d="M1200 0L1091.7 100C983.3 200 766.7 400 550 400C333.3 400 116.7 200 8.333 100L0 0V1200H1200V0Z"
+            fill="url(#gradient)"
+            />
+            <defs>
+            <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="1200" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#4f46e5" />
+                <stop offset="1" stopColor="#0ea5e9" />
+            </linearGradient>
+            </defs>
+        </svg>
+
       {/* Toggle Dark/Light */}
       <button
         onClick={toggleTheme}
@@ -95,12 +134,13 @@ export default function LoginPage() {
               <p className="text-sm text-red-500">{errors.password}</p>
             )}
           </div>
-          <Button className="w-full" type="submit">
-            Ingresar
+          <Button className="w-full" type="submit" disabled={loading}>
+            {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
+            {loading ? "Ingresando..." : "Ingresar"}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
-          ¿No tenés cuenta? <a href="#" className="underline">Registrate</a>
+          ¿Has olvidado la contraseña? <a href="#" className="underline">Recuperar contraseña</a>
         </p>
       </div>
     </main>
