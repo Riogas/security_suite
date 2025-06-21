@@ -13,7 +13,11 @@ import dynamic from 'next/dynamic';
 // Cargamos el mapa dinámicamente (por ahora sin SSR)
 const Mapa = dynamic(() => import('@/components/mapa/OpenStreetMap'), { ssr: false });
 
-export default function ClienteForm() {
+interface ClienteFormProps {
+  clienteId?: string;
+}
+
+export default function ClienteForm({ clienteId }: ClienteFormProps) {
   const [coords, setCoords] = useState({ lat: '', lng: '' });
 
   return (

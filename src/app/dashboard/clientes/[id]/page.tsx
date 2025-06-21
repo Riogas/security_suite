@@ -3,5 +3,12 @@ import ClienteForm from "@/components/clientes/ClienteForm";
 
 export default function EditarClientePage() {
   const { id } = useParams();
-  return <ClienteForm clienteId={id} />;
+
+  const clienteId = Array.isArray(id) ? id[0] : id;
+
+  if (!clienteId) {
+    return <p>Error: ID no proporcionado</p>;
+  }
+
+  return <ClienteForm clienteId={clienteId} />;
 }
