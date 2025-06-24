@@ -231,7 +231,7 @@ export default function OpenStreetMap({
               }}
             />
 
-            <div className="absolute top-4 right-4 flex flex-col space-y-2 z-30">
+            <div className="absolute top-4 right-4 flex flex-col space-y-2 z-50 pointer-events-auto">
               <button
                 className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   isManualLocationActive ? 'bg-red-500' : 'bg-gray-700'
