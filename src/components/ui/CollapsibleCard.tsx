@@ -21,8 +21,14 @@ export function CollapsibleCard({ title, children, defaultOpen = true, className
         className="cursor-pointer flex items-center justify-between"
       >
         <CardTitle className="flex items-center gap-2">
-          {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+          {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5 animate-pulse" />}
           {title}
+          {!isOpen && (
+            <span className="ml-2 px-2 py-1 text-sm font-semibold bg-blue-500 text-white rounded-full flex items-center gap-1">
+              <span className="text-lg">👈</span>
+              Amplíe para ver más información
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <div
