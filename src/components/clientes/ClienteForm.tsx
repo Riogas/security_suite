@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardHeader, CardTitle , Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -17,6 +17,7 @@ import { Fragment } from "react";
 import { Pencil, Trash } from "lucide-react";
 import { Combobox } from '@headlessui/react';
 import Mapa from '@/components/mapa/OpenStreetMap';
+import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
 
 // Cargamos el mapa dinámicamente (por ahora sin SSR)
 const DynamicMapa = dynamic(() => import('@/components/mapa/OpenStreetMap'), { ssr: false });
@@ -134,10 +135,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
 
       <div className="col-span-4 space-y-6">
         {/* Información Básica */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información Básica</CardTitle>
-          </CardHeader>
+        <CollapsibleCard title="Información Básica" defaultOpen={true}>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Primera línea */}
             <div>
@@ -184,13 +182,10 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               </Select>
             </div>
           </CardContent>
-        </Card>
+        </CollapsibleCard>
 
         {/* Dirección + Mapa */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dirección y Geolocalización</CardTitle>
-          </CardHeader>
+        <CollapsibleCard title="Dirección y Geolocalización" defaultOpen={true}>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               {/* Departamento y Localidad */}
@@ -228,20 +223,27 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               {/* Dirección */}
               <div className="col-span-full">
                 <Label>Dirección</Label>
-                <Combobox value={direccion} onChange={(value) => setDireccion(value ?? "")}>
-                  <Combobox.Input
-                    placeholder="Ej: Av. Italia"
-                    onBlur={(e) => setDireccion(e.target.value)}
-                    className="w-full border rounded-md p-2"
-                  />
-                  <Combobox.Options className="absolute bg-white border rounded-md shadow-md">
-                    {mockStreets.map((street) => (
-                      <Combobox.Option key={street} value={street} className="p-2 hover:bg-gray-200">
-                        {street}
-                      </Combobox.Option>
-                    ))}
-                  </Combobox.Options>
-                </Combobox>
+                <div className="relative w-full">
+                    <Combobox value={direccion} onChange={(value) => setDireccion(value ?? "")}>
+                        <Combobox.Input
+                        placeholder="Ej: Av. Italia"
+                        onBlur={(e) => setDireccion(e.target.value)}
+                        className="w-full border border-gray-700 bg-gray-900 text-white rounded-md p-2"
+                        />
+                        <Combobox.Options className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-md">
+                        {mockStreets.map((street) => (
+                            <Combobox.Option
+                            key={street}
+                            value={street}
+                            className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
+                            >
+                            {street}
+                            </Combobox.Option>
+                        ))}
+                        </Combobox.Options>
+                    </Combobox>
+                </div>
+
               </div>
 
               {/* Nro puerta, Apto, Block/Solar, Nivel, Local, Manzana */}
@@ -304,7 +306,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               />
             </div>
           </CardContent>
-        </Card>
+        </CollapsibleCard>
 
         {/* Contacto */}
         <Card>
