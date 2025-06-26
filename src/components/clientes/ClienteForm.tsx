@@ -246,9 +246,9 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
 
               </div>
 
-              {/* Nro puerta, Apto, Block/Solar, Nivel, Local, Manzana */}
+              {/* Nº Puerta, Apto, Block/Solar, Nivel, Local, Manzana */}
               <div>
-                <Label>Nro Puerta</Label>
+                <Label>Nº Puerta</Label>
                 <Input
                   placeholder="1234"
                   value={nroPuerta}
@@ -260,8 +260,8 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                 <Input placeholder="" />
               </div>
               <div>
-                <Label>Block/Solar</Label>
-                <Input placeholder="" />
+                <Label>Block</Label>
+                <Input placeholder="Block/Solar" />
               </div>
               <div>
                 <Label>Nivel</Label>

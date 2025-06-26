@@ -5,6 +5,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 import { Modal } from '@/components/ui/modal'; // Importar componente Modal
+import { Crosshair, Plus } from 'lucide-react';
+import { Button } from "@/components/ui/button"; // si estás usando ShadCN
+
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
@@ -215,7 +218,7 @@ export default function OpenStreetMap({
           <div className="w-[90vw] h-[80vh] flex flex-col bg-gray-800 text-white rounded-md relative">
             <div
               ref={modalMapRef}
-              className="flex-grow w-full h-full"
+              className="flex-grow w-full pointer-events-auto h-full"
               onClick={(e) => {
                 if (isManualLocationActive) {
                   const map = mapInstanceRef.current;
@@ -231,9 +234,9 @@ export default function OpenStreetMap({
               }}
             />
 
-            <div className="absolute top-4 right-4 flex flex-col space-y-2 z-50 pointer-events-auto">
+            <div className="absolute top-4 right-4 flex flex-col space-y-2 z-400 pointer-events-none">
               <button
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-auto ${
                   isManualLocationActive ? 'bg-red-500' : 'bg-gray-700'
                 } hover:bg-gray-600`}
                 onClick={() => setIsManualLocationActive(!isManualLocationActive)}
@@ -261,6 +264,37 @@ export default function OpenStreetMap({
                 Volver
               </button>
             </div>
+            {/* Botones en esquina inferior derecha */}
+            <div className="absolute bottom-4 right-4 flex flex-col items-end space-y-2 z-400 pointer-events-none">
+            <Button
+                size="icon"
+                variant="secondary"
+                className="rounded-full shadow-md pointer-events-auto"
+                onClick={() => {
+                const map = mapInstanceRef.current;
+                if (map) {
+                    map.locate({ setView: true, maxZoom: 16 });
+                }
+                }}
+                title="Centrar en mi ubicación"
+            >
+                <Crosshair className="w-5 h-5" />
+            </Button>
+
+            <Button
+                size="icon"
+                variant="secondary"
+                className="rounded-full shadow-md"
+                onClick={() => {
+                console.log("Agregar punto de interés");
+                // Aquí podrías abrir otro modal o activar una lógica personalizada
+                }}
+                title="Agregar punto de interés"
+            >
+                <Plus className="w-5 h-5" />
+            </Button>
+            </div>
+
           </div>
         </Modal>
       )}
