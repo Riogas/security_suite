@@ -16,7 +16,7 @@ export default function MapaGoogle() {
 
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,marker`;
     script.async = true;
 
     script.onload = () => {
@@ -62,6 +62,11 @@ export default function MapaGoogle() {
                 position: place.geometry.location,
                 draggable: true,
               });
+
+              const address = place.formatted_address || "Dirección no disponible";
+              const lat = place.geometry.location.lat();
+              const lng = place.geometry.location.lng();
+              console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
             });
 
             map.addListener("click", (e: any) => {
@@ -73,6 +78,18 @@ export default function MapaGoogle() {
                 map,
                 position: e.latLng,
                 draggable: true,
+              });
+
+              const geocoder = new window.google.maps.Geocoder();
+              geocoder.geocode({ location: e.latLng }, (results: any, status: string) => {
+                if (status === "OK" && results[0]) {
+                  const address = results[0].formatted_address;
+                  const lat = e.latLng.lat();
+                  const lng = e.latLng.lng();
+                  console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
+                } else {
+                  console.log("No se pudo obtener la dirección");
+                }
               });
             });
           }
@@ -94,12 +111,12 @@ export default function MapaGoogle() {
   return (
     <div style={{ width: "100%" }}>
       {/* Input fuera del mapa */}
-      <div style={{ marginBottom: "10px", position: "relative" }}>
+      <div style={{ marginTop: "13px" }}>
         <input
-          ref={searchBoxRef}
-          type="text"
-          placeholder="búsqueda"
-          style={{
+            ref={searchBoxRef}
+            type="text"
+            placeholder="búsqueda"
+            style={{
             width: "100%",
             maxWidth: "400px",
             padding: "8px",
@@ -107,22 +124,23 @@ export default function MapaGoogle() {
             border: "1px solid #ccc",
             background: "#fff",
             fontSize: "14px",
-            color: "#000", // texto negro
-            top: "13px", // para que se alinee con el mapa
-            position: "relative",
-          }}
+            color: "#000",
+            top: "10px !important",
+            }}
         />
-      </div>
+        </div>
+
 
       {/* Mapa */}
       <div
         ref={mapRef}
         style={{
           width: "100%",
-          height: "800px",
+          height: "600px",
           borderRadius: "8px",
           minWidth: "1200px",
           background: "#fff",
+          paddingTop: "13px",
         }}
       ></div>
     </div>

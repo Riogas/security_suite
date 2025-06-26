@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
+import Joyride, { CallBackProps, STATUS, Step } from "react-joyride";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle, Card } from "@/components/ui/card";
@@ -130,6 +131,62 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
   const [nroPuerta, setNroPuerta] = useState<string>("");
   const [esquina1, setEsquina1] = useState<string>("");
   const [esquina2, setEsquina2] = useState<string>("");
+  const [runTour, setRunTour] = useState(false);
+
+  const steps: Step[] = [
+    {
+      target: ".tour-departamento",
+      content: "Selecciona el departamento del cliente.",
+      disableBeacon: true,
+    },
+    {
+      target: ".tour-localidad",
+      content: "Selecciona la localidad correspondiente.",
+    },
+    {
+      target: ".tour-direccion",
+      content: "Ingresa la dirección principal.",
+    },
+    {
+      target: ".tour-nro-puerta",
+      content: "Completa el número de puerta.",
+    },
+    {
+      target: ".tour-mapa",
+      content: "Aquí puedes ubicar al cliente en el mapa y ajustar la ubicación.",
+    },
+    {
+      target: ".tour-latitud",
+      content: "Aquí verás la latitud geolocalizada.",
+    },
+    {
+      target: ".tour-longitud",
+      content: "Aquí verás la longitud geolocalizada.",
+    },
+    {
+      target: ".tour-telefonos",
+      content: "Puedes agregar teléfonos alternativos aquí.",
+    },
+    {
+      target: ".tour-guardar",
+      content: "Guarda el cliente una vez completados los datos.",
+    },
+  ];
+
+  useEffect(() => {
+    const alreadySeen = localStorage.getItem("clienteFormTour");
+    if (!alreadySeen) {
+      setTimeout(() => setRunTour(true), 1000);
+    }
+  }, []);
+
+  const handleJoyrideCallback = (data: CallBackProps) => {
+    const { status } = data;
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      setRunTour(false);
+      localStorage.setItem("clienteFormTour", "true");
+    }
+  };
 
   const handleAdd = () => {
     setTelefonos([...telefonos, newTelefono]);
@@ -160,6 +217,28 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <Joyride
+        steps={steps}
+        run={runTour}
+        continuous
+        showSkipButton
+        showProgress
+        styles={{
+          options: {
+            zIndex: 10000,
+            primaryColor: "#2563eb",
+            textColor: "#222",
+            backgroundColor: "#fff",
+          },
+        }}
+        callback={handleJoyrideCallback}
+        locale={{
+          last: "Finalizar",
+          skip: "Saltar",
+          next: "Siguiente",
+          back: "Atrás",
+        }}
+      />
       {/* Acciones */}
       <div className="col-span-full flex justify-end gap-4 mb-6">
         <Button variant="outline" className="flex items-center gap-2">
@@ -204,7 +283,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               <Input placeholder="example@mail.com" />
             </div>
             {/* Tercera línea */}
-            
+
             <div>
               <Label>Tipo Cliente</Label>
               <Select>
@@ -225,7 +304,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               {/* Departamento y Localidad */}
-              <div className="md:col-span-3 w-full">
+              <div className="md:col-span-3 w-full tour-departamento">
                 <Label>Departamento</Label>
                 <Select onValueChange={handleDepartamentoChange}>
                   <SelectTrigger className="w-full">
@@ -240,7 +319,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="md:col-span-3 w-full">
+              <div className="md:col-span-3 w-full tour-localidad">
                 <Label>Localidad</Label>
                 <Select onValueChange={handleLocalidadChange}>
                   <SelectTrigger className="w-full">
@@ -257,7 +336,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               </div>
 
               {/* Dirección */}
-              <div className="col-span-full">
+              <div className="col-span-full tour-direccion">
                 <Label>Dirección</Label>
                 <div className="relative w-full">
                   <Combobox
@@ -285,7 +364,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               </div>
 
               {/* Nº Puerta, Apto, Block/Solar, Nivel, Local, Manzana */}
-              <div>
+              <div className="tour-nro-puerta">
                 <Label>Nº Puerta</Label>
                 <Input
                   placeholder="1234"
@@ -331,24 +410,16 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                   onChange={(e) => setEsquina2(e.target.value)}
                 />
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-3 tour-latitud">
                 <Label>Latitud</Label>
-                <Input
-                  placeholder=""
-                  value={coords.lat}
-                  readOnly
-                />
+                <Input placeholder="" value={coords.lat} readOnly />
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-3 tour-longitud">
                 <Label>Longitud</Label>
-                <Input
-                  placeholder=""
-                  value={coords.lng}
-                  readOnly
-                />
+                <Input placeholder="" value={coords.lng} readOnly />
               </div>
             </div>
-            <div>
+            <div className="tour-mapa">
               <DynamicMapa
                 onChange={(data) => {
                   if (data.address && data.address !== direccion) {
@@ -506,8 +577,6 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
             </div>
           </CardContent>
         </Card>
-
-         
       </div>
 
       <div className="col-span-1">
@@ -517,7 +586,6 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
             <CardTitle>Historial</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            
             <div>
               <Label>Fecha Alta</Label>
               <Input value="22/04/2013 00:00" readOnly />
