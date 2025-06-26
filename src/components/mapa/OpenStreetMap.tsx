@@ -265,34 +265,35 @@ export default function OpenStreetMap({
               </button>
             </div>
             {/* Botones en esquina inferior derecha */}
-            <div className="absolute bottom-4 right-4 flex flex-col items-end space-y-2 z-400 pointer-events-none">
-            <Button
+            {/* Ajustar posición de los botones */}
+            <div className="absolute bottom-20 right-4 flex flex-col items-end space-y-2 z-400 pointer-events-none">
+              <Button
                 size="icon"
                 variant="secondary"
                 className="rounded-full shadow-md pointer-events-auto"
                 onClick={() => {
-                const map = mapInstanceRef.current;
-                if (map) {
+                  const map = mapInstanceRef.current;
+                  if (map) {
                     map.locate({ setView: true, maxZoom: 16 });
-                }
+                  }
                 }}
                 title="Centrar en mi ubicación"
-            >
+              >
                 <Crosshair className="w-5 h-5" />
-            </Button>
+              </Button>
 
-            <Button
+              <Button
                 size="icon"
                 variant="secondary"
-                className="rounded-full shadow-md"
+                className="rounded-full shadow-md pointer-events-auto"
                 onClick={() => {
-                console.log("Agregar punto de interés");
-                // Aquí podrías abrir otro modal o activar una lógica personalizada
+                  console.log("Agregar punto de interés");
+                  // Aquí podrías abrir otro modal o activar una lógica personalizada
                 }}
                 title="Agregar punto de interés"
-            >
+              >
                 <Plus className="w-5 h-5" />
-            </Button>
+              </Button>
             </div>
 
           </div>
