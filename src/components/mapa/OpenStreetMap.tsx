@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import axios from 'axios';
-import { Modal } from '@/components/ui/modal'; // Importar componente Modal
-import { Crosshair, Plus } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import axios from "axios";
+import { Modal } from "@/components/ui/modal"; // Importar componente Modal
+import { Crosshair, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button"; // si estás usando ShadCN
-
+import MapaModal from "./MapaModal";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
 type Props = {
@@ -49,14 +50,14 @@ export default function OpenStreetMap({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); // Estado para el modal
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState("");
   const [isManualLocationActive, setIsManualLocationActive] = useState(false); // Estado para ubicación manual
 
   useEffect(() => {
     if (mapRef.current && !mainMapInstanceRef.current) {
       const map = L.map(mapRef.current).setView([-34.9011, -56.1645], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
       mainMapInstanceRef.current = map;
     }
@@ -67,14 +68,17 @@ export default function OpenStreetMap({
       if (!mapInstanceRef.current) return;
 
       const map = mapInstanceRef.current;
-      const safeDepartamento = departamento || '';
-      const safeLocalidad = localidad || '';
-      const safeDireccion = direccion || '';
-      const safeNroPuerta = nroPuerta || '';
+      const safeDepartamento = departamento || "";
+      const safeLocalidad = localidad || "";
+      const safeDireccion = direccion || "";
+      const safeNroPuerta = nroPuerta || "";
 
       // Si NO hay dirección, pero sí departamento o localidad → centrar el mapa, sin spinner ni status
       if (!safeDireccion && (safeDepartamento || safeLocalidad)) {
-        const coords = getCoordinatesForDepartamento(safeDepartamento, safeLocalidad);
+        const coords = getCoordinatesForDepartamento(
+          safeDepartamento,
+          safeLocalidad,
+        );
         if (coords) {
           map.setView(coords, 13);
         }
@@ -84,12 +88,12 @@ export default function OpenStreetMap({
       // A partir de aquí: dirección presente → se habilita loading
       if (!safeDireccion) {
         setIsLoading(false);
-        setStatusMessage('');
+        setStatusMessage("");
         return;
       }
 
       setIsLoading(true);
-      setStatusMessage('Cargando ubicación...');
+      setStatusMessage("Cargando ubicación...");
 
       try {
         polylineRefs.current.forEach((line) => map.removeLayer(line));
@@ -102,44 +106,47 @@ export default function OpenStreetMap({
             safeDepartamento,
             safeLocalidad,
             safeDireccion,
-            safeNroPuerta
+            safeNroPuerta,
           );
 
           if (foundCoords) {
             map.setView(foundCoords, 16);
-            setStatusMessage('');
+            setStatusMessage("");
           } else {
-            setStatusMessage('No es posible ubicar esa dirección');
+            setStatusMessage("No es posible ubicar esa dirección");
           }
         } else if (safeDireccion && esquina1) {
           foundCoords = await getCoordinatesForCorner(
             safeDepartamento,
             safeLocalidad,
             safeDireccion,
-            esquina1
+            esquina1,
           );
 
           if (foundCoords) {
             map.setView(foundCoords, 16);
-            setStatusMessage('');
+            setStatusMessage("");
           } else {
-            setStatusMessage('No es posible ubicar la esquina');
+            setStatusMessage("No es posible ubicar la esquina");
           }
         } else if (safeDireccion) {
           const segments = await getPolylineForStreet(
             safeDepartamento,
             safeLocalidad,
-            safeDireccion
+            safeDireccion,
           );
 
           if (segments && segments.length > 0) {
             segments.forEach((segment) => {
-              const line = L.polyline(segment, { color: 'blue', weight: 4 }).addTo(map);
+              const line = L.polyline(segment, {
+                color: "blue",
+                weight: 4,
+              }).addTo(map);
               polylineRefs.current.push(line);
             });
-            setStatusMessage('');
+            setStatusMessage("");
           } else {
-            setStatusMessage('No se encontraron tramos para esa calle');
+            setStatusMessage("No se encontraron tramos para esa calle");
           }
         }
 
@@ -151,12 +158,15 @@ export default function OpenStreetMap({
         if (foundCoords) {
           markerRef.current = L.marker(foundCoords).addTo(map);
           if (onChange) {
-            onChange({ lat: foundCoords[0].toString(), lng: foundCoords[1].toString() });
+            onChange({
+              lat: foundCoords[0].toString(),
+              lng: foundCoords[1].toString(),
+            });
           }
         }
       } catch (err) {
-        console.error('Error general en updateMap:', err);
-        setStatusMessage('Ocurrió un error al cargar la ubicación');
+        console.error("Error general en updateMap:", err);
+        setStatusMessage("Ocurrió un error al cargar la ubicación");
       } finally {
         setIsLoading(false);
       }
@@ -170,9 +180,12 @@ export default function OpenStreetMap({
       setTimeout(() => {
         if (modalMapRef.current) {
           if (!mapInstanceRef.current) {
-            const map = L.map(modalMapRef.current).setView([-34.9011, -56.1645], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '&copy; OpenStreetMap contributors',
+            const map = L.map(modalMapRef.current).setView(
+              [-34.9011, -56.1645],
+              13,
+            );
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution: "&copy; OpenStreetMap contributors",
             }).addTo(map);
             mapInstanceRef.current = map;
           } else {
@@ -215,95 +228,24 @@ export default function OpenStreetMap({
 
       {isModalOpen && (
         <Modal onClose={() => setIsModalOpen(false)}>
-          <div className="w-[90vw] h-[80vh] flex flex-col bg-gray-800 text-white rounded-md relative">
-            <div
-              ref={modalMapRef}
-              className="flex-grow w-full pointer-events-auto h-full"
-              onClick={(e) => {
-                if (isManualLocationActive) {
-                  const map = mapInstanceRef.current;
-                  if (map) {
-                    const latLng = map.mouseEventToLatLng(e.nativeEvent as MouseEvent);
-                    console.log('Coordenadas:', latLng);
-                    if (markerRef.current) {
-                      map.removeLayer(markerRef.current);
-                    }
-                    markerRef.current = L.marker([latLng.lat, latLng.lng]).addTo(map);
-                  }
-                }
-              }}
-            />
-
-            <div className="absolute top-4 right-4 flex flex-col space-y-2 z-400 pointer-events-none">
-              <button
-                className={`w-10 h-10 rounded-full flex items-center justify-center pointer-events-auto ${
-                  isManualLocationActive ? 'bg-red-500' : 'bg-gray-700'
-                } hover:bg-gray-600`}
-                onClick={() => setIsManualLocationActive(!isManualLocationActive)}
-                title="Ubicar manual"
-              >
-                📍
-              </button>
-              {/* Agregar más botones aquí si es necesario */}
-            </div>
-
-            <div className="flex justify-center space-x-4 mt-4">
-              <button
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                onClick={() => {
-                  console.log('Confirmar selección del mapa');
-                  setIsModalOpen(false);
-                }}
-              >
-                Confirmar
-              </button>
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Volver
-              </button>
-            </div>
-            {/* Botones en esquina inferior derecha */}
-            {/* Ajustar posición de los botones */}
-            <div className="absolute bottom-20 right-4 flex flex-col items-end space-y-2 z-400 pointer-events-none">
-              <Button
-                size="icon"
-                variant="secondary"
-                className="rounded-full shadow-md pointer-events-auto"
-                onClick={() => {
-                  const map = mapInstanceRef.current;
-                  if (map) {
-                    map.locate({ setView: true, maxZoom: 16 });
-                  }
-                }}
-                title="Centrar en mi ubicación"
-              >
-                <Crosshair className="w-5 h-5" />
-              </Button>
-
-              <Button
-                size="icon"
-                variant="secondary"
-                className="rounded-full shadow-md pointer-events-auto"
-                onClick={() => {
-                  console.log("Agregar punto de interés");
-                  // Aquí podrías abrir otro modal o activar una lógica personalizada
-                }}
-                title="Agregar punto de interés"
-              >
-                <Plus className="w-5 h-5" />
-              </Button>
-            </div>
-
-          </div>
+          <MapaModal
+            isManualLocationActive={isManualLocationActive}
+            setIsManualLocationActive={setIsManualLocationActive}
+            setIsModalOpen={setIsModalOpen}
+            modalMapRef={modalMapRef}
+            mapInstanceRef={mapInstanceRef}
+            markerRef={markerRef}
+          />
         </Modal>
       )}
     </>
   );
 }
 
-function getCoordinatesForDepartamento(departamento: string, localidad?: string): [number, number] | null {
+function getCoordinatesForDepartamento(
+  departamento: string,
+  localidad?: string,
+): [number, number] | null {
   const data: Record<string, [number, number]> = {
     Montevideo: [-34.9011, -56.1645],
     Canelones: [-34.6692, -56.2645],
@@ -315,7 +257,7 @@ function getCoordinatesForDepartamento(departamento: string, localidad?: string)
 async function getPolylineForStreet(
   departamento: string,
   localidad: string,
-  direccion: string
+  direccion: string,
 ): Promise<[number, number][][] | null> {
   try {
     const query = `
@@ -324,22 +266,28 @@ async function getPolylineForStreet(
       way["name"="${direccion}"](area.searchArea);
       out geom;
     `;
-    const response = await axios.post('https://overpass-api.de/api/interpreter', query, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    const response = await axios.post(
+      "https://overpass-api.de/api/interpreter",
+      query,
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      },
+    );
 
     const data = response.data;
     if (data.elements && data.elements.length > 0) {
       return data.elements
-        .filter((el: any) => el.type === 'way' && Array.isArray(el.geometry))
+        .filter((el: any) => el.type === "way" && Array.isArray(el.geometry))
         .map((el: any) =>
-          el.geometry.map((point: any) => [point.lat, point.lon] as [number, number])
+          el.geometry.map(
+            (point: any) => [point.lat, point.lon] as [number, number],
+          ),
         );
     }
 
     return null;
   } catch (error) {
-    console.error('Error fetching polyline data:', error);
+    console.error("Error fetching polyline data:", error);
     return null;
   }
 }
@@ -348,18 +296,20 @@ async function getCoordinatesForAddress(
   departamento: string,
   localidad: string,
   direccion: string,
-  nroPuerta: string
+  nroPuerta: string,
 ): Promise<[number, number] | null> {
   try {
-    const fullAddress = `${direccion} ${nroPuerta}, ${localidad || ''}, ${departamento}, Uruguay`;
+    const fullAddress = `${direccion} ${nroPuerta}, ${localidad || ""}, ${departamento}, Uruguay`;
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`;
 
-    const response = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const response = await fetch(url, { headers: { "Accept-Language": "es" } });
     const data = await response.json();
 
-    return data.length > 0 ? [parseFloat(data[0].lat), parseFloat(data[0].lon)] : null;
+    return data.length > 0
+      ? [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+      : null;
   } catch (error) {
-    console.error('Error fetching address coordinates:', error);
+    console.error("Error fetching address coordinates:", error);
     return null;
   }
 }
@@ -368,18 +318,20 @@ async function getCoordinatesForCorner(
   departamento: string,
   localidad: string,
   direccion: string,
-  esquina: string
+  esquina: string,
 ): Promise<[number, number] | null> {
   try {
-    const fullQuery = `${direccion} y ${esquina}, ${localidad || ''}, ${departamento}, Uruguay`;
+    const fullQuery = `${direccion} y ${esquina}, ${localidad || ""}, ${departamento}, Uruguay`;
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&limit=1`;
 
-    const response = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const response = await fetch(url, { headers: { "Accept-Language": "es" } });
     const data = await response.json();
 
-    return data.length > 0 ? [parseFloat(data[0].lat), parseFloat(data[0].lon)] : null;
+    return data.length > 0
+      ? [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+      : null;
   } catch (error) {
-    console.error('Error fetching corner coordinates:', error);
+    console.error("Error fetching corner coordinates:", error);
     return null;
   }
 }

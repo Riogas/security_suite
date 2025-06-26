@@ -1,9 +1,13 @@
-'use client';
+"use client";
 
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiGetMenuByRole, Role, MenuItem as ApiMenuItem } from "@/services/api";
+import {
+  apiGetMenuByRole,
+  Role,
+  MenuItem as ApiMenuItem,
+} from "@/services/api";
 import { iconMap } from "./iconMap";
 import { useRouter } from "next/navigation";
 
@@ -51,13 +55,19 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
     >
       <div className="flex items-center justify-between px-4 py-4">
         {!collapsed && <span className="text-xl font-bold">Dashboard</span>}
-        <Button variant="ghost" size="icon" onClick={() => setCollapsed(!collapsed)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+        >
           <Menu className="h-5 w-5" />
         </Button>
       </div>
       <nav className="flex flex-col px-2 space-y-1">
         {loading ? (
-          <span className="text-muted-foreground text-sm px-2">Cargando menú...</span>
+          <span className="text-muted-foreground text-sm px-2">
+            Cargando menú...
+          </span>
         ) : (
           menuItems.map((item) => {
             const Icon = iconMap[item.icon] || Menu;

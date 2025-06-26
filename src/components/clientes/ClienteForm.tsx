@@ -1,26 +1,38 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { CardContent, CardHeader, CardTitle , Card } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { CardContent, CardHeader, CardTitle, Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import { Pencil, Trash } from "lucide-react";
-import { Combobox } from '@headlessui/react';
-import Mapa from '@/components/mapa/OpenStreetMap';
-import { CollapsibleCard } from '@/components/ui/CollapsibleCard';
+import { Combobox } from "@headlessui/react";
+import Mapa from "@/components/mapa/OpenStreetMap";
+import { CollapsibleCard } from "@/components/ui/CollapsibleCard";
 
 // Cargamos el mapa dinámicamente (por ahora sin SSR)
-const DynamicMapa = dynamic(() => import('@/components/mapa/OpenStreetMap'), { ssr: false });
+const DynamicMapa = dynamic(() => import("@/components/mapa/OpenStreetMap"), {
+  ssr: false,
+});
 
 interface ClienteFormProps {
   clienteId?: string;
@@ -31,7 +43,15 @@ interface TelefonoAlternativo {
   observacion: string;
 }
 
-const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => {
+const Modal = ({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) => {
   return (
     <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={onClose}>
@@ -71,18 +91,38 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
 
 const departamentos = [
   { nombre: "Montevideo", localidades: ["Centro", "Ciudad Vieja", "Pocitos"] },
-  { nombre: "Canelones", localidades: ["Las Piedras", "La Paz", "Barros Blancos"] },
-  { nombre: "Maldonado", localidades: ["Punta del Este", "San Carlos", "La Barra"] },
+  {
+    nombre: "Canelones",
+    localidades: ["Las Piedras", "La Paz", "Barros Blancos"],
+  },
+  {
+    nombre: "Maldonado",
+    localidades: ["Punta del Este", "San Carlos", "La Barra"],
+  },
 ];
 
-const mockStreets = ["Avenida Italia", "Avenida Millán", "26 de Marzo", "Bulevar España", "Rambla de Montevideo", "Avenida 18 de Julio", "Avenida Brasil", "Avenida Libertador", "Avenida Italia y Bulevar Artigas", "Avenida General Flores"];
+const mockStreets = [
+  "Avenida Italia",
+  "Avenida Millán",
+  "26 de Marzo",
+  "Bulevar España",
+  "Rambla de Montevideo",
+  "Avenida 18 de Julio",
+  "Avenida Brasil",
+  "Avenida Libertador",
+  "Avenida Italia y Bulevar Artigas",
+  "Avenida General Flores",
+];
 
 export default function ClienteForm({ clienteId }: ClienteFormProps) {
-  const [coords, setCoords] = useState({ lat: '', lng: '' });
+  const [coords, setCoords] = useState({ lat: "", lng: "" });
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [telefonos, setTelefonos] = useState<TelefonoAlternativo[]>([]);
-  const [newTelefono, setNewTelefono] = useState<TelefonoAlternativo>({ numero: "", observacion: "" });
+  const [newTelefono, setNewTelefono] = useState<TelefonoAlternativo>({
+    numero: "",
+    observacion: "",
+  });
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
   const [localidades, setLocalidades] = useState<string[]>([]);
   const [selectedLocalidad, setSelectedLocalidad] = useState<string>("");
@@ -115,7 +155,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
 
   const handleLocalidadChange = (localidad: string) => {
     setSelectedLocalidad(localidad);
-    console.log('Localidad seleccionada:', localidad);
+    console.log("Localidad seleccionada:", localidad);
   };
 
   return (
@@ -125,7 +165,10 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
         <Button variant="outline" className="flex items-center gap-2">
           <span>Cancelar</span>
         </Button>
-        <Button className="flex items-center gap-2" onClick={() => setLoading(true)}>
+        <Button
+          className="flex items-center gap-2"
+          onClick={() => setLoading(true)}
+        >
           <span>Guardar Cliente</span>
           {loading && (
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-blue-500"></div>
@@ -150,11 +193,11 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               <Label>Apellido</Label>
               <Input placeholder="MEDAGLIA" />
             </div>
-            
+
             {/* Segunda línea */}
             <div>
-                <Label>Obs. Cliente</Label>
-                <Input placeholder="Observaciones" />
+              <Label>Obs. Cliente</Label>
+              <Input placeholder="Observaciones" />
             </div>
             <div>
               <Label>RUT o CI</Label>
@@ -167,7 +210,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
             {/* Tercera línea */}
             <div>
               <Label>GCI Nº</Label>
-              <Input placeholder='GCI Nº' />
+              <Input placeholder="GCI Nº" />
             </div>
             <div>
               <Label>Tipo Cliente</Label>
@@ -224,26 +267,28 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               <div className="col-span-full">
                 <Label>Dirección</Label>
                 <div className="relative w-full">
-                    <Combobox value={direccion} onChange={(value) => setDireccion(value ?? "")}>
-                        <Combobox.Input
-                        placeholder="Ej: Av. Italia"
-                        onBlur={(e) => setDireccion(e.target.value)}
-                        className="w-full border border-gray-700 bg-gray-900 text-white rounded-md p-2"
-                        />
-                        <Combobox.Options className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-md">
-                        {mockStreets.map((street) => (
-                            <Combobox.Option
-                            key={street}
-                            value={street}
-                            className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
-                            >
-                            {street}
-                            </Combobox.Option>
-                        ))}
-                        </Combobox.Options>
-                    </Combobox>
+                  <Combobox
+                    value={direccion}
+                    onChange={(value) => setDireccion(value ?? "")}
+                  >
+                    <Combobox.Input
+                      placeholder="Ej: Av. Italia"
+                      onBlur={(e) => setDireccion(e.target.value)}
+                      className="w-full border border-gray-700 bg-gray-900 text-white rounded-md p-2"
+                    />
+                    <Combobox.Options className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-md shadow-md">
+                      {mockStreets.map((street) => (
+                        <Combobox.Option
+                          key={street}
+                          value={street}
+                          className="px-3 py-2 text-white hover:bg-gray-700 cursor-pointer"
+                        >
+                          {street}
+                        </Combobox.Option>
+                      ))}
+                    </Combobox.Options>
+                  </Combobox>
                 </div>
-
               </div>
 
               {/* Nº Puerta, Apto, Block/Solar, Nivel, Local, Manzana */}
@@ -336,10 +381,18 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                       <TableCell>{telefono.numero}</TableCell>
                       <TableCell>{telefono.observacion}</TableCell>
                       <TableCell className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(index)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(index)}
+                        >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(index)}>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(index)}
+                        >
                           <Trash className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -353,11 +406,24 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               <div className="space-y-4">
                 <div>
                   <Label>Teléfono</Label>
-                  <Input value={newTelefono.numero} onChange={(e) => setNewTelefono({ ...newTelefono, numero: e.target.value })} />
+                  <Input
+                    value={newTelefono.numero}
+                    onChange={(e) =>
+                      setNewTelefono({ ...newTelefono, numero: e.target.value })
+                    }
+                  />
                 </div>
                 <div>
                   <Label>Observación</Label>
-                  <Input value={newTelefono.observacion} onChange={(e) => setNewTelefono({ ...newTelefono, observacion: e.target.value })} />
+                  <Input
+                    value={newTelefono.observacion}
+                    onChange={(e) =>
+                      setNewTelefono({
+                        ...newTelefono,
+                        observacion: e.target.value,
+                      })
+                    }
+                  />
                 </div>
                 <div className="flex justify-end gap-4">
                   <Button variant="outline" onClick={() => setShowModal(false)}>

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,16 +10,16 @@ import { toast } from "sonner"; // 👈 Notificaciones visuales
 import { apiLogin } from "@/services/api"; // 👈 Importa tu API
 import { useRouter } from "next/navigation"; // 👈 Para redirección
 
-
 export default function LoginPage() {
   const { theme, toggleTheme } = useTheme();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {},
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
 
   const validateEmail = (value: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -29,15 +29,16 @@ export default function LoginPage() {
     const newErrors: typeof errors = {};
 
     if (!email.trim()) newErrors.email = "El email es obligatorio";
-    else if (!validateEmail(email)) newErrors.email = "Formato de email inválido";
+    else if (!validateEmail(email))
+      newErrors.email = "Formato de email inválido";
 
     if (!password.trim()) newErrors.password = "La contraseña es obligatoria";
 
     if (newErrors.email || newErrors.password) {
-      console.log("❌ Datos inválidos, mostrar errores:", newErrors);   
+      console.log("❌ Datos inválidos, mostrar errores:", newErrors);
       toast.error("Por favor, corrige los errores", {
         description: "Revisa los campos resaltados",
-        duration: 3000
+        duration: 3000,
       });
       setErrors(newErrors);
       return;
@@ -57,14 +58,13 @@ export default function LoginPage() {
 
         toast.success("Inicio de sesión exitoso", {
           description: "Redirigiendo al panel...",
-          duration: 3000
+          duration: 3000,
         });
 
         // Aquí podrías guardar el token y redirigir, por ejemplo:
         // localStorage.setItem("token", response.data.token);
         // router.push("/dashboard");
         router.push("/dashboard");
-        
       } catch (error: any) {
         console.error("❌ Error al iniciar sesión:", error);
 
@@ -81,25 +81,32 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 relative">
-        {/* SVG decorativo de fondo */}
-        <svg
-            className="absolute inset-0 w-full h-full -z-10 opacity-25 blur-2xl"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="none"
-            viewBox="0 0 1200 1200"
-            fill="none"
-        >
-            <path
-            d="M1200 0L1091.7 100C983.3 200 766.7 400 550 400C333.3 400 116.7 200 8.333 100L0 0V1200H1200V0Z"
-            fill="url(#gradient)"
-            />
-            <defs>
-            <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="1200" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4f46e5" />
-                <stop offset="1" stopColor="#0ea5e9" />
-            </linearGradient>
-            </defs>
-        </svg>
+      {/* SVG decorativo de fondo */}
+      <svg
+        className="absolute inset-0 w-full h-full -z-10 opacity-25 blur-2xl"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="none"
+        viewBox="0 0 1200 1200"
+        fill="none"
+      >
+        <path
+          d="M1200 0L1091.7 100C983.3 200 766.7 400 550 400C333.3 400 116.7 200 8.333 100L0 0V1200H1200V0Z"
+          fill="url(#gradient)"
+        />
+        <defs>
+          <linearGradient
+            id="gradient"
+            x1="0"
+            y1="0"
+            x2="1200"
+            y2="1200"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop stopColor="#4f46e5" />
+            <stop offset="1" stopColor="#0ea5e9" />
+          </linearGradient>
+        </defs>
+      </svg>
 
       {/* Toggle Dark/Light */}
       <button
@@ -150,7 +157,10 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
-          ¿Has olvidado la contraseña? <a href="#" className="underline">Recuperar contraseña</a>
+          ¿Has olvidado la contraseña?{" "}
+          <a href="#" className="underline">
+            Recuperar contraseña
+          </a>
         </p>
       </div>
     </main>

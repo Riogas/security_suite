@@ -1,5 +1,5 @@
 // src/lib/LoadingContext.tsx
-'use client';
+"use client";
 import { createContext, useState, useContext } from "react";
 
 const LoadingContext = createContext({
@@ -7,7 +7,11 @@ const LoadingContext = createContext({
   setLoading: (loading: boolean) => {},
 });
 
-export const LoadingProvider = ({ children }: { children: React.ReactNode }) => {
+export const LoadingProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [isLoading, setLoading] = useState(false);
 
   return (

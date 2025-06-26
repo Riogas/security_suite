@@ -17,7 +17,10 @@ export interface MenuItem {
 }
 
 // ✅ Función de login (mockeada por ahora)
-export const apiLogin = async (email: string, password: string): Promise<{ data: { success: boolean; user: User } }> => {
+export const apiLogin = async (
+  email: string,
+  password: string,
+): Promise<{ data: { success: boolean; user: User } }> => {
   // TODO: Descomentá esto cuando tengas backend
   // return api.post("/auth/login", { email, password });
 
@@ -35,7 +38,7 @@ export const apiLogin = async (email: string, password: string): Promise<{ data:
           },
         },
       });
-    }, 1000)
+    }, 1000),
   );
 };
 

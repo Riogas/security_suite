@@ -1,27 +1,56 @@
-'use client';
+"use client";
 
 import { useState } from "react";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectTrigger, SelectContent, SelectItem
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import {
-  Pagination, PaginationContent, PaginationItem,
-  PaginationPrevious, PaginationNext
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationPrevious,
+  PaginationNext,
 } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Pencil, Trash, Plus } from "lucide-react";
 
 const mockClients = [
-  { id: 1, name: "Julio Gómez", address: "Montevideo, Uruguay", phone: "099 123 456", status: "activo" },
-  { id: 2, name: "Laura Pérez", address: "Canelones, Uruguay", phone: "092 555 888", status: "pasivo" },
-  { id: 3, name: "Carlos Rodríguez", address: "Maldonado, Uruguay", phone: "098 111 222", status: "activo" },
+  {
+    id: 1,
+    name: "Julio Gómez",
+    address: "Montevideo, Uruguay",
+    phone: "099 123 456",
+    status: "activo",
+  },
+  {
+    id: 2,
+    name: "Laura Pérez",
+    address: "Canelones, Uruguay",
+    phone: "092 555 888",
+    status: "pasivo",
+  },
+  {
+    id: 3,
+    name: "Carlos Rodríguez",
+    address: "Maldonado, Uruguay",
+    phone: "098 111 222",
+    status: "activo",
+  },
 ];
 
 export default function ClientesPage() {
@@ -89,7 +118,9 @@ export default function ClientesPage() {
                   <TableCell>{client.phone}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={client.status === "activo" ? "secondary" : "destructive"}
+                      variant={
+                        client.status === "activo" ? "secondary" : "destructive"
+                      }
                       className={client.status === "pasivo" ? "opacity-70" : ""}
                     >
                       {client.status}
