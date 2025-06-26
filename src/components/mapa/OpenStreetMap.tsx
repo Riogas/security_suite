@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal"; // Importar componente Modal
 import { Crosshair, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button"; // si estás usando ShadCN
 import MapaModal from "./MapaModal";
+import MapaGoogle from "./MapaGoogle";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 
@@ -220,7 +221,7 @@ export default function OpenStreetMap({
 
   return (
     <>
-      <div className="relative w-full h-[300px]">
+      <div className="relative w-full h-[400px]">
         <div ref={mapRef} className="w-full h-full rounded-md shadow-md z-10" />
 
         {isLoading && direccion && (
@@ -239,13 +240,14 @@ export default function OpenStreetMap({
           className="absolute top-2 right-2 bg-blue-500 text-white px-4 py-2 rounded z-20"
           onClick={() => setIsModalOpen(true)}
         >
-          Ampliar Mapa
+          Utilizar Mapa
         </button>
       </div>
 
       {isModalOpen && (
         <Modal onClose={() => setIsModalOpen(false)}>
-          <MapaModal
+            <MapaGoogle />
+          {/*<MapaModal
             isManualLocationActive={isManualLocationActive}
             setIsManualLocationActive={setIsManualLocationActive}
             setIsModalOpen={setIsModalOpen}
@@ -258,7 +260,7 @@ export default function OpenStreetMap({
               }
               console.log('Datos confirmados:', data);
             }}
-          />
+          />*/}
         </Modal>
       )}
     </>
