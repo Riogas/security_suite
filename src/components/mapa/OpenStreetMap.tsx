@@ -19,7 +19,7 @@ L.Icon.Default.mergeOptions({
 });
 
 type Props = {
-  onChange?: (coords: { lat: string; lng: string }) => void;
+  onChange?: (coords: { lat: string; lng: string; address?: string; houseNumber?: string }) => void;
   departamento?: string;
   localidad?: string;
   direccion?: string;
@@ -64,24 +64,41 @@ export default function OpenStreetMap({
   }, []);
 
   useEffect(() => {
-    const updateMap = async () => {
-      if (!mapInstanceRef.current) return;
+    console.log('Ejecución de updateMap por cambio en:', {
+      departamento,
+      localidad,
+      direccion,
+      nroPuerta,
+      esquina1,
+      esquina2
+    });
 
-      const map = mapInstanceRef.current;
+    const updateMap = async () => {
+      console.log("Instancia del mapa:", mainMapInstanceRef.current);
+      if (!mainMapInstanceRef.current) return;
+
+      const map = mainMapInstanceRef.current;
       const safeDepartamento = departamento || "";
       const safeLocalidad = localidad || "";
       const safeDireccion = direccion || "";
       const safeNroPuerta = nroPuerta || "";
 
       // Si NO hay dirección, pero sí departamento o localidad → centrar el mapa, sin spinner ni status
+      console.log("Centrando mapa sin dirección:", safeDepartamento, safeLocalidad, safeDireccion);
       if (!safeDireccion && (safeDepartamento || safeLocalidad)) {
+        console.log("Centrando mapa en departamento/localidad:", safeDepartamento, safeLocalidad);
+        setIsLoading(false);
         const coords = getCoordinatesForDepartamento(
           safeDepartamento,
           safeLocalidad,
         );
         if (coords) {
           map.setView(coords, 13);
+          setStatusMessage(`Centrado en: ${safeDepartamento}${safeLocalidad ? ', ' + safeLocalidad : ''}`);
+        } else {
+          setStatusMessage('No se encontraron coordenadas para el departamento/localidad');
         }
+        setIsLoading(false);
         return;
       }
 
@@ -235,6 +252,12 @@ export default function OpenStreetMap({
             modalMapRef={modalMapRef}
             mapInstanceRef={mapInstanceRef}
             markerRef={markerRef}
+            onConfirm={(data) => {
+              if (onChange) {
+                onChange({ lat: data.lat.toString(), lng: data.lng.toString(), address: data.address, houseNumber: data.houseNumber });
+              }
+              console.log('Datos confirmados:', data);
+            }}
           />
         </Modal>
       )}
@@ -300,6 +323,9 @@ async function getCoordinatesForAddress(
 ): Promise<[number, number] | null> {
   try {
     const fullAddress = `${direccion} ${nroPuerta}, ${localidad || ""}, ${departamento}, Uruguay`;
+
+    console.log("Full address for geocoding:", fullAddress);
+
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`;
 
     const response = await fetch(url, { headers: { "Accept-Language": "es" } });
@@ -336,6 +362,14 @@ async function getCoordinatesForCorner(
   }
 }
 // Este componente utiliza OpenStreetMap y Leaflet para mostrar un mapa interactivo
+// Permite buscar direcciones, departamentos y localidades en Uruguay
+// También muestra polilíneas para calles y permite seleccionar ubicaciones con un marcador
+// Utiliza Overpass API para obtener datos de OpenStreetMap
+// Maneja estados de carga y mensajes de error de forma adecuada
+// Permite buscar direcciones, departamentos y localidades en Uruguay
+// También muestra polilíneas para calles y permite seleccionar ubicaciones con un marcador
+// Utiliza Overpass API para obtener datos de OpenStreetMap
+// Maneja estados de carga y mensajes de error de forma adecuadatrar un mapa interactivo
 // Permite buscar direcciones, departamentos y localidades en Uruguay
 // También muestra polilíneas para calles y permite seleccionar ubicaciones con un marcador
 // Utiliza Overpass API para obtener datos de OpenStreetMap

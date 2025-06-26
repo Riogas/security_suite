@@ -200,18 +200,11 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
               <Input placeholder="Observaciones" />
             </div>
             <div>
-              <Label>RUT o CI</Label>
-              <Input placeholder="0" />
-            </div>
-            <div>
               <Label>Email</Label>
               <Input placeholder="example@mail.com" />
             </div>
             {/* Tercera línea */}
-            <div>
-              <Label>GCI Nº</Label>
-              <Input placeholder="GCI Nº" />
-            </div>
+            
             <div>
               <Label>Tipo Cliente</Label>
               <Select>
@@ -338,10 +331,37 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                   onChange={(e) => setEsquina2(e.target.value)}
                 />
               </div>
+              <div className="md:col-span-3">
+                <Label>Latitud</Label>
+                <Input
+                  placeholder=""
+                  value={coords.lat}
+                  readOnly
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Label>Longitud</Label>
+                <Input
+                  placeholder=""
+                  value={coords.lng}
+                  readOnly
+                />
+              </div>
             </div>
             <div>
               <DynamicMapa
-                onChange={setCoords}
+                onChange={(data) => {
+                  if (data.address && data.address !== direccion) {
+                    setDireccion(data.address);
+                  }
+                  if (data.houseNumber && data.houseNumber !== nroPuerta) {
+                    setNroPuerta(data.houseNumber);
+                  }
+                  if (data.lat && data.lng) {
+                    setCoords({ lat: data.lat, lng: data.lng });
+                  }
+                  console.log("Datos recibidos del mapa:", data);
+                }}
                 departamento={selectedDepartamento}
                 localidad={selectedLocalidad || ""}
                 direccion={direccion}
@@ -352,6 +372,23 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
             </div>
           </CardContent>
         </CollapsibleCard>
+
+        {/* Observaciones */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Observaciones</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Obs. General</Label>
+              <Input placeholder="Observaciones varias" />
+            </div>
+            <div>
+              <Label>Obs. Comercial</Label>
+              <Input placeholder="Cliente moroso en 2023" />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Contacto */}
         <Card>
@@ -436,12 +473,20 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
           </CardContent>
         </Card>
 
-        {/* Clasificación */}
+        {/* Info Adicional */}
         <Card>
           <CardHeader>
-            <CardTitle>Clasificación</CardTitle>
+            <CardTitle>Información Adicional</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>RUT o CI</Label>
+              <Input placeholder="0" />
+            </div>
+            <div>
+              <Label>GCI Nº</Label>
+              <Input placeholder="GCI Nº" />
+            </div>
             <div>
               <Label>Tipo de cliente</Label>
               <Select>
@@ -462,31 +507,17 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
           </CardContent>
         </Card>
 
-        {/* Observaciones */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Observaciones</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Obs. General</Label>
-              <Input placeholder="Observaciones varias" />
-            </div>
-            <div>
-              <Label>Obs. Comercial</Label>
-              <Input placeholder="Cliente moroso en 2023" />
-            </div>
-          </CardContent>
-        </Card>
+         
       </div>
 
       <div className="col-span-1">
-        {/* Información Adicional */}
+        {/* Historial */}
         <Card>
           <CardHeader>
-            <CardTitle>Información Adicional</CardTitle>
+            <CardTitle>Historial</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            
             <div>
               <Label>Fecha Alta</Label>
               <Input value="22/04/2013 00:00" readOnly />
