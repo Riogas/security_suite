@@ -53,6 +53,13 @@ export default function OpenStreetMap({
   const [isModalOpen, setIsModalOpen] = useState(false); // Estado para el modal
   const [statusMessage, setStatusMessage] = useState("");
   const [isManualLocationActive, setIsManualLocationActive] = useState(false); // Estado para ubicación manual
+  const [formData, setFormData] = useState({
+    address: '',
+    houseNumber: '',
+    lat: '',
+    lng: '',
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (mapRef.current && !mainMapInstanceRef.current) {
@@ -246,21 +253,60 @@ export default function OpenStreetMap({
 
       {isModalOpen && (
         <Modal onClose={() => setIsModalOpen(false)}>
-            <MapaGoogle />
-          {/*<MapaModal
-            isManualLocationActive={isManualLocationActive}
-            setIsManualLocationActive={setIsManualLocationActive}
-            setIsModalOpen={setIsModalOpen}
-            modalMapRef={modalMapRef}
-            mapInstanceRef={mapInstanceRef}
-            markerRef={markerRef}
-            onConfirm={(data) => {
+            <MapaGoogle onLocationChange={(data: { address: string; houseNumber: string; lat: string; lng: string }) => {
+              setFormData({
+                address: data.address,
+                houseNumber: data.houseNumber,
+                lat: data.lat,
+                lng: data.lng,
+              });
+
+              console.log("Datos recibidos de MapaGoogle:", data);
+
               if (onChange) {
-                onChange({ lat: data.lat.toString(), lng: data.lng.toString(), address: data.address, houseNumber: data.houseNumber });
+                onChange(data);
               }
-              console.log('Datos confirmados:', data);
-            }}
-          />*/}
+            }} />
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 2 }}>
+              <label>Dirección:</label>
+              <input type="text" value={formData.address} readOnly style={{ width: '100%' }} />
+            </div>
+            <div style={{ flex: 1, display: 'flex', gap: '10px' }}>
+              <div>
+                <label>Latitud:</label>
+                <input type="text" value={formData.lat} readOnly style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label>Longitud:</label>
+                <input type="text" value={formData.lng} readOnly style={{ width: '100%' }} />
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => setIsModalOpen(false)}
+            >
+              <span>Volver</span>
+            </Button>
+            <Button
+              className="flex items-center gap-2"
+              onClick={() => {
+                setLoading(true);
+                setTimeout(() => {
+                  setLoading(false);
+                  setIsModalOpen(false);
+                }, 1000);
+              }}
+            >
+              <span>Confirmar</span>
+              {loading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-blue-500"></div>
+              )}
+            </Button>
+          </div>
         </Modal>
       )}
     </>
