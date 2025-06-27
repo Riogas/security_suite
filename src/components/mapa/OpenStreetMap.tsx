@@ -226,6 +226,61 @@ export default function OpenStreetMap({
     }
   }, [isModalOpen]); // Reaccionar al estado del modal
 
+  useEffect(() => {
+    if (!formData.address && formData.lat && formData.lng) {
+      const reverseGeocode = async () => {
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${formData.lat}&lon=${formData.lng}&addressdetails=1`
+          );
+          const data = await response.json();
+
+          const address = data.address.road || "Calle desconocida";
+          const houseNumber = data.address.house_number?.split(",")[0] || "";
+
+          setFormData((prev) => ({
+            ...prev,
+            address,
+            houseNumber,
+          }));
+
+          if (onChange) {
+            onChange({
+              lat: formData.lat,
+              lng: formData.lng,
+              address,
+              houseNumber,
+            });
+          }
+        } catch (error) {
+          console.error("Error en la geocodificación inversa:", error);
+        }
+      };
+
+      reverseGeocode();
+    }
+  }, [formData.lat, formData.lng, formData.address]);
+
+  const handleLocationChange = (data: { address: string; houseNumber: string; lat: string; lng: string }) => {
+    setFormData({
+      lat: data.lat,
+      lng: data.lng,
+      address: "", // No cargar dirección para permitir geocodificación inversa
+      houseNumber: "",
+    });
+
+    console.log("Datos recibidos de MapaGoogle:", data);
+
+    if (onChange) {
+      onChange({
+        lat: data.lat,
+        lng: data.lng,
+        address: "", // No pasar dirección para permitir geocodificación inversa
+        houseNumber: "",
+      });
+    }
+  };
+
   return (
     <>
       <div className="relative w-full h-[400px]">
@@ -253,20 +308,7 @@ export default function OpenStreetMap({
 
       {isModalOpen && (
         <Modal onClose={() => setIsModalOpen(false)}>
-            <MapaGoogle onLocationChange={(data: { address: string; houseNumber: string; lat: string; lng: string }) => {
-              setFormData({
-                address: data.address,
-                houseNumber: data.houseNumber,
-                lat: data.lat,
-                lng: data.lng,
-              });
-
-              console.log("Datos recibidos de MapaGoogle:", data);
-
-              if (onChange) {
-                onChange(data);
-              }
-            }} />
+            <MapaGoogle onLocationChange={handleLocationChange} />
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ flex: 2 }}>
               <label>Dirección:</label>

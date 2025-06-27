@@ -8,7 +8,16 @@ declare global {
   }
 }
 
-export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (data: { address: string; houseNumber: string; lat: string; lng: string }) => void }) {
+export default function MapaGoogle({
+  onLocationChange,
+}: {
+  onLocationChange?: (data: {
+    address: string;
+    houseNumber: string;
+    lat: string;
+    lng: string;
+  }) => void;
+}) {
   const mapRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const markerRef = useRef<any>(null);
@@ -22,7 +31,6 @@ export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (d
         window.google.maps.places &&
         typeof window.google.maps.Map === "function"
       ) {
-        // Google Maps está listo
         if (mapRef.current && searchBoxRef.current) {
           const map = new window.google.maps.Map(mapRef.current, {
             center: { lat: -34.9011, lng: -56.1645 },
@@ -58,14 +66,25 @@ export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (d
               draggable: true,
             });
 
-            const address = place.formatted_address || "Dirección no disponible";
+            const components = place.address_components || [];
+            const street = components.find((c: any) =>
+              c.types.includes("route")
+            )?.long_name || "";
+            const houseNumber = components.find((c: any) =>
+              c.types.includes("street_number")
+            )?.long_name || "";
+
+            const address = houseNumber
+              ? `${street} ${houseNumber}`
+              : place.formatted_address || "Dirección no disponible";
+
             const lat = place.geometry.location.lat().toString();
             const lng = place.geometry.location.lng().toString();
 
             console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
 
             if (onLocationChange) {
-              onLocationChange({ address, houseNumber: "", lat, lng });
+              onLocationChange({ address, houseNumber, lat, lng });
             }
           });
 
@@ -83,14 +102,25 @@ export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (d
             const geocoder = new window.google.maps.Geocoder();
             geocoder.geocode({ location: e.latLng }, (results: any, status: string) => {
               if (status === "OK" && results[0]) {
-                const address = results[0].formatted_address;
+                const components = results[0].address_components || [];
+                const street = components.find((c: any) =>
+                  c.types.includes("route")
+                )?.long_name || "";
+                const houseNumber = components.find((c: any) =>
+                  c.types.includes("street_number")
+                )?.long_name || "";
+
+                const address = houseNumber
+                  ? `${street} ${houseNumber}`
+                  : results[0].formatted_address || "Dirección no disponible";
+
                 const lat = e.latLng.lat().toString();
                 const lng = e.latLng.lng().toString();
 
                 console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
 
                 if (onLocationChange) {
-                  onLocationChange({ address, houseNumber: "", lat, lng });
+                  onLocationChange({ address, houseNumber, lat, lng });
                 }
               } else {
                 console.log("No se pudo obtener la dirección");
@@ -99,48 +129,41 @@ export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (d
           });
         }
       } else {
-        // Volver a intentar si aún no está listo
         setTimeout(waitForGoogle, 50);
       }
     };
 
-    const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
-    if (existingScript) {
-      console.log("Google Maps API ya está cargada.");
+    // ✅ Carga condicional del script
+    if (
+      typeof window.google === "undefined" ||
+      typeof window.google.maps === "undefined"
+    ) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        console.log("Google Maps API cargada correctamente.");
+        waitForGoogle();
+      };
+      script.onerror = () => {
+        console.error("Error al cargar el script de Google Maps API.");
+      };
+      document.body.appendChild(script);
+    } else {
       waitForGoogle();
-      return;
     }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-
-    script.onload = () => {
-      console.log("Google Maps API cargada correctamente.");
-      waitForGoogle();
-    };
-
-    script.onerror = () => {
-      console.error("Error al cargar el script de Google Maps API.");
-    };
-
-    document.body.appendChild(script);
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    };
   }, []);
 
   return (
     <div style={{ width: "100%" }}>
-      {/* Input fuera del mapa */}
+      {/* Input de búsqueda */}
       <div style={{ marginTop: "13px" }}>
         <input
-            ref={searchBoxRef}
-            type="text"
-            placeholder="búsqueda"
-            style={{
+          ref={searchBoxRef}
+          type="text"
+          placeholder="búsqueda"
+          style={{
             width: "100%",
             maxWidth: "400px",
             padding: "8px",
@@ -150,10 +173,9 @@ export default function MapaGoogle({ onLocationChange }: { onLocationChange?: (d
             fontSize: "14px",
             color: "#000",
             top: "10px !important",
-            }}
+          }}
         />
-        </div>
-
+      </div>
 
       {/* Mapa */}
       <div
