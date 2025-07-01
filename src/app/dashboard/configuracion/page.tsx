@@ -15,12 +15,60 @@ import Calles from "@/components/configuracion/Calles";
 export default function ConfiguracionPage() {
   return (
     <div className="p-4">
-      <Tabs defaultValue="departamentos" className="w-full">
+      <Tabs defaultValue="usuarios" className="w-full">
         <TabsList>
+          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="permisos">Permisos</TabsTrigger>
           <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
           <TabsTrigger value="localidades">Localidades</TabsTrigger>
           <TabsTrigger value="calles">Calles</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="usuarios">
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios</CardTitle>
+              <CardDescription>Administración de usuarios.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Usuarios</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Usuarios</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <Card>
+            <CardHeader>
+              <CardTitle>Roles</CardTitle>
+              <CardDescription>Administración de roles.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Roles</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Roles</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permisos">
+          <Card>
+            <CardHeader>
+              <CardTitle>Permisos</CardTitle>
+              <CardDescription>Administración de permisos.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Permisos</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Permisos</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="departamentos">
           <Card>
