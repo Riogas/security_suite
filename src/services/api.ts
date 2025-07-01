@@ -116,4 +116,70 @@ export const sendLocalidadToService = async (localidad: any) => {
   }
 };
 
+// Nueva función para importar calles
+export const importarCalles = async (departamento: string, localidad: string) => {
+  try {
+    const overpassQuery = `
+      [out:json][timeout:25];
+      area["name"="Uruguay"]["admin_level"="2"]->.country;
+      area["name"="${departamento}"]["admin_level"="4"](area.country)->.depArea;
+      area["name"="${localidad}"]["admin_level"="8"](area.depArea)->.searchArea;
+      (
+        way["highway"]["name"](area.searchArea);
+      );
+      out tags;
+    `;
+    const response = await api.post(
+      "https://overpass-api.de/api/interpreter",
+      overpassQuery,
+      {
+        headers: { "Content-Type": "text/plain" },
+      },
+    );
+    // Unificar calles por nombre
+    const uniqueStreets = Array.from(
+      new Map(
+        response.data.elements.map((way: any) => [
+          way.tags.name,
+          { name: way.tags.name, old_name: way.tags.old_name || "N/A" },
+        ]),
+      ).values(),
+    );
+    return uniqueStreets;
+  } catch (error) {
+    console.error("Error al obtener calles desde Overpass:", error);
+    throw error;
+  }
+};
+
+// Nueva función para importar departamentos
+export const importarDepartamentos = async () => {
+  try {
+    const overpassQuery = `
+      [out:json][timeout:25];
+      area["name"="Uruguay"]["admin_level"="2"]->.searchArea;
+      relation["admin_level"="4"]["boundary"="administrative"](area.searchArea);
+      out body;
+    `;
+    const response = await api.post(
+      "https://overpass-api.de/api/interpreter",
+      overpassQuery,
+      {
+        headers: { "Content-Type": "text/plain" },
+      },
+    );
+    return response.data.elements.map((rel: any) => ({
+      name: rel.tags.name,
+      osm_id: rel.id,
+      admin_level: rel.tags.admin_level,
+      type: rel.tags.type,
+      boundary: rel.tags.boundary,
+      // Puedes agregar más campos si los necesitas
+    }));
+  } catch (error) {
+    console.error("Error al obtener departamentos desde Overpass:", error);
+    throw error;
+  }
+};
+
 

@@ -6,7 +6,7 @@ import ImportCallesModal from "@/components/modals/ImportCallesModal";
 
 const departamentos = ["Montevideo", "Canelones", "Maldonado"];
 const localidadesPorDepartamento: Record<string, string[]> = {
-  Montevideo: ["Centro", "Ciudad Vieja", "Pocitos"],
+  Montevideo: ["Montevideo", "Ciudad Vieja", "Pocitos"],
   Canelones: ["Las Piedras", "La Paz", "Pando"],
   Maldonado: ["Maldonado", "Punta del Este", "San Carlos"],
 };

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -21,8 +21,19 @@ export default function ImportLocalidadesModal({ isOpen, onClose, departamentos 
   const [localidadesPreview, setLocalidadesPreview] = useState<any[]>([]);
   const [tipoFiltro, setTipoFiltro] = useState<string[]>([]);
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
-  const [seleccionados, setSeleccionados] = useState<number[]>([]); // Usar índice como key
+  const [seleccionados, setSeleccionados] = useState<string[]>([]); // Usar name como identificador único
   const [nombreSearch, setNombreSearch] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setDepartamento("");
+      setLocalidadesPreview([]);
+      setTipoFiltro([]);
+      setNombreFiltro([]);
+      setSeleccionados([]);
+      setNombreSearch("");
+    }
+  }, [isOpen]);
 
   const importar = async () => {
     if (!departamento) {
@@ -48,6 +59,7 @@ export default function ImportLocalidadesModal({ isOpen, onClose, departamentos 
       return;
     }
     setConsultaLoading(true);
+    toast("Consultando localidades desde Overpass...");
     try {
       const data: { name: string; place: string; lat: number; lon: number }[] = await importarLocalidades(departamento);
       setLocalidadesPreview(data.map((loc) => ({
@@ -83,17 +95,22 @@ export default function ImportLocalidadesModal({ isOpen, onClose, departamentos 
   ).slice(0, 20);
 
   // Selección de filas
-  const allSelected = localidadesFiltradas.length > 0 && seleccionados.length === localidadesFiltradas.length;
+  const allSelected = localidadesFiltradas.length > 0 && localidadesFiltradas.every((loc) => seleccionados.includes(loc.name));
   const toggleSelectAll = () => {
     if (allSelected) {
-      setSeleccionados([]);
+      setSeleccionados(seleccionados.filter((name) => !localidadesFiltradas.some((loc) => loc.name === name)));
     } else {
-      setSeleccionados(localidadesFiltradas.map((_, idx) => idx));
+      setSeleccionados([
+        ...seleccionados,
+        ...localidadesFiltradas
+          .map((loc) => loc.name)
+          .filter((name) => !seleccionados.includes(name)),
+      ]);
     }
   };
-  const toggleSelectOne = (idx: number) => {
+  const toggleSelectOne = (name: string) => {
     setSeleccionados((prev) =>
-      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   };
 
@@ -200,11 +217,11 @@ export default function ImportLocalidadesModal({ isOpen, onClose, departamentos 
               </TableHeader>
               <TableBody>
                 {localidadesFiltradas.map((loc, idx) => (
-                  <TableRow key={idx}>
+                  <TableRow key={loc.name}>
                     <TableCell className="text-center">
                       <Checkbox
-                        checked={seleccionados.includes(idx)}
-                        onCheckedChange={() => toggleSelectOne(idx)}
+                        checked={seleccionados.includes(loc.name)}
+                        onCheckedChange={() => toggleSelectOne(loc.name)}
                       />
                     </TableCell>
                     <TableCell>{loc.name}</TableCell>
