@@ -11,6 +11,9 @@ import {
 import Departamentos from "@/components/configuracion/Departamentos";
 import Localidades from "@/components/configuracion/Localidades";
 import Calles from "@/components/configuracion/Calles";
+import Usuarios from "@/components/configuracion/Usuarios";
+import Roles from "@/components/configuracion/Roles";
+import Permisos from "@/components/configuracion/Permisos";
 
 export default function ConfiguracionPage() {
   return (
@@ -32,7 +35,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de usuarios.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Usuarios</div>
+              <Usuarios />
             </CardContent>
             <CardFooter>
               <div>Footer de Usuarios</div>
@@ -47,7 +50,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de roles.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Roles</div>
+              <Roles />
             </CardContent>
             <CardFooter>
               <div>Footer de Roles</div>
@@ -62,7 +65,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de permisos.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Permisos</div>
+              <Permisos />
             </CardContent>
             <CardFooter>
               <div>Footer de Permisos</div>
