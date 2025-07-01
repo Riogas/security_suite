@@ -153,7 +153,8 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
     },
     {
       target: ".tour-mapa",
-      content: "Aquí puedes ubicar al cliente en el mapa y ajustar la ubicación.",
+      content:
+        "Aquí puedes ubicar al cliente en el mapa y ajustar la ubicación.",
     },
     {
       target: ".tour-latitud",

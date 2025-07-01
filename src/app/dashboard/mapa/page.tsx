@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import React, { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
@@ -25,10 +25,17 @@ export default function MapaZonificacionOSM() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined" && mapRef.current && !mapInstance.current) {
+    if (
+      typeof window !== "undefined" &&
+      mapRef.current &&
+      !mapInstance.current
+    ) {
       const L = require("leaflet");
 
-      mapInstance.current = L.map(mapRef.current).setView([-34.9011, -56.1645], 13);
+      mapInstance.current = L.map(mapRef.current).setView(
+        [-34.9011, -56.1645],
+        13,
+      );
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:

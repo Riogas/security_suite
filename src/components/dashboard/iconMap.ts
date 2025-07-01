@@ -122,7 +122,7 @@ import {
   Award,
   Trophy,
   Flag,
-  Anchor
+  Anchor,
 } from "lucide-react";
 
 export const iconMap = {
@@ -248,5 +248,5 @@ export const iconMap = {
   package: Package,
   truck: Truck,
   "file-text": FileText,
-  list: List
+  list: List,
 };

@@ -77,7 +77,9 @@ export default function ConfiguracionPage() {
           <Card>
             <CardHeader>
               <CardTitle>Departamentos</CardTitle>
-              <CardDescription>Administración de departamentos.</CardDescription>
+              <CardDescription>
+                Administración de departamentos.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Departamentos />

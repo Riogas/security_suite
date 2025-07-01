@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,10 @@ export default function Departamentos() {
           Importar
         </Button>
       </div>
-      <ImportDepartamentosModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <ImportDepartamentosModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
       <div>Contenido de Departamentos</div>
     </div>
   );

@@ -39,8 +39,12 @@ export default function MapaGoogle({
 
           mapInstance.current = map;
 
-          const searchBox = new window.google.maps.places.SearchBox(searchBoxRef.current);
-          map.controls[window.google.maps.ControlPosition.TOP_LEFT].push(searchBoxRef.current);
+          const searchBox = new window.google.maps.places.SearchBox(
+            searchBoxRef.current,
+          );
+          map.controls[window.google.maps.ControlPosition.TOP_LEFT].push(
+            searchBoxRef.current,
+          );
 
           map.addListener("bounds_changed", () => {
             searchBox.setBounds(map.getBounds());
@@ -67,12 +71,12 @@ export default function MapaGoogle({
             });
 
             const components = place.address_components || [];
-            const street = components.find((c: any) =>
-              c.types.includes("route")
-            )?.long_name || "";
-            const houseNumber = components.find((c: any) =>
-              c.types.includes("street_number")
-            )?.long_name || "";
+            const street =
+              components.find((c: any) => c.types.includes("route"))
+                ?.long_name || "";
+            const houseNumber =
+              components.find((c: any) => c.types.includes("street_number"))
+                ?.long_name || "";
 
             const address = houseNumber
               ? `${street} ${houseNumber}`
@@ -81,7 +85,9 @@ export default function MapaGoogle({
             const lat = place.geometry.location.lat().toString();
             const lng = place.geometry.location.lng().toString();
 
-            console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
+            console.log(
+              `Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`,
+            );
 
             if (onLocationChange) {
               onLocationChange({ address, houseNumber, lat, lng });
@@ -100,32 +106,38 @@ export default function MapaGoogle({
             });
 
             const geocoder = new window.google.maps.Geocoder();
-            geocoder.geocode({ location: e.latLng }, (results: any, status: string) => {
-              if (status === "OK" && results[0]) {
-                const components = results[0].address_components || [];
-                const street = components.find((c: any) =>
-                  c.types.includes("route")
-                )?.long_name || "";
-                const houseNumber = components.find((c: any) =>
-                  c.types.includes("street_number")
-                )?.long_name || "";
+            geocoder.geocode(
+              { location: e.latLng },
+              (results: any, status: string) => {
+                if (status === "OK" && results[0]) {
+                  const components = results[0].address_components || [];
+                  const street =
+                    components.find((c: any) => c.types.includes("route"))
+                      ?.long_name || "";
+                  const houseNumber =
+                    components.find((c: any) =>
+                      c.types.includes("street_number"),
+                    )?.long_name || "";
 
-                const address = houseNumber
-                  ? `${street} ${houseNumber}`
-                  : results[0].formatted_address || "Dirección no disponible";
+                  const address = houseNumber
+                    ? `${street} ${houseNumber}`
+                    : results[0].formatted_address || "Dirección no disponible";
 
-                const lat = e.latLng.lat().toString();
-                const lng = e.latLng.lng().toString();
+                  const lat = e.latLng.lat().toString();
+                  const lng = e.latLng.lng().toString();
 
-                console.log(`Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`);
+                  console.log(
+                    `Dirección: ${address}, Latitud: ${lat}, Longitud: ${lng}`,
+                  );
 
-                if (onLocationChange) {
-                  onLocationChange({ address, houseNumber, lat, lng });
+                  if (onLocationChange) {
+                    onLocationChange({ address, houseNumber, lat, lng });
+                  }
+                } else {
+                  console.log("No se pudo obtener la dirección");
                 }
-              } else {
-                console.log("No se pudo obtener la dirección");
-              }
-            });
+              },
+            );
           });
         }
       } else {

@@ -1,10 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { importarCalles } from "@/services/api";
 
@@ -15,7 +37,12 @@ interface ImportCallesModalProps {
   localidadesPorDepartamento: Record<string, string[]>;
 }
 
-export default function ImportCallesModal({ isOpen, onClose, departamentos, localidadesPorDepartamento }: ImportCallesModalProps) {
+export default function ImportCallesModal({
+  isOpen,
+  onClose,
+  departamentos,
+  localidadesPorDepartamento,
+}: ImportCallesModalProps) {
   const [departamento, setDepartamento] = useState("");
   const [localidad, setLocalidad] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,28 +56,43 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(callesPreview.map((c) => c.name)));
-  const nombresFiltrados = nombresUnicos.filter((nombre) =>
-    nombre.toLowerCase().includes(nombreSearch.toLowerCase())
-  ).slice(0, 20);
+  const nombresFiltrados = nombresUnicos
+    .filter((nombre) =>
+      nombre.toLowerCase().includes(nombreSearch.toLowerCase()),
+    )
+    .slice(0, 20);
 
   // Nombres antiguos únicos filtrados por búsqueda y paginados de a 20
-  const oldNamesUnicos = Array.from(new Set(callesPreview.map((c) => c.old_name)));
-  const oldNamesFiltrados = oldNamesUnicos.filter((oldName) =>
-    oldName && oldName.toLowerCase().includes(oldNameSearch.toLowerCase())
-  ).slice(0, 20);
+  const oldNamesUnicos = Array.from(
+    new Set(callesPreview.map((c) => c.old_name)),
+  );
+  const oldNamesFiltrados = oldNamesUnicos
+    .filter(
+      (oldName) =>
+        oldName && oldName.toLowerCase().includes(oldNameSearch.toLowerCase()),
+    )
+    .slice(0, 20);
 
   // Filtrado de calles por nombre y nombre antiguo
   const callesFiltradas = callesPreview.filter((c) => {
-    const nombreOk = nombreFiltro.length > 0 ? nombreFiltro.includes(c.name) : true;
-    const oldNameOk = oldNameFiltro.length > 0 ? oldNameFiltro.includes(c.old_name) : true;
+    const nombreOk =
+      nombreFiltro.length > 0 ? nombreFiltro.includes(c.name) : true;
+    const oldNameOk =
+      oldNameFiltro.length > 0 ? oldNameFiltro.includes(c.old_name) : true;
     return nombreOk && oldNameOk;
   });
 
   // Selección de filas
-  const allSelected = callesFiltradas.length > 0 && callesFiltradas.every((c) => seleccionados.includes(c.name));
+  const allSelected =
+    callesFiltradas.length > 0 &&
+    callesFiltradas.every((c) => seleccionados.includes(c.name));
   const toggleSelectAll = () => {
     if (allSelected) {
-      setSeleccionados(seleccionados.filter((name) => !callesFiltradas.some((c) => c.name === name)));
+      setSeleccionados(
+        seleccionados.filter(
+          (name) => !callesFiltradas.some((c) => c.name === name),
+        ),
+      );
     } else {
       setSeleccionados([
         ...seleccionados,
@@ -62,7 +104,7 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
   };
   const toggleSelectOne = (name: string) => {
     setSeleccionados((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
   };
 
@@ -109,7 +151,9 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
       onClose();
     } catch (error: any) {
       console.error("Error importando calles:", error.message);
-      toast.error("Error al importar calles. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al importar calles. Consulte la consola para más detalles.",
+      );
     } finally {
       setLoading(false);
     }
@@ -133,13 +177,17 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
       }
     } catch (error: any) {
       console.error("Error consultando calles:", error.message);
-      toast.error("Error al consultar calles. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al consultar calles. Consulte la consola para más detalles.",
+      );
     } finally {
       setConsultaLoading(false);
     }
   };
 
-  const localidades = departamento ? localidadesPorDepartamento[departamento] || [] : [];
+  const localidades = departamento
+    ? localidadesPorDepartamento[departamento] || []
+    : [];
 
   useEffect(() => {
     if (isOpen) {
@@ -159,32 +207,64 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
           <DialogTitle>Importar Calles</DialogTitle>
         </DialogHeader>
         <div className="flex flex-row gap-4 items-center mb-2">
-          <Select value={departamento} onValueChange={value => { setDepartamento(value); setLocalidad(""); }}>
-            <SelectTrigger>{departamento || "Seleccione un departamento"}</SelectTrigger>
+          <Select
+            value={departamento}
+            onValueChange={(value) => {
+              setDepartamento(value);
+              setLocalidad("");
+            }}
+          >
+            <SelectTrigger>
+              {departamento || "Seleccione un departamento"}
+            </SelectTrigger>
             <SelectContent>
               {departamentos.map((dep) => (
-                <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                <SelectItem key={dep} value={dep}>
+                  {dep}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select value={localidad} onValueChange={setLocalidad} disabled={!departamento}>
-            <SelectTrigger>{localidad || (departamento ? "Seleccione una localidad" : "Seleccione un departamento primero")}</SelectTrigger>
+          <Select
+            value={localidad}
+            onValueChange={setLocalidad}
+            disabled={!departamento}
+          >
+            <SelectTrigger>
+              {localidad ||
+                (departamento
+                  ? "Seleccione una localidad"
+                  : "Seleccione un departamento primero")}
+            </SelectTrigger>
             <SelectContent>
               {localidades.map((loc) => (
-                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                <SelectItem key={loc} value={loc}>
+                  {loc}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-4">
           <div className="flex gap-2">
-            <Button onClick={consultar} disabled={consultaLoading || !departamento || !localidad} variant="secondary">
+            <Button
+              onClick={consultar}
+              disabled={consultaLoading || !departamento || !localidad}
+              variant="secondary"
+            >
               {consultaLoading ? "Consultando..." : "Consultar"}
             </Button>
-            <Button onClick={importar} disabled={loading || !departamento || !localidad}>
+            <Button
+              onClick={importar}
+              disabled={loading || !departamento || !localidad}
+            >
               {loading ? "Importando..." : "Importar"}
             </Button>
-            <Button variant="outline" onClick={onClose} disabled={loading || consultaLoading}>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={loading || consultaLoading}
+            >
               Cancelar
             </Button>
           </div>
@@ -195,31 +275,39 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10 text-center">
-                    <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                    />
                   </TableHead>
                   <TableHead className="w-1/2">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm">Nombre ▾</Button>
+                        <Button variant="ghost" size="sm">
+                          Nombre ▾
+                        </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-64 max-h-96 overflow-auto">
                         <input
                           type="text"
                           placeholder="Buscar nombre..."
                           value={nombreSearch}
-                          onChange={e => setNombreSearch(e.target.value)}
+                          onChange={(e) => setNombreSearch(e.target.value)}
                           className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
                         />
                         <div className="flex flex-col gap-1">
                           {nombresFiltrados.map((nombre) => (
-                            <label key={nombre} className="flex items-center gap-2 cursor-pointer">
+                            <label
+                              key={nombre}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
                               <Checkbox
                                 checked={nombreFiltro.includes(nombre)}
                                 onCheckedChange={(checked) => {
                                   setNombreFiltro((prev) =>
                                     checked
                                       ? [...prev, nombre]
-                                      : prev.filter((n) => n !== nombre)
+                                      : prev.filter((n) => n !== nombre),
                                   );
                                 }}
                               />
@@ -227,7 +315,9 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
                             </label>
                           ))}
                           {nombresFiltrados.length === 0 && (
-                            <span className="text-xs text-muted-foreground">Sin resultados</span>
+                            <span className="text-xs text-muted-foreground">
+                              Sin resultados
+                            </span>
                           )}
                         </div>
                       </PopoverContent>
@@ -236,26 +326,31 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
                   <TableHead className="w-1/2">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm">Nombre Antiguo ▾</Button>
+                        <Button variant="ghost" size="sm">
+                          Nombre Antiguo ▾
+                        </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-64 max-h-96 overflow-auto">
                         <input
                           type="text"
                           placeholder="Buscar nombre antiguo..."
                           value={oldNameSearch}
-                          onChange={e => setOldNameSearch(e.target.value)}
+                          onChange={(e) => setOldNameSearch(e.target.value)}
                           className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
                         />
                         <div className="flex flex-col gap-1">
                           {oldNamesFiltrados.map((oldName) => (
-                            <label key={oldName} className="flex items-center gap-2 cursor-pointer">
+                            <label
+                              key={oldName}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
                               <Checkbox
                                 checked={oldNameFiltro.includes(oldName)}
                                 onCheckedChange={(checked) => {
                                   setOldNameFiltro((prev) =>
                                     checked
                                       ? [...prev, oldName]
-                                      : prev.filter((n) => n !== oldName)
+                                      : prev.filter((n) => n !== oldName),
                                   );
                                 }}
                               />
@@ -263,7 +358,9 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
                             </label>
                           ))}
                           {oldNamesFiltrados.length === 0 && (
-                            <span className="text-xs text-muted-foreground">Sin resultados</span>
+                            <span className="text-xs text-muted-foreground">
+                              Sin resultados
+                            </span>
                           )}
                         </div>
                       </PopoverContent>

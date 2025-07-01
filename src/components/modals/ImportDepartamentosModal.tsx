@@ -1,10 +1,27 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { importarDepartamentos } from "@/services/api";
 import { toast } from "sonner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface ImportDepartamentosModalProps {
@@ -12,7 +29,10 @@ interface ImportDepartamentosModalProps {
   onClose: () => void;
 }
 
-export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepartamentosModalProps) {
+export default function ImportDepartamentosModal({
+  isOpen,
+  onClose,
+}: ImportDepartamentosModalProps) {
   const [departamentos, setDepartamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [consultaLoading, setConsultaLoading] = useState(false);
@@ -22,21 +42,30 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(departamentos.map((d) => d.name)));
-  const nombresFiltrados = nombresUnicos.filter((nombre) =>
-    nombre.toLowerCase().includes(nombreSearch.toLowerCase())
-  ).slice(0, 20);
+  const nombresFiltrados = nombresUnicos
+    .filter((nombre) =>
+      nombre.toLowerCase().includes(nombreSearch.toLowerCase()),
+    )
+    .slice(0, 20);
 
   // Filtrado de departamentos por nombre
   const departamentosFiltrados = departamentos.filter((d, idx) => {
-    const nombreOk = nombreFiltro.length > 0 ? nombreFiltro.includes(d.name) : true;
+    const nombreOk =
+      nombreFiltro.length > 0 ? nombreFiltro.includes(d.name) : true;
     return nombreOk;
   });
 
   // Selección de filas
-  const allSelected = departamentosFiltrados.length > 0 && departamentosFiltrados.every((dep) => seleccionados.includes(dep.name));
+  const allSelected =
+    departamentosFiltrados.length > 0 &&
+    departamentosFiltrados.every((dep) => seleccionados.includes(dep.name));
   const toggleSelectAll = () => {
     if (allSelected) {
-      setSeleccionados(seleccionados.filter((name) => !departamentosFiltrados.some((dep) => dep.name === name)));
+      setSeleccionados(
+        seleccionados.filter(
+          (name) => !departamentosFiltrados.some((dep) => dep.name === name),
+        ),
+      );
     } else {
       setSeleccionados([
         ...seleccionados,
@@ -48,7 +77,7 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
   };
   const toggleSelectOne = (name: string) => {
     setSeleccionados((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
     );
   };
 
@@ -63,7 +92,9 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
       }
     } catch (error: any) {
       console.error("Error consultando departamentos:", error.message);
-      toast.error("Error al consultar departamentos. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al consultar departamentos. Consulte la consola para más detalles.",
+      );
     } finally {
       setConsultaLoading(false);
     }
@@ -86,10 +117,18 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
           <DialogTitle>Importar Departamentos</DialogTitle>
         </DialogHeader>
         <div className="flex gap-2 mt-2">
-          <Button onClick={consultar} disabled={consultaLoading} variant="secondary">
+          <Button
+            onClick={consultar}
+            disabled={consultaLoading}
+            variant="secondary"
+          >
             {consultaLoading ? "Consultando..." : "Consultar"}
           </Button>
-          <Button variant="outline" onClick={onClose} disabled={consultaLoading}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={consultaLoading}
+          >
             Cancelar
           </Button>
         </div>
@@ -99,31 +138,39 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10 text-center">
-                    <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                    />
                   </TableHead>
                   <TableHead className="w-1/3">
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm">Nombre ▾</Button>
+                        <Button variant="ghost" size="sm">
+                          Nombre ▾
+                        </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-64 max-h-96 overflow-auto">
                         <input
                           type="text"
                           placeholder="Buscar nombre..."
                           value={nombreSearch}
-                          onChange={e => setNombreSearch(e.target.value)}
+                          onChange={(e) => setNombreSearch(e.target.value)}
                           className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
                         />
                         <div className="flex flex-col gap-1">
                           {nombresFiltrados.map((nombre) => (
-                            <label key={nombre} className="flex items-center gap-2 cursor-pointer">
+                            <label
+                              key={nombre}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
                               <Checkbox
                                 checked={nombreFiltro.includes(nombre)}
                                 onCheckedChange={(checked) => {
                                   setNombreFiltro((prev) =>
                                     checked
                                       ? [...prev, nombre]
-                                      : prev.filter((n) => n !== nombre)
+                                      : prev.filter((n) => n !== nombre),
                                   );
                                 }}
                               />
@@ -131,7 +178,9 @@ export default function ImportDepartamentosModal({ isOpen, onClose }: ImportDepa
                             </label>
                           ))}
                           {nombresFiltrados.length === 0 && (
-                            <span className="text-xs text-muted-foreground">Sin resultados</span>
+                            <span className="text-xs text-muted-foreground">
+                              Sin resultados
+                            </span>
                           )}
                         </div>
                       </PopoverContent>

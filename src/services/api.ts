@@ -52,7 +52,11 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       { label: "Pedidos", icon: "package", path: "/dashboard/pedidos" },
       { label: "Moviles", icon: "truck", path: "/dashboard/moviles" },
       { label: "Zonas", icon: "map", path: "/dashboard/mapa" },
-      { label: "Configuración", icon: "settings", path: "/dashboard/configuracion" },
+      {
+        label: "Configuración",
+        icon: "settings",
+        path: "/dashboard/configuracion",
+      },
       { label: "Reportes", icon: "bar-chart", path: "/dashboard/reportes" },
       { label: "Perfil", icon: "user", path: "/dashboard/perfil" },
     ],
@@ -117,7 +121,10 @@ export const sendLocalidadToService = async (localidad: any) => {
 };
 
 // Nueva función para importar calles
-export const importarCalles = async (departamento: string, localidad: string) => {
+export const importarCalles = async (
+  departamento: string,
+  localidad: string,
+) => {
   try {
     const overpassQuery = `
       [out:json][timeout:25];
@@ -181,5 +188,3 @@ export const importarDepartamentos = async () => {
     throw error;
   }
 };
-
-

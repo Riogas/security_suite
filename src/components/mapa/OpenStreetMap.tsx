@@ -20,7 +20,12 @@ L.Icon.Default.mergeOptions({
 });
 
 type Props = {
-  onChange?: (coords: { lat: string; lng: string; address?: string; houseNumber?: string }) => void;
+  onChange?: (coords: {
+    lat: string;
+    lng: string;
+    address?: string;
+    houseNumber?: string;
+  }) => void;
   departamento?: string;
   localidad?: string;
   direccion?: string;
@@ -54,10 +59,10 @@ export default function OpenStreetMap({
   const [statusMessage, setStatusMessage] = useState("");
   const [isManualLocationActive, setIsManualLocationActive] = useState(false); // Estado para ubicación manual
   const [formData, setFormData] = useState({
-    address: '',
-    houseNumber: '',
-    lat: '',
-    lng: '',
+    address: "",
+    houseNumber: "",
+    lat: "",
+    lng: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -72,13 +77,13 @@ export default function OpenStreetMap({
   }, []);
 
   useEffect(() => {
-    console.log('Ejecución de updateMap por cambio en:', {
+    console.log("Ejecución de updateMap por cambio en:", {
       departamento,
       localidad,
       direccion,
       nroPuerta,
       esquina1,
-      esquina2
+      esquina2,
     });
 
     const updateMap = async () => {
@@ -92,9 +97,18 @@ export default function OpenStreetMap({
       const safeNroPuerta = nroPuerta || "";
 
       // Si NO hay dirección, pero sí departamento o localidad → centrar el mapa, sin spinner ni status
-      console.log("Centrando mapa sin dirección:", safeDepartamento, safeLocalidad, safeDireccion);
+      console.log(
+        "Centrando mapa sin dirección:",
+        safeDepartamento,
+        safeLocalidad,
+        safeDireccion,
+      );
       if (!safeDireccion && (safeDepartamento || safeLocalidad)) {
-        console.log("Centrando mapa en departamento/localidad:", safeDepartamento, safeLocalidad);
+        console.log(
+          "Centrando mapa en departamento/localidad:",
+          safeDepartamento,
+          safeLocalidad,
+        );
         setIsLoading(false);
         const coords = getCoordinatesForDepartamento(
           safeDepartamento,
@@ -102,9 +116,13 @@ export default function OpenStreetMap({
         );
         if (coords) {
           map.setView(coords, 13);
-          setStatusMessage(`Centrado en: ${safeDepartamento}${safeLocalidad ? ', ' + safeLocalidad : ''}`);
+          setStatusMessage(
+            `Centrado en: ${safeDepartamento}${safeLocalidad ? ", " + safeLocalidad : ""}`,
+          );
         } else {
-          setStatusMessage('No se encontraron coordenadas para el departamento/localidad');
+          setStatusMessage(
+            "No se encontraron coordenadas para el departamento/localidad",
+          );
         }
         setIsLoading(false);
         return;
@@ -231,7 +249,7 @@ export default function OpenStreetMap({
       const reverseGeocode = async () => {
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${formData.lat}&lon=${formData.lng}&addressdetails=1`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${formData.lat}&lon=${formData.lng}&addressdetails=1`,
           );
           const data = await response.json();
 
@@ -261,7 +279,12 @@ export default function OpenStreetMap({
     }
   }, [formData.lat, formData.lng, formData.address]);
 
-  const handleLocationChange = (data: { address: string; houseNumber: string; lat: string; lng: string }) => {
+  const handleLocationChange = (data: {
+    address: string;
+    houseNumber: string;
+    lat: string;
+    lng: string;
+  }) => {
     setFormData({
       lat: data.lat,
       lng: data.lng,
@@ -308,24 +331,46 @@ export default function OpenStreetMap({
 
       {isModalOpen && (
         <Modal onClose={() => setIsModalOpen(false)}>
-            <MapaGoogle onLocationChange={handleLocationChange} />
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <MapaGoogle onLocationChange={handleLocationChange} />
+          <div style={{ display: "flex", gap: "10px" }}>
             <div style={{ flex: 2 }}>
               <label>Dirección:</label>
-              <input type="text" value={formData.address} readOnly style={{ width: '100%' }} />
+              <input
+                type="text"
+                value={formData.address}
+                readOnly
+                style={{ width: "100%" }}
+              />
             </div>
-            <div style={{ flex: 1, display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1, display: "flex", gap: "10px" }}>
               <div>
                 <label>Latitud:</label>
-                <input type="text" value={formData.lat} readOnly style={{ width: '100%' }} />
+                <input
+                  type="text"
+                  value={formData.lat}
+                  readOnly
+                  style={{ width: "100%" }}
+                />
               </div>
               <div>
                 <label>Longitud:</label>
-                <input type="text" value={formData.lng} readOnly style={{ width: '100%' }} />
+                <input
+                  type="text"
+                  value={formData.lng}
+                  readOnly
+                  style={{ width: "100%" }}
+                />
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "10px",
+              marginTop: "10px",
+            }}
+          >
             <Button
               variant="outline"
               className="flex items-center gap-2"
