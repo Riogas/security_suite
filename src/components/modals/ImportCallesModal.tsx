@@ -24,6 +24,8 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
   const [nombreSearch, setNombreSearch] = useState("");
   const [seleccionados, setSeleccionados] = useState<string[]>([]); // Usar name como identificador único
   const [consultaLoading, setConsultaLoading] = useState(false);
+  const [oldNameFiltro, setOldNameFiltro] = useState<string[]>([]);
+  const [oldNameSearch, setOldNameSearch] = useState("");
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(callesPreview.map((c) => c.name)));
@@ -31,10 +33,17 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
     nombre.toLowerCase().includes(nombreSearch.toLowerCase())
   ).slice(0, 20);
 
-  // Filtrado de calles por nombre
-  const callesFiltradas = callesPreview.filter((c, idx) => {
+  // Nombres antiguos únicos filtrados por búsqueda y paginados de a 20
+  const oldNamesUnicos = Array.from(new Set(callesPreview.map((c) => c.old_name)));
+  const oldNamesFiltrados = oldNamesUnicos.filter((oldName) =>
+    oldName && oldName.toLowerCase().includes(oldNameSearch.toLowerCase())
+  ).slice(0, 20);
+
+  // Filtrado de calles por nombre y nombre antiguo
+  const callesFiltradas = callesPreview.filter((c) => {
     const nombreOk = nombreFiltro.length > 0 ? nombreFiltro.includes(c.name) : true;
-    return nombreOk;
+    const oldNameOk = oldNameFiltro.length > 0 ? oldNameFiltro.includes(c.old_name) : true;
+    return nombreOk && oldNameOk;
   });
 
   // Selección de filas
@@ -224,7 +233,42 @@ export default function ImportCallesModal({ isOpen, onClose, departamentos, loca
                       </PopoverContent>
                     </Popover>
                   </TableHead>
-                  <TableHead className="w-1/2">Nombre Antiguo</TableHead>
+                  <TableHead className="w-1/2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="sm">Nombre Antiguo ▾</Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 max-h-96 overflow-auto">
+                        <input
+                          type="text"
+                          placeholder="Buscar nombre antiguo..."
+                          value={oldNameSearch}
+                          onChange={e => setOldNameSearch(e.target.value)}
+                          className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
+                        />
+                        <div className="flex flex-col gap-1">
+                          {oldNamesFiltrados.map((oldName) => (
+                            <label key={oldName} className="flex items-center gap-2 cursor-pointer">
+                              <Checkbox
+                                checked={oldNameFiltro.includes(oldName)}
+                                onCheckedChange={(checked) => {
+                                  setOldNameFiltro((prev) =>
+                                    checked
+                                      ? [...prev, oldName]
+                                      : prev.filter((n) => n !== oldName)
+                                  );
+                                }}
+                              />
+                              <span>{oldName}</span>
+                            </label>
+                          ))}
+                          {oldNamesFiltrados.length === 0 && (
+                            <span className="text-xs text-muted-foreground">Sin resultados</span>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
