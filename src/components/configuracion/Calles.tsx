@@ -4,7 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ImportCallesModal from "@/components/modals/ImportCallesModal";
 
-const localidades = ["Centro", "Ciudad Vieja", "Pocitos"];
+const departamentos = ["Montevideo", "Canelones", "Maldonado"];
+const localidadesPorDepartamento: Record<string, string[]> = {
+  Montevideo: ["Centro", "Ciudad Vieja", "Pocitos"],
+  Canelones: ["Las Piedras", "La Paz", "Pando"],
+  Maldonado: ["Maldonado", "Punta del Este", "San Carlos"],
+};
 
 export default function Calles() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,7 +25,8 @@ export default function Calles() {
       <ImportCallesModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        localidades={localidades}
+        departamentos={departamentos}
+        localidadesPorDepartamento={localidadesPorDepartamento}
       />
       <div>Contenido de Calles</div>
     </div>

@@ -72,3 +72,48 @@ export const apiUpdateProfile = (data: { name: string; avatar?: string }) =>
   api.put("/user/profile", data);
 
 export const apiDeleteAccount = () => api.delete("/user");
+
+// Nuevas funciones para importar localidades
+export const importarLocalidades = async (departamento: string) => {
+  try {
+    const overpassQuery = `
+      [out:json][timeout:25];
+      area["name"="${departamento}"]["admin_level"="4"]->.searchArea;
+      node["place"]["name"](area.searchArea);
+      out body;
+    `;
+
+    const response = await api.post(
+      "https://overpass-api.de/api/interpreter",
+      overpassQuery,
+      {
+        headers: { "Content-Type": "text/plain" },
+      },
+    );
+
+    return response.data.elements.map((node: any) => ({
+      name: node.tags.name,
+      lat: node.lat,
+      lon: node.lon,
+      place: node.tags.place,
+      departamento,
+    }));
+  } catch (error) {
+    console.error("Error al obtener localidades desde Overpass:", error);
+    throw error;
+  }
+};
+
+export const sendLocalidadToService = async (localidad: any) => {
+  try {
+    const response = await api.post("/ImportarLocalidades", localidad, {
+      withCredentials: true,
+    });
+    console.log(`Localidad enviada correctamente: ${localidad.name}`);
+  } catch (error) {
+    console.error(`Error al enviar la localidad ${localidad.name}:`, error);
+    throw error;
+  }
+};
+
+
