@@ -85,7 +85,6 @@ export default function ConfiguracionPage() {
               <Departamentos />
             </CardContent>
             <CardFooter>
-              <div>Footer de Departamentos</div>
             </CardFooter>
           </Card>
         </TabsContent>

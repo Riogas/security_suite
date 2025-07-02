@@ -4,11 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ImportDepartamentosModal from "@/components/modals/ImportDepartamentosModal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiGetDepartamentos, apiImportarDepartamentos } from "@/services/api";
+import { apiGetDepartamentos, apiImportarDepartamentos, apiCambiarEstadoDepartamento } from "@/services/api";
 import { toast } from "sonner";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { Badge } from "@/components/ui/badge";
 import { debounce } from "lodash";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 export default function Departamentos() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,10 +87,52 @@ export default function Departamentos() {
     {
       accessorKey: 'departamentoestado',
       header: 'Estado',
-      cell: ({ row }: { row: { original: { departamentoestado: string } } }) => (
-        <Badge className={row.original.departamentoestado === "Activo" ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
-          {row.original.departamentoestado}
-        </Badge>
+      cell: ({ row }: { row: { original: { departamentoid: string; departamentoestado: string } } }) => (
+        <Popover>
+          <PopoverTrigger>
+            <Badge className={row.original.departamentoestado === "Activo" ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
+              {row.original.departamentoestado}
+            </Badge>
+          </PopoverTrigger>
+          <PopoverContent className="w-32 p-2">
+            <div className="flex flex-col">
+              <button
+                className="text-left px-2 py-1 hover:bg-secondary"
+                onClick={async () => {
+                  const nuevoEstado = row.original.departamentoestado === "Activo" ? "N" : "S";
+                  try {
+                    const response = await apiCambiarEstadoDepartamento(row.original.departamentoid, nuevoEstado);
+                    if (response.Code === 0) {
+                      const estadoActualizado = nuevoEstado === "S" ? "Activo" : "Pasivo";
+                      toast.success(`Estado actualizado correctamente a ${estadoActualizado}`);
+
+                      // Actualizar el estado de la tabla después de mostrar el toast
+                      setDepartamentos((prev) =>
+                        prev.map((dep) =>
+                          dep.departamentoid === row.original.departamentoid
+                            ? { ...dep, departamentoestado: estadoActualizado }
+                            : dep
+                        )
+                      );
+
+                      // Agregar un pequeño retraso antes de cerrar el Popover
+                      setTimeout(() => {
+                        console.log("Popover cerrado después de actualizar el estado.");
+                      }, 300);
+                    } else {
+                      toast.error("Error al actualizar el estado. Consulte la consola para más detalles.");
+                    }
+                  } catch (error) {
+                    console.error("Error al cambiar estado:", error);
+                    toast.error("Error al cambiar estado. Consulte la consola para más detalles.");
+                  }
+                }}
+              >
+                {row.original.departamentoestado === "Activo" ? "Pasivo" : "Activo"}
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       ),
     },
   ];

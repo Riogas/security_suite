@@ -208,3 +208,19 @@ export const apiImportarDepartamentos = async (body: { sdtDepartamentos: { Depar
   }
 };
 
+export const apiCambiarEstadoDepartamento = async (departamentoId: string, nuevoEstado: string) => {
+  try {
+    const response = await api.put(`/actualizarDepartamentos`, {
+      DepartamentoId: departamentoId,
+      DepartamentoEstado: nuevoEstado,
+    }, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log(`Estado del departamento ${departamentoId} cambiado a ${nuevoEstado}:`, response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Error al cambiar estado del departamento ${departamentoId}:`, error.response?.data || error.message);
+    throw error;
+  }
+};
+
