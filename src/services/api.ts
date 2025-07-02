@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import { api, overpassApi } from "@/lib/axios";
 
 // Tipos globales
 export type Role = "admin" | "user";
@@ -87,7 +87,7 @@ export const importarLocalidades = async (departamento: string) => {
       out body;
     `;
 
-    const response = await api.post(
+    const response = await overpassApi.post(
       "https://overpass-api.de/api/interpreter",
       overpassQuery,
       {
@@ -136,7 +136,7 @@ export const importarCalles = async (
       );
       out tags;
     `;
-    const response = await api.post(
+    const response = await overpassApi.post(
       "https://overpass-api.de/api/interpreter",
       overpassQuery,
       {
@@ -168,7 +168,7 @@ export const importarDepartamentos = async () => {
       relation["admin_level"="4"]["boundary"="administrative"](area.searchArea);
       out body;
     `;
-    const response = await api.post(
+    const response = await overpassApi.post(
       "https://overpass-api.de/api/interpreter",
       overpassQuery,
       {
@@ -188,3 +188,23 @@ export const importarDepartamentos = async () => {
     throw error;
   }
 };
+
+export const apiGetDepartamentos = async () => {
+  const response = await api.get("/getDepartamentos"); // redirige a http://192.168.1.72:8082/puestos/gestion/getDepartamentos
+  console.log("Departamentos obtenidos:", response.data);
+  return response.data;
+};
+
+export const apiImportarDepartamentos = async (body: { sdtDepartamentos: { DepartamentoId: string; DepartamentoNombre: string }[] }) => {
+  try {
+    const response = await api.post("/importarDepartamentos", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log("Departamentos importados correctamente:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error al importar departamentos:", error.response?.data || error.message);
+    throw error;
+  }
+};
+

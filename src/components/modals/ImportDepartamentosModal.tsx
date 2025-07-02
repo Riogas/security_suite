@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { importarDepartamentos } from "@/services/api";
+import { importarDepartamentos, apiImportarDepartamentos, apiGetDepartamentos } from "@/services/api";
 import { toast } from "sonner";
 import {
   Popover,
@@ -23,6 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface ImportDepartamentosModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export default function ImportDepartamentosModal({
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
   const [nombreSearch, setNombreSearch] = useState("");
   const [seleccionados, setSeleccionados] = useState<string[]>([]); // Usar name como identificador único
+  const [importLoading, setImportLoading] = useState(false);
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(departamentos.map((d) => d.name)));
@@ -86,7 +88,19 @@ export default function ImportDepartamentosModal({
     toast("Consultando departamentos desde Overpass...");
     try {
       const data = await importarDepartamentos();
-      setDepartamentos(data);
+      const existingDepartamentos = await apiGetDepartamentos();
+
+      const existingNames = existingDepartamentos?.sdtDepartamentos?.map(
+        (dep: { DepartamentoNombre: string }) => dep.DepartamentoNombre
+      ) || [];
+
+      const updatedDepartamentos = data.map((dep: any) => ({
+        ...dep,
+        isNew: !existingNames.includes(dep.name),
+      }));
+
+      setDepartamentos(updatedDepartamentos);
+
       if (!data.length) {
         toast("No se encontraron departamentos.");
       }
@@ -98,6 +112,42 @@ export default function ImportDepartamentosModal({
     } finally {
       setConsultaLoading(false);
     }
+  };
+
+  const importar = async () => {
+    const seleccionadosData = departamentosFiltrados.filter((dep) => seleccionados.includes(dep.name));
+    if (seleccionadosData.length === 0) {
+      toast.error("Debe seleccionar al menos un departamento para importar.");
+      return;
+    }
+    // Formatear al formato requerido
+    const body = {
+      sdtDepartamentos: seleccionadosData.map((dep) => ({
+        DepartamentoId: String(dep.osm_id),
+        DepartamentoNombre: String(dep.name),
+      })),
+    };
+    console.log("JSON a importar:", JSON.stringify(body, null, 2));
+    setImportLoading(true);
+    try {
+      const response = await apiImportarDepartamentos(body);
+      toast.success("Departamentos importados correctamente.");
+      console.log("Respuesta de la API:", response);
+      onClose(); // Cierra el modal
+      window.dispatchEvent(new Event("actualizarTablaDepartamentos")); // Evento para actualizar la tabla
+    } catch (error) {
+      console.error("Error al importar departamentos:", error);
+      toast.error("Error al importar departamentos. Consulte la consola para más detalles.");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const marcarSoloNuevos = () => {
+    const nuevos = departamentosFiltrados
+      .filter((dep) => dep.isNew)
+      .map((dep) => dep.name);
+    setSeleccionados(nuevos);
   };
 
   // Limpiar al abrir/cerrar
@@ -125,9 +175,23 @@ export default function ImportDepartamentosModal({
             {consultaLoading ? "Consultando..." : "Consultar"}
           </Button>
           <Button
+            onClick={importar}
+            disabled={consultaLoading || importLoading}
+            variant="default"
+          >
+            {importLoading ? "Importando..." : "Importar"}
+          </Button>
+          <Button
+            onClick={marcarSoloNuevos}
+            disabled={consultaLoading || importLoading}
+            variant="outline"
+          >
+            Marcar Solo Nuevos
+          </Button>
+          <Button
             variant="outline"
             onClick={onClose}
-            disabled={consultaLoading}
+            disabled={consultaLoading || importLoading}
           >
             Cancelar
           </Button>
@@ -193,14 +257,23 @@ export default function ImportDepartamentosModal({
               </TableHeader>
               <TableBody>
                 {departamentosFiltrados.map((dep, idx) => (
-                  <TableRow key={dep.name}>
+                  <TableRow
+                    key={dep.name}
+                  >
                     <TableCell className="text-center">
                       <Checkbox
                         checked={seleccionados.includes(dep.name)}
                         onCheckedChange={() => toggleSelectOne(dep.name)}
                       />
                     </TableCell>
-                    <TableCell>{dep.name}</TableCell>
+                    <TableCell>
+                      {dep.name}
+                      {dep.isNew && (
+                        <Badge className="ml-2 bg-green-500 text-white">
+                          Nuevo
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{dep.osm_id}</TableCell>
                     <TableCell>{dep.admin_level}</TableCell>
                     <TableCell>{dep.type}</TableCell>
