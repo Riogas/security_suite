@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ImportDepartamentosModal from "@/components/modals/ImportDepartamentosModal";
@@ -8,11 +8,13 @@ import { apiGetDepartamentos, apiImportarDepartamentos } from "@/services/api";
 import { toast } from "sonner";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { Badge } from "@/components/ui/badge";
+import { debounce } from "lodash";
 
 export default function Departamentos() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [departamentos, setDepartamentos] = useState<{ departamentoid: string; departamentonombre: string; departamentoestado: string }[]>([]);
   const [seleccionados, setSeleccionados] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     apiGetDepartamentos().then((data) => {
@@ -68,6 +70,16 @@ export default function Departamentos() {
     }
   };
 
+  const debouncedSearchTerm = useMemo(() => debounce((term: string) => term, 100), []);
+
+  const filteredData = useMemo(() => {
+    return searchTerm.length >= 0
+      ? departamentos.filter((dep) =>
+          dep.departamentonombre.toLowerCase().includes((debouncedSearchTerm(searchTerm) ?? "").toLowerCase())
+        )
+      : departamentos;
+  }, [searchTerm, departamentos]);
+
   const columns = [
     { accessorKey: 'departamentoid', header: 'Identificador' },
     { accessorKey: 'departamentonombre', header: 'Departamento' },
@@ -83,7 +95,7 @@ export default function Departamentos() {
   ];
 
   const table = useReactTable({
-    data: departamentos,
+    data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -92,7 +104,12 @@ export default function Departamentos() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <Input placeholder="Buscar departamentos..." className="w-1/2" />
+        <Input
+          placeholder="Buscar departamentos..."
+          className="w-1/2"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
         <Button className="ml-4" onClick={() => setIsModalOpen(true)}>
           Importar
         </Button>
