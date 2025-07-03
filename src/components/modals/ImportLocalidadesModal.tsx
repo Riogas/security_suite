@@ -13,7 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { importarLocalidades } from "@/services/api";
+import { importarLocalidades, apiGetDepartamentos, apiGetLocalidades, apiImportarLocalidades } from "@/services/api";
 import { toast } from "sonner";
 import {
   Table,
@@ -29,6 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface ImportLocalidadesModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ interface ImportLocalidadesModalProps {
 export default function ImportLocalidadesModal({
   isOpen,
   onClose,
-  departamentos,
+  departamentos: departamentosProp,
 }: ImportLocalidadesModalProps) {
   const [departamento, setDepartamento] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -47,8 +48,13 @@ export default function ImportLocalidadesModal({
   const [localidadesPreview, setLocalidadesPreview] = useState<any[]>([]);
   const [tipoFiltro, setTipoFiltro] = useState<string[]>([]);
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
+  const [altNameFiltro, setAltNameFiltro] = useState<string[]>([]);
   const [seleccionados, setSeleccionados] = useState<string[]>([]); // Usar name como identificador único
   const [nombreSearch, setNombreSearch] = useState("");
+  const [departamentosState, setDepartamentosState] = useState<{
+    departamentoid: string;
+    departamentonombre: string;
+  }[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -56,10 +62,26 @@ export default function ImportLocalidadesModal({
       setLocalidadesPreview([]);
       setTipoFiltro([]);
       setNombreFiltro([]);
+      setAltNameFiltro([]);
       setSeleccionados([]);
       setNombreSearch("");
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const fetchDepartamentos = async () => {
+      const data = await apiGetDepartamentos();
+      const filteredDepartamentos = data.sdtDepartamentos
+        .filter((dep: { DepartamentoEstado: string }) => dep.DepartamentoEstado === "S")
+        .map((dep: { DepartamentoId: string; DepartamentoNombre: string }) => ({
+          departamentoid: dep.DepartamentoId,
+          departamentonombre: dep.DepartamentoNombre,
+        }));
+      setDepartamentosState(filteredDepartamentos);
+    };
+
+    fetchDepartamentos();
+  }, []);
 
   const importar = async () => {
     if (!departamento) {
@@ -68,16 +90,41 @@ export default function ImportLocalidadesModal({
       );
       return;
     }
+
+    const seleccionadosData = localidadesPreview.filter((loc) => seleccionados.includes(loc.name));
+    if (seleccionadosData.length === 0) {
+      toast.error("Debe seleccionar al menos una localidad para importar.");
+      return;
+    }
+
+    // Formatear los datos seleccionados al formato requerido por la API
+    const body = {
+      sdtLocalidad: seleccionadosData.map((loc) => ({
+        DepartamentoId: Number(departamento),
+        LocalidadId: loc.id,
+        LocalidadNombre: loc.name,
+        LocalidadEstado: "", 
+        LocalidadLatitud: loc.lat,
+        LocalidadLongitud: loc.lon,
+        LocalidadReferencia: loc.alt_name || "",
+        LocalidadTipo: "",
+        LocalidadType: loc.place || "", // Campo vacío por defecto
+        LocalidadAddressType: "", // Campo vacío por defecto
+        LocalidadPoblacion: loc.population || null, // Campo opcional
+      })),
+    };
+
+    console.log("JSON a importar:", JSON.stringify(body, null, 2));
     setLoading(true);
     try {
-      await importarLocalidades(departamento);
+      const response = await apiImportarLocalidades(body);
       toast.success("Localidades importadas correctamente.");
-      onClose();
-    } catch (error: any) {
-      console.error("Error importando localidades:", error.message);
-      toast.error(
-        "Error al importar localidades. Consulte la consola para más detalles.",
-      );
+      console.log("Respuesta de la API:", response);
+      onClose(); // Cierra el modal
+      window.dispatchEvent(new Event("actualizarTablaLocalidades")); // Evento para actualizar la tabla
+    } catch (error) {
+      console.error("Error al importar localidades:", error);
+      toast.error("Error al importar localidades. Consulte la consola para más detalles.");
     } finally {
       setLoading(false);
     }
@@ -88,17 +135,55 @@ export default function ImportLocalidadesModal({
       toast.error("Por favor, seleccione un departamento para consultar.");
       return;
     }
+
+    // Obtener el nombre del departamento seleccionado
+    const departamentoNombre = departamentosState.find(
+      (dep) => dep.departamentoid === departamento
+    )?.departamentonombre;
+
+    if (!departamentoNombre) {
+      toast.error("No se pudo encontrar el nombre del departamento seleccionado.");
+      return;
+    }
+
     setConsultaLoading(true);
-    toast("Consultando localidades desde Overpass...");
+    toast("Obteniendo localidades de Overpass...");
     try {
-      const data: { name: string; place: string; lat: number; lon: number }[] =
-        await importarLocalidades(departamento);
+      const data: {
+        id: number;
+        lat: number;
+        lon: number;
+        alt_name?: string;
+        name: string;
+        place: string;
+        population?: string;
+      }[] = await importarLocalidades(departamentoNombre);
+
+      // Obtener localidades existentes desde la API usando POST
+      const existingLocalidades = await apiGetLocalidades({ DepartamentoId: departamento });
+      const existingNames = existingLocalidades?.sdtLocalidad?.map(
+        (loc: { LocalidadNombre: string }) => loc.LocalidadNombre
+      ) || [];
+      console.log("Nombres existentes en la API:", existingNames);
+      console.log("Localidades obtenidas de la api:", existingLocalidades);
+
       setLocalidadesPreview(
-        data.map((loc) => ({
-          ...loc,
-          name: loc.name.trim(),
-        })),
+        data.map((loc) => {
+          const isNew = !existingNames.includes(loc.name.trim());
+          console.log("Procesando localidad:", loc.name.trim(), "| Marcado como nuevo:", isNew);
+          return {
+            id: loc.id,
+            lat: loc.lat,
+            lon: loc.lon,
+            alt_name: loc.alt_name?.trim() || "N/A",
+            name: loc.name.trim(),
+            place: loc.place,
+            population: loc.population?.trim() || "N/A",
+            isNew, // Marcar como nuevo si no existe
+          };
+        }),
       );
+
       if (!data.length) {
         toast("No se encontraron localidades para este departamento.");
       }
@@ -113,12 +198,14 @@ export default function ImportLocalidadesModal({
   };
 
   // Filtrado de localidades por tipo y nombre
-  const localidadesFiltradas = localidadesPreview.filter((loc, idx) => {
+  const localidadesFiltradas = localidadesPreview.filter((loc) => {
     const tipoOk =
       tipoFiltro.length > 0 ? tipoFiltro.includes(loc.place) : true;
     const nombreOk =
       nombreFiltro.length > 0 ? nombreFiltro.includes(loc.name) : true;
-    return tipoOk && nombreOk;
+    const altNameOk =
+      altNameFiltro.length > 0 ? altNameFiltro.includes(loc.alt_name) : true;
+    return tipoOk && nombreOk && altNameOk;
   });
 
   // Obtener todos los tipos únicos
@@ -128,6 +215,14 @@ export default function ImportLocalidadesModal({
   // Obtener todos los nombres únicos
   const nombresUnicos = Array.from(
     new Set(localidadesPreview.map((loc) => loc.name)),
+  );
+  // Obtener todos los nombres alternativos únicos
+  const altNamesUnicos = Array.from(
+    new Set(
+      localidadesPreview
+        .map((loc) => loc.alt_name)
+        .filter(Boolean),
+    ),
   );
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
@@ -171,12 +266,12 @@ export default function ImportLocalidadesModal({
         </DialogHeader>
         <Select value={departamento} onValueChange={setDepartamento}>
           <SelectTrigger>
-            {departamento || "Seleccione un departamento"}
+            {departamentosState.find((dep) => dep.departamentoid === departamento)?.departamentonombre || "Seleccione un departamento"}
           </SelectTrigger>
           <SelectContent>
-            {departamentos.map((dep) => (
-              <SelectItem key={dep} value={dep}>
-                {dep}
+            {departamentosState.map((dep) => (
+              <SelectItem key={dep.departamentoid} value={dep.departamentoid}>
+                {dep.departamentonombre}
               </SelectItem>
             ))}
           </SelectContent>
@@ -285,23 +380,74 @@ export default function ImportLocalidadesModal({
                       </PopoverContent>
                     </Popover>
                   </TableHead>
-                  <TableHead className="w-1/4">Lat</TableHead>
-                  <TableHead className="w-1/4">Lon</TableHead>
+                  <TableHead className="w-1/4">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          Nom. Alt. ▾
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 max-h-96 overflow-auto">
+                        <input
+                          type="text"
+                          placeholder="Buscar nom. alt..."
+                          value={nombreSearch}
+                          onChange={(e) => setNombreSearch(e.target.value)}
+                          className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
+                        />
+                        <div className="flex flex-col gap-1">
+                          {altNamesUnicos.map((altName) => (
+                            <label
+                              key={altName}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Checkbox
+                                checked={altNameFiltro.includes(altName)}
+                                onCheckedChange={(checked) => {
+                                  setAltNameFiltro((prev) =>
+                                    checked
+                                      ? [...prev, altName]
+                                      : prev.filter((n) => n !== altName),
+                                  );
+                                }}
+                              />
+                              <span>{altName}</span>
+                            </label>
+                          ))}
+                          {altNamesUnicos.length === 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              Sin resultados
+                            </span>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </TableHead>
+                  <TableHead className="w-1/4">Latitud</TableHead>
+                  <TableHead className="w-1/4">Longitud</TableHead>
+                  <TableHead className="w-1/4">Población</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {localidadesFiltradas.map((loc, idx) => (
-                  <TableRow key={loc.name}>
+                  <TableRow key={`${loc.name}-${idx}`}>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={seleccionados.includes(loc.name)}
                         onCheckedChange={() => toggleSelectOne(loc.name)}
                       />
                     </TableCell>
-                    <TableCell>{loc.name}</TableCell>
+                    <TableCell>
+                      {loc.name}
+                      {loc.isNew && (
+                        <Badge className="ml-2 bg-green-500 text-white">Nuevo</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{loc.place}</TableCell>
+                    <TableCell>{loc.alt_name}</TableCell>
                     <TableCell>{loc.lat}</TableCell>
                     <TableCell>{loc.lon}</TableCell>
+                    <TableCell>{loc.population}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -96,10 +96,13 @@ export const importarLocalidades = async (departamento: string) => {
     );
 
     return response.data.elements.map((node: any) => ({
-      name: node.tags.name,
+      id: node.id,
       lat: node.lat,
       lon: node.lon,
+      alt_name: node.tags.alt_name || null,
+      name: node.tags.name,
       place: node.tags.place,
+      population: node.tags.population || null,
       departamento,
     }));
   } catch (error) {
@@ -220,6 +223,46 @@ export const apiCambiarEstadoDepartamento = async (departamentoId: string, nuevo
     return response.data;
   } catch (error: any) {
     console.error(`Error al cambiar estado del departamento ${departamentoId}:`, error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const apiGetLocalidades = async (body: { DepartamentoId: string }) => {
+  try {
+    console.log("Body enviado a /getLocalidades:", body);
+    const response = await api.post("/getLocalidades", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log("Localidades obtenidas:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error al obtener localidades:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const apiImportarLocalidades = async (body: {
+  sdtLocalidad: {
+    DepartamentoId: number;
+    LocalidadId: number;
+    LocalidadNombre: string;
+    LocalidadEstado: string;
+    LocalidadLatitud: number;
+    LocalidadLongitud: number;
+    LocalidadReferencia: string;
+    LocalidadTipo: string;
+    LocalidadType: string;
+    LocalidadAddressType: string;
+  }[];
+}) => {
+  try {
+    const response = await api.post("/importarLocalidades", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log("Localidades importadas correctamente:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error al importar localidades:", error.response?.data || error.message);
     throw error;
   }
 };
