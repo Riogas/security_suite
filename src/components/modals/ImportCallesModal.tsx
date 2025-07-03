@@ -166,6 +166,64 @@ export default function ImportCallesModal({
     }
   };
 
+  const importarTodasLocalidades = async () => {
+    if (!departamento) {
+      toast.error("Por favor, seleccione un departamento.");
+      return;
+    }
+
+    setLoading(true);
+    toast("Importando calles de todas las localidades...");
+
+    try {
+      const localidades = localidadesState.map((loc) => ({
+        id: loc.localidadid,
+        lat: loc.lat,
+        lon: loc.lon,
+      }));
+
+      for (const localidad of localidades) {
+        try {
+          const calles = await obtenerCallesDesdeCoordenadas(
+            localidad.lat,
+            localidad.lon,
+          );
+
+          const callesAImportar = calles.map((calle: any) => ({
+            DepartamentoId: parseInt(departamento, 10),
+            LocalidadId: parseInt(localidad.id, 10),
+            CalleNombre: calle.name,
+            CalleLatitud: calle.lat,
+            CalleLongitud: calle.lon,
+            CalleEstado: "",
+            CalleReferencia: calle.old_name || "",
+            CalleNombreLargo: "",
+            CalleTipo: calle.highway || "",
+            CalleSuperficie: calle.surface || "",
+          }));
+
+          const body = { sdtCalles: callesAImportar };
+          await apiImportarCalles(body);
+        } catch (error) {
+          console.error(
+            `Error al importar calles para la localidad con ID ${localidad.id}:`,
+            error
+          );
+          toast.error(
+            `Error al importar calles para la localidad con ID ${localidad.id}. Consulte la consola para más detalles.`
+          );
+        }
+      }
+
+      toast.success("Calles de todas las localidades importadas correctamente.");
+    } catch (error) {
+      console.error("Error general al importar calles de todas las localidades:", error);
+      toast.error("Error al importar calles. Consulte la consola para más detalles.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const consultar = async () => {
     if (!departamento || !localidad) {
       toast.error("Por favor, seleccione un departamento y una localidad.");
@@ -261,9 +319,12 @@ export default function ImportCallesModal({
           <Select
             value={departamento}
             onValueChange={(value) => {
-              setDepartamento(value);
-              setLocalidad("");
+              if (!loading) {
+                setDepartamento(value);
+                setLocalidad("");
+              }
             }}
+            disabled={loading}
           >
             <SelectTrigger>
               {departamentosState.find((dep) => dep.departamentoid === departamento)?.departamentonombre || "Seleccione un departamento"}
@@ -295,6 +356,16 @@ export default function ImportCallesModal({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            className="flex items-center gap-2"
+            onClick={importarTodasLocalidades}
+            disabled={loading || !departamento}
+          >
+            <span>Importar Todas las Localidades</span>
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-blue-500"></div>
+            )}
+          </Button>
         </div>
         <div className="flex flex-col gap-4">
           <div className="flex gap-2">

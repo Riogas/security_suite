@@ -52,6 +52,7 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       { label: "Pedidos", icon: "package", path: "/dashboard/pedidos" },
       { label: "Moviles", icon: "truck", path: "/dashboard/moviles" },
       { label: "Zonas", icon: "map", path: "/dashboard/mapa" },
+      
       {
         label: "Configuración",
         icon: "settings",

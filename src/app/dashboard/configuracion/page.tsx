@@ -14,6 +14,7 @@ import Calles from "@/components/configuracion/Calles";
 import Usuarios from "@/components/configuracion/Usuarios";
 import Roles from "@/components/configuracion/Roles";
 import Permisos from "@/components/configuracion/Permisos";
+import Zonificacion from "@/components/configuracion/Zonificacion";
 
 export default function ConfiguracionPage() {
   return (
@@ -26,6 +27,7 @@ export default function ConfiguracionPage() {
           <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
           <TabsTrigger value="localidades">Localidades</TabsTrigger>
           <TabsTrigger value="calles">Calles</TabsTrigger>
+          <TabsTrigger value="zonificacion">Zonificación</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios">
@@ -114,6 +116,21 @@ export default function ConfiguracionPage() {
             </CardContent>
             <CardFooter>
               <div>Footer de Calles</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="zonificacion">
+          <Card>
+            <CardHeader>
+              <CardTitle>Zonificación</CardTitle>
+              <CardDescription>Administración de zonificación.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Zonificacion />
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Zonificación</div>
             </CardFooter>
           </Card>
         </TabsContent>
