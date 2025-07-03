@@ -28,7 +28,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { importarCalles } from "@/services/api";
+import {
+  apiGetDepartamentos,
+  apiGetLocalidades,
+  importarCalles,
+  obtenerCallesDesdeCoordenadas,
+} from "@/services/api";
 
 interface ImportCallesModalProps {
   isOpen: boolean;
@@ -53,6 +58,17 @@ export default function ImportCallesModal({
   const [consultaLoading, setConsultaLoading] = useState(false);
   const [oldNameFiltro, setOldNameFiltro] = useState<string[]>([]);
   const [oldNameSearch, setOldNameSearch] = useState("");
+
+  const [departamentosState, setDepartamentosState] = useState<{
+    departamentoid: string;
+    departamentonombre: string;
+  }[]>([]);
+  const [localidadesState, setLocalidadesState] = useState<{
+    localidadid: string;
+    localidadnombre: string;
+    lat: number;
+    lon: number;
+  }[]>([]);
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(callesPreview.map((c) => c.name)));
@@ -167,12 +183,23 @@ export default function ImportCallesModal({
     setConsultaLoading(true);
     try {
       toast("Obteniendo calles desde Overpass...");
-      const uniqueStreets = await importarCalles(departamento, localidad);
-      setCallesPreview(uniqueStreets);
+      const selectedLocalidad = localidadesState.find(
+        (loc) => loc.localidadid === localidad,
+      );
+      if (!selectedLocalidad) {
+        throw new Error(
+          "No se encontraron coordenadas para la localidad seleccionada.",
+        );
+      }
+      const calles = await obtenerCallesDesdeCoordenadas(
+        selectedLocalidad.lat,
+        selectedLocalidad.lon,
+      );
+      setCallesPreview(calles);
       setSeleccionados([]);
       setNombreFiltro([]);
       setNombreSearch("");
-      if (!uniqueStreets.length) {
+      if (!calles.length) {
         toast("No se encontraron calles para esta localidad.");
       }
     } catch (error: any) {
@@ -185,8 +212,41 @@ export default function ImportCallesModal({
     }
   };
 
+  useEffect(() => {
+    const fetchDepartamentos = async () => {
+      const data = await apiGetDepartamentos();
+      const filteredDepartamentos = data.sdtDepartamentos
+        .filter((dep: { DepartamentoEstado: string }) => dep.DepartamentoEstado === "S")
+        .map((dep: { DepartamentoId: string; DepartamentoNombre: string }) => ({
+          departamentoid: dep.DepartamentoId,
+          departamentonombre: dep.DepartamentoNombre,
+        }));
+      setDepartamentosState(filteredDepartamentos);
+    };
+
+    fetchDepartamentos();
+  }, []);
+
+  useEffect(() => {
+    const fetchLocalidades = async () => {
+      if (!departamento) return;
+      const data = await apiGetLocalidades({ DepartamentoId: departamento });
+      const filteredLocalidades = data.sdtLocalidad
+        .filter((loc: { LocalidadEstado: string }) => loc.LocalidadEstado === "S")
+        .map((loc: { LocalidadId: string; LocalidadNombre: string; LocalidadLatitud: string; LocalidadLongitud: string }) => ({
+          localidadid: loc.LocalidadId,
+          localidadnombre: loc.LocalidadNombre,
+          lat: parseFloat(loc.LocalidadLatitud),
+          lon: parseFloat(loc.LocalidadLongitud),
+        }));
+      setLocalidadesState(filteredLocalidades);
+    };
+
+    fetchLocalidades();
+  }, [departamento]);
+
   const localidades = departamento
-    ? localidadesPorDepartamento[departamento] || []
+    ? localidadesState.map((loc) => ({ id: loc.localidadid, name: loc.localidadnombre }))
     : [];
 
   useEffect(() => {
@@ -215,12 +275,12 @@ export default function ImportCallesModal({
             }}
           >
             <SelectTrigger>
-              {departamento || "Seleccione un departamento"}
+              {departamentosState.find((dep) => dep.departamentoid === departamento)?.departamentonombre || "Seleccione un departamento"}
             </SelectTrigger>
             <SelectContent>
-              {departamentos.map((dep) => (
-                <SelectItem key={dep} value={dep}>
-                  {dep}
+              {departamentosState.map((dep) => (
+                <SelectItem key={dep.departamentoid} value={dep.departamentoid}>
+                  {dep.departamentonombre}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -231,15 +291,15 @@ export default function ImportCallesModal({
             disabled={!departamento}
           >
             <SelectTrigger>
-              {localidad ||
+              {localidades.find((loc) => loc.id === localidad)?.name ||
                 (departamento
                   ? "Seleccione una localidad"
                   : "Seleccione un departamento primero")}
             </SelectTrigger>
             <SelectContent>
               {localidades.map((loc) => (
-                <SelectItem key={loc} value={loc}>
-                  {loc}
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -280,97 +340,15 @@ export default function ImportCallesModal({
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="w-1/2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          Nombre ▾
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 max-h-96 overflow-auto">
-                        <input
-                          type="text"
-                          placeholder="Buscar nombre..."
-                          value={nombreSearch}
-                          onChange={(e) => setNombreSearch(e.target.value)}
-                          className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
-                        />
-                        <div className="flex flex-col gap-1">
-                          {nombresFiltrados.map((nombre) => (
-                            <label
-                              key={nombre}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={nombreFiltro.includes(nombre)}
-                                onCheckedChange={(checked) => {
-                                  setNombreFiltro((prev) =>
-                                    checked
-                                      ? [...prev, nombre]
-                                      : prev.filter((n) => n !== nombre),
-                                  );
-                                }}
-                              />
-                              <span>{nombre}</span>
-                            </label>
-                          ))}
-                          {nombresFiltrados.length === 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              Sin resultados
-                            </span>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </TableHead>
-                  <TableHead className="w-1/2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          Nombre Antiguo ▾
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 max-h-96 overflow-auto">
-                        <input
-                          type="text"
-                          placeholder="Buscar nombre antiguo..."
-                          value={oldNameSearch}
-                          onChange={(e) => setOldNameSearch(e.target.value)}
-                          className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
-                        />
-                        <div className="flex flex-col gap-1">
-                          {oldNamesFiltrados.map((oldName) => (
-                            <label
-                              key={oldName}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Checkbox
-                                checked={oldNameFiltro.includes(oldName)}
-                                onCheckedChange={(checked) => {
-                                  setOldNameFiltro((prev) =>
-                                    checked
-                                      ? [...prev, oldName]
-                                      : prev.filter((n) => n !== oldName),
-                                  );
-                                }}
-                              />
-                              <span>{oldName}</span>
-                            </label>
-                          ))}
-                          {oldNamesFiltrados.length === 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              Sin resultados
-                            </span>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </TableHead>
+                  <TableHead className="w-1/4">Nombre</TableHead>
+                  <TableHead className="w-1/4">Nombre Antiguo</TableHead>
+                  <TableHead className="w-1/4">Tipo</TableHead>
+                  <TableHead className="w-1/4">Superficie</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {callesFiltradas.map((c, idx) => (
-                  <TableRow key={c.name}>
+                {callesFiltradas.map((c) => (
+                  <TableRow key={c.id}>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={seleccionados.includes(c.name)}
@@ -378,7 +356,9 @@ export default function ImportCallesModal({
                       />
                     </TableCell>
                     <TableCell>{c.name}</TableCell>
-                    <TableCell>{c.old_name}</TableCell>
+                    <TableCell>{c.old_name || "N/A"}</TableCell>
+                    <TableCell>{c.highway || "Desconocido"}</TableCell>
+                    <TableCell>{c.surface || "N/A"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

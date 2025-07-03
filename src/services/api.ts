@@ -267,3 +267,64 @@ export const apiImportarLocalidades = async (body: {
   }
 };
 
+export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) => {
+  try {
+    // Paso 1: Buscar la relación administrativa (localidad) que contiene las coordenadas
+    const buscarRelacionQuery = `
+      [out:json][timeout:25];
+      is_in(${lat}, ${lon});
+      area._["admin_level"="8"]["boundary"="administrative"];
+      out ids tags;
+    `;
+
+    const relResponse = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: buscarRelacionQuery,
+    });
+
+    if (!relResponse.ok) {
+      throw new Error("Error al buscar área administrativa desde coordenadas");
+    }
+
+    const relData = await relResponse.json();
+    const areaId = relData.elements?.[0]?.id;
+
+    if (!areaId) {
+      throw new Error("No se encontró un área administrativa (admin_level=8) para estas coordenadas.");
+    }
+
+    // Paso 2: Buscar calles dentro de esa área
+    const overpassQuery = `
+      [out:json][timeout:60];
+      way(area:${areaId})["highway"]["name"];
+      out tags center;
+    `;
+
+    const callesResponse = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: overpassQuery,
+    });
+
+    if (!callesResponse.ok) {
+      throw new Error("Error al obtener calles desde Overpass API");
+    }
+
+    const data = await callesResponse.json();
+
+    return data.elements.map((el: any) => ({
+      id: el.id,
+      name: el.tags?.name || "Sin nombre",
+      tipo: el.tags?.highway || "Desconocido",
+      lat: el.center?.lat,
+      lon: el.center?.lon,
+      highway: el.tags?.highway || null,
+      surface: el.tags?.surface || null,
+      old_name: el.tags?.old_name || null,
+    }));
+  } catch (error) {
+    console.error("Error general:", error);
+    throw error;
+  }
+};
