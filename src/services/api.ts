@@ -267,6 +267,32 @@ export const apiImportarLocalidades = async (body: {
   }
 };
 
+export const apiImportarCalles = async (body: {
+  sdtCalles: {
+    DepartamentoId: number;
+    LocalidadId: number;
+    CalleNombre: string;
+    CalleLatitud: number;
+    CalleLongitud: number;
+    CalleEstado: string;
+    CalleReferencia: string;
+    CalleNombreLargo: string;
+    CalleTipo: string;
+    CalleSuperficie: string;
+  }[];
+}) => {
+  try {
+    const response = await api.post("/importarCalles", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    console.log("Calles importadas correctamente:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error al importar calles:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) => {
   try {
     // Paso 1: Buscar la relación administrativa (localidad) que contiene las coordenadas

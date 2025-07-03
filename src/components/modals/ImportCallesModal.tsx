@@ -31,6 +31,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   apiGetDepartamentos,
   apiGetLocalidades,
+  apiImportarCalles,
   importarCalles,
   obtenerCallesDesdeCoordenadas,
 } from "@/services/api";
@@ -125,51 +126,41 @@ export default function ImportCallesModal({
   };
 
   const importar = async () => {
-    const pais = "Uruguay";
-    if (!pais || !departamento || !localidad) {
+    if (!departamento || !localidad) {
       toast.error("Por favor, seleccione un departamento y una localidad.");
       return;
     }
+    if (seleccionados.length === 0) {
+      toast.error("Por favor, seleccione al menos una calle para importar.");
+      return;
+    }
+
     setLoading(true);
+    toast("Importando calles..."); // Show toast notification
     try {
-      toast("Obteniendo calles desde Overpass...");
-      const overpassQuery = `
-        [out:json];
-        area["name"="Uruguay"]["admin_level"="2"]->.country;
-        area["name"="${departamento}"]["admin_level"="4"](area.country)->.depArea;
-        area["name"="${localidad}"]["admin_level"="8"](area.depArea)->.searchArea;
-        (
-          way["highway"]["name"](area.searchArea);
-        );
-        out tags;
-      `;
-      const overpassResponse = await fetch(
-        "https://overpass-api.de/api/interpreter",
-        {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: overpassQuery,
-        },
-      );
-      if (!overpassResponse.ok) {
-        throw new Error(`Error en Overpass API: ${overpassResponse.status}`);
-      }
-      const overpassData = await overpassResponse.json();
-      const uniqueStreets = Array.from(
-        new Map(
-          overpassData.elements.map((way: any) => [
-            way.tags.name,
-            { name: way.tags.name, old_name: way.tags.old_name || "N/A" },
-          ]),
-        ).values(),
-      );
+      const callesAImportar = seleccionados.map((nombre) => {
+        const calle = callesPreview.find((c) => c.name === nombre);
+        return {
+          DepartamentoId: parseInt(departamento, 10),
+          LocalidadId: parseInt(localidad, 10),
+          CalleNombre: calle.name,
+          CalleLatitud: calle.lat,
+          CalleLongitud: calle.lon,
+          CalleEstado: "",
+          CalleReferencia: calle.old_name || "",
+          CalleNombreLargo: "",
+          CalleTipo: calle.highway || "",
+          CalleSuperficie: calle.surface || "",
+        };
+      });
+
+      const body = { sdtCalles: callesAImportar };
+      await apiImportarCalles(body);
       toast.success("Calles importadas correctamente.");
       onClose();
-    } catch (error: any) {
-      console.error("Error importando calles:", error.message);
-      toast.error(
-        "Error al importar calles. Consulte la consola para más detalles.",
-      );
+    } catch (error) {
+      console.error("Error al importar calles:", error);
+      toast.error("Error al importar calles. Consulte la consola para más detalles.");
     } finally {
       setLoading(false);
     }
