@@ -1,0 +1,49 @@
+import React, { useEffect, useRef } from "react";
+import L from "leaflet";
+import { MapContainer, TileLayer, Polygon } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+interface LocalidadZona {
+  id: string;
+  name: string;
+  coordinates: [number, number][]; // Array of latitude and longitude pairs
+}
+
+interface MapaZonificacionProps {
+  zonas: LocalidadZona[];
+}
+
+export default function MapaZonificacion({ zonas }: MapaZonificacionProps) {
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (mapRef.current) {
+      const bounds = L.latLngBounds(zonas.flatMap((zona) => zona.coordinates));
+      if (bounds.isValid()) {
+        mapRef.current.fitBounds(bounds);
+      }
+    }
+  }, [zonas]);
+
+  return (
+    <MapContainer
+      ref={mapRef}
+      center={[0, 0]} // Default center
+      zoom={5}
+      style={{ height: "500px", width: "100%" }}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+      />
+      {zonas.map((zona, index) => (
+        <Polygon
+          key={`${zona.id}-${index}`}
+          positions={zona.coordinates}
+          color="blue"
+          fillOpacity={0.4}
+        />
+      ))}
+    </MapContainer>
+  );
+}

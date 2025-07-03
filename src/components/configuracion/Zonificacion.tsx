@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { apiGetDepartamentos, apiGetLocalidades } from "@/services/api";
 import { Badge } from "@/components/ui/badge";
+import MapaZonificacion from "@/components/mapa/MapaZonificacion";
+import { apiGetPolygonForLocalidad } from "@/services/api";
 
 interface Departamento {
   id: string;
@@ -13,6 +15,8 @@ interface Departamento {
 interface Localidad {
   id: string;
   name: string;
+  lat: number; // Latitude of the locality
+  lon: number; // Longitude of the locality
 }
 
 export default function Zonificacion() {
@@ -21,6 +25,7 @@ export default function Zonificacion() {
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
   const [selectedLocalidades, setSelectedLocalidades] = useState<Localidad[]>([]);
   const [localidadInput, setLocalidadInput] = useState<string>("");
+  const [zonas, setZonas] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -42,6 +47,8 @@ export default function Zonificacion() {
       const filteredLocalidades: Localidad[] = data.sdtLocalidad.map((loc: any) => ({
         id: loc.LocalidadId,
         name: loc.LocalidadNombre,
+        lat: parseFloat(loc.LocalidadLatitud), // Correctly parse latitude
+        lon: parseFloat(loc.LocalidadLongitud), // Correctly parse longitude
       }));
       setLocalidades(filteredLocalidades);
     };
@@ -49,16 +56,57 @@ export default function Zonificacion() {
     fetchLocalidades();
   }, [selectedDepartamento]);
 
-  const handleAddLocalidad = (localidadName: string) => {
+  const fetchPolygonForLocalidad = async (localidad: Localidad) => {
+    try {
+      const polygonData = await apiGetPolygonForLocalidad(localidad.lat, localidad.lon);
+
+      // Validate response structure
+      if (!polygonData || !polygonData.elements || !Array.isArray(polygonData.elements)) {
+        console.error("Invalid polygon data structure:", polygonData);
+        return null;
+      }
+
+      // Extract nodes and relations from Overpass response
+      const nodes = polygonData.elements.filter((el: any) => el.type === "node");
+      const relations = polygonData.elements.filter((el: any) => el.type === "relation");
+
+      // Process relations to extract member nodes
+      const polygons = relations.map((relation: any) => {
+        const memberNodes = relation.members
+          .filter((member: any) => member.type === "node")
+          .map((member: any) => {
+            const node = nodes.find((n: any) => n.id === member.ref);
+            return node ? [node.lat, node.lon] : null;
+          })
+          .filter((coords: any) => coords !== null);
+
+        return memberNodes.length > 0 ? memberNodes : null; // Ensure valid polygons
+      });
+
+      // Return the first valid polygon (if any)
+      return polygons.find((polygon: any) => polygon !== null) || []; // Return the first valid polygon or an empty array
+    } catch (error) {
+      console.error("Error fetching polygon for localidad:", error);
+      return null;
+    }
+  };
+
+  const handleAddLocalidad = async (localidadName: string) => {
     const localidad = localidades.find((loc) => loc.name === localidadName);
     if (localidad && !selectedLocalidades.some((loc) => loc.id === localidad.id)) {
       setSelectedLocalidades([...selectedLocalidades, localidad]);
       setLocalidadInput("");
+
+      const polygon = await fetchPolygonForLocalidad(localidad);
+      if (polygon) {
+        setZonas((prevZonas) => [...prevZonas, { id: localidad.id, polygon }]);
+      }
     }
   };
 
   const handleRemoveLocalidad = (id: string) => {
     setSelectedLocalidades(selectedLocalidades.filter((loc) => loc.id !== id));
+    setZonas((prevZonas) => prevZonas.filter((zona) => zona.id !== id));
   };
 
   return (
@@ -120,6 +168,8 @@ export default function Zonificacion() {
           </Badge>
         ))}
       </div>
+
+      <MapaZonificacion zonas={zonas.map((zona) => zona.polygon)} />
     </div>
   );
 }

@@ -355,3 +355,37 @@ export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) =>
     throw error;
   }
 };
+
+// Placeholder function to fetch polygon data for a locality
+export const apiGetPolygonForLocalidad = async (lat: number, lon: number) => {
+  try {
+    const query = `
+      [out:json][timeout:25];
+      is_in(${lat}, ${lon})->.a;
+      (
+        rel(pivot.a)["boundary"="administrative"]["admin_level"="8"];
+      );
+      out body;
+      >;
+      out skel qt;
+    `;
+
+    const response = await overpassApi.post(
+      "/interpreter",
+      query,
+      {
+        headers: { "Content-Type": "text/plain" },
+      }
+    );
+
+    if (response.data && response.data.elements) {
+      return response.data; // Return the full Overpass API response
+    } else {
+      console.error(`No elements found for coordinates: (${lat}, ${lon})`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching polygon for coordinates: (${lat}, ${lon})`, error);
+    return null;
+  }
+};
