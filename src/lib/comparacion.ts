@@ -1,4 +1,4 @@
-// TIPOS MANUALES para librerías sin definición
+/*// TIPOS MANUALES para librerías sin definición
 declare module "string-similarity" {
   export function compareTwoStrings(str1: string, str2: string): number;
 }
@@ -157,3 +157,4 @@ export function compararCallesAvanzado(
 
   return resultados.sort((a, b) => b.porcentaje - a.porcentaje);
 }
+*/

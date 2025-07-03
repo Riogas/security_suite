@@ -19,6 +19,7 @@ import {
   getFilteredRowModel,
   FilterFnOption,
   ColumnFiltersState,
+  FilterFn,
 } from "@tanstack/react-table";
 import { apiGetLocalidades, apiGetDepartamentos } from "@/services/api";
 import {
@@ -32,6 +33,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
 const departamentos = ["Montevideo", "Canelones", "Maldonado"];
+
+const multiValueFilter: FilterFn<any> = (row, columnId, filterValue) => {
+  if (!Array.isArray(filterValue)) return true;
+  return filterValue.includes(row.getValue(columnId));
+};
 
 export default function Localidades() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,17 +168,17 @@ export default function Localidades() {
     {
       accessorKey: "name",
       header: "Nombre",
-      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+      filterFn: multiValueFilter,
     },
     {
       accessorKey: "alt_name",
       header: "Nombre Alternativo",
-      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+      filterFn: multiValueFilter,
     },
     {
       accessorKey: "place",
       header: "Tipo",
-      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+      filterFn: multiValueFilter,
     },
     {
       accessorKey: "population",
@@ -199,6 +205,22 @@ export default function Localidades() {
     },
     onColumnFiltersChange: setColumnFilters,
   });
+
+  const updateColumnFilter = (columnId: string, values: string[]) => {
+    setColumnFilters((prev) => {
+      if (values.length === 0) {
+        // Remove the filter if no values are selected
+        return prev.filter((filter) => filter.id !== columnId);
+      }
+      const existingFilter = prev.find((filter) => filter.id === columnId);
+      if (existingFilter) {
+        return prev.map((filter) =>
+          filter.id === columnId ? { ...filter, value: values } : filter
+        );
+      }
+      return [...prev, { id: columnId, value: values }];
+    });
+  };
 
   return (
     <div>
@@ -280,11 +302,11 @@ export default function Localidades() {
                                         <Checkbox
                                           checked={nombreFiltro.includes(nombre)}
                                           onCheckedChange={(checked) => {
-                                            setNombreFiltro((prev) =>
-                                              checked
-                                                ? [...prev, nombre]
-                                                : prev.filter((n) => n !== nombre)
-                                            );
+                                            const updatedFiltro = checked
+                                              ? [...nombreFiltro, nombre]
+                                              : nombreFiltro.filter((n) => n !== nombre);
+                                            setNombreFiltro(updatedFiltro);
+                                            updateColumnFilter("name", updatedFiltro);
                                           }}
                                         />
                                         <span>{nombre}</span>
@@ -315,11 +337,11 @@ export default function Localidades() {
                                         <Checkbox
                                           checked={altNameFiltro.includes(altName)}
                                           onCheckedChange={(checked) => {
-                                            setAltNameFiltro((prev) =>
-                                              checked
-                                                ? [...prev, altName]
-                                                : prev.filter((n) => n !== altName)
-                                            );
+                                            const updatedFiltro = checked
+                                              ? [...altNameFiltro, altName]
+                                              : altNameFiltro.filter((n) => n !== altName);
+                                            setAltNameFiltro(updatedFiltro);
+                                            updateColumnFilter("alt_name", updatedFiltro);
                                           }}
                                         />
                                         <span>{altName}</span>
@@ -338,11 +360,11 @@ export default function Localidades() {
                                     <Checkbox
                                       checked={tipoFiltro.includes(tipo)}
                                       onCheckedChange={(checked) => {
-                                        setTipoFiltro((prev) =>
-                                          checked
-                                            ? [...prev, tipo]
-                                            : prev.filter((t) => t !== tipo)
-                                        );
+                                        const updatedFiltro = checked
+                                          ? [...tipoFiltro, tipo]
+                                          : tipoFiltro.filter((t) => t !== tipo);
+                                        setTipoFiltro(updatedFiltro);
+                                        updateColumnFilter("place", updatedFiltro);
                                       }}
                                     />
                                     <span>{tipo}</span>

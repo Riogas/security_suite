@@ -99,7 +99,6 @@ export default function ConfiguracionPage() {
               <Localidades />
             </CardContent>
             <CardFooter>
-              <div>Footer de Localidades</div>
             </CardFooter>
           </Card>
         </TabsContent>
