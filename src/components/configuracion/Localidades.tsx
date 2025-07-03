@@ -16,6 +16,9 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   flexRender,
+  getFilteredRowModel,
+  FilterFnOption,
+  ColumnFiltersState,
 } from "@tanstack/react-table";
 import { apiGetLocalidades, apiGetDepartamentos } from "@/services/api";
 import {
@@ -24,6 +27,9 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 const departamentos = ["Montevideo", "Canelones", "Maldonado"];
 
@@ -44,6 +50,11 @@ export default function Localidades() {
     departamentonombre: string;
   }[]>([]);
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
+
+  const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
+  const [tipoFiltro, setTipoFiltro] = useState<string[]>([]);
+  const [altNameFiltro, setAltNameFiltro] = useState<string[]>([]);
+  const [nombreSearch, setNombreSearch] = useState("");
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -72,6 +83,7 @@ export default function Localidades() {
         LocalidadLatitud: string;
         LocalidadLongitud: string;
         LocalidadPoblacion: number | null;
+        LocalidadTipo: string;
       }
 
       interface Localidad {
@@ -88,7 +100,7 @@ export default function Localidades() {
         id: loc.LocalidadId,
         name: loc.LocalidadNombre,
         alt_name: loc.LocalidadReferencia || null,
-        place: loc.LocalidadType,
+        place: loc.LocalidadTipo || loc.LocalidadType || "Desconocido",
         population: loc.LocalidadPoblacion !== null && loc.LocalidadPoblacion !== undefined ? String(loc.LocalidadPoblacion) : null,
         lat: parseFloat(loc.LocalidadLatitud),
         lon: parseFloat(loc.LocalidadLongitud),
@@ -125,21 +137,67 @@ export default function Localidades() {
       : localidades;
   }, [searchTerm, localidades]);
 
+  const tiposUnicos = useMemo(() => Array.from(new Set(localidades.map((loc) => loc.place))), [localidades]);
+  const nombresUnicos = useMemo(() => Array.from(new Set(localidades.map((loc) => loc.name))), [localidades]);
+  const altNamesUnicos = useMemo(() => {
+    return Array.from(new Set(localidades.map((loc) => loc.alt_name || "N/A")));
+  }, [localidades]);
+
+  const localidadesFiltradas = useMemo(() => {
+    return localidades.filter((loc) => {
+      const tipoOk = tipoFiltro.length > 0 ? tipoFiltro.includes(loc.place) : true;
+      const nombreOk = nombreFiltro.length > 0 ? nombreFiltro.includes(loc.name) : true;
+      const altNameOk = altNameFiltro.length > 0 ? altNameFiltro.includes(loc.alt_name || "N/A") : true;
+      return tipoOk && nombreOk && altNameOk;
+    });
+  }, [localidades, tipoFiltro, nombreFiltro, altNameFiltro]);
+
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
   const columns = [
-    { accessorKey: "id", header: "ID" },
-    { accessorKey: "name", header: "Nombre" },
-    { accessorKey: "alt_name", header: "Nombre Alternativo" },
-    { accessorKey: "place", header: "Tipo" },
-    { accessorKey: "population", header: "Población" },
-    { accessorKey: "lat", header: "Latitud" },
-    { accessorKey: "lon", header: "Longitud" },
+    {
+      accessorKey: "id",
+      header: "ID",
+    },
+    {
+      accessorKey: "name",
+      header: "Nombre",
+      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+    },
+    {
+      accessorKey: "alt_name",
+      header: "Nombre Alternativo",
+      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+    },
+    {
+      accessorKey: "place",
+      header: "Tipo",
+      filterFn: "includesString" as FilterFnOption<typeof localidades[0]>,
+    },
+    {
+      accessorKey: "population",
+      header: "Población",
+    },
+    {
+      accessorKey: "lat",
+      header: "Latitud",
+    },
+    {
+      accessorKey: "lon",
+      header: "Longitud",
+    },
   ];
 
   const table = useReactTable({
-    data: filteredData,
+    data: localidades,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      columnFilters,
+    },
+    onColumnFiltersChange: setColumnFilters,
   });
 
   return (
@@ -188,9 +246,112 @@ export default function Localidades() {
                 <TableRow key={headerGroup.id} className="text-white">
                   {headerGroup.headers.map((header) => (
                     <TableHead key={header.id}>
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
+                      {header.isPlaceholder ? null : (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                              ▾
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 max-h-96 overflow-auto">
+                            {header.column.id === "name" && (
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="Buscar nombre..."
+                                  value={nombreSearch}
+                                  onChange={(e) => setNombreSearch(e.target.value)}
+                                  className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
+                                />
+                                <div className="flex flex-col gap-1">
+                                  {nombresUnicos
+                                    .filter((nombre) =>
+                                      nombre.toLowerCase().includes(nombreSearch.toLowerCase())
+                                    )
+                                    .map((nombre) => (
+                                      <label
+                                        key={nombre}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <Checkbox
+                                          checked={nombreFiltro.includes(nombre)}
+                                          onCheckedChange={(checked) => {
+                                            setNombreFiltro((prev) =>
+                                              checked
+                                                ? [...prev, nombre]
+                                                : prev.filter((n) => n !== nombre)
+                                            );
+                                          }}
+                                        />
+                                        <span>{nombre}</span>
+                                      </label>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                            {header.column.id === "alt_name" && (
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="Buscar nom. alt..."
+                                  value={nombreSearch}
+                                  onChange={(e) => setNombreSearch(e.target.value)}
+                                  className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
+                                />
+                                <div className="flex flex-col gap-1">
+                                  {altNamesUnicos
+                                    .filter((altName) =>
+                                      altName.toLowerCase().includes(nombreSearch.toLowerCase())
+                                    )
+                                    .map((altName) => (
+                                      <label
+                                        key={altName}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <Checkbox
+                                          checked={altNameFiltro.includes(altName)}
+                                          onCheckedChange={(checked) => {
+                                            setAltNameFiltro((prev) =>
+                                              checked
+                                                ? [...prev, altName]
+                                                : prev.filter((n) => n !== altName)
+                                            );
+                                          }}
+                                        />
+                                        <span>{altName}</span>
+                                      </label>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                            {header.column.id === "place" && (
+                              <div className="flex flex-col gap-1">
+                                {tiposUnicos.map((tipo) => (
+                                  <label
+                                    key={tipo}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Checkbox
+                                      checked={tipoFiltro.includes(tipo)}
+                                      onCheckedChange={(checked) => {
+                                        setTipoFiltro((prev) =>
+                                          checked
+                                            ? [...prev, tipo]
+                                            : prev.filter((t) => t !== tipo)
+                                        );
+                                      }}
+                                    />
+                                    <span>{tipo}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </TableHead>
                   ))}
