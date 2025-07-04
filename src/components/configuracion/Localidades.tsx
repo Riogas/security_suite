@@ -69,11 +69,14 @@ export default function Localidades() {
     }[]
   >([]);
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
+  const [selectedEstado, setSelectedEstado] = useState<string>("");
 
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
   const [tipoFiltro, setTipoFiltro] = useState<string[]>([]);
   const [altNameFiltro, setAltNameFiltro] = useState<string[]>([]);
   const [nombreSearch, setNombreSearch] = useState("");
+
+  const [filteredLocalidades, setFilteredLocalidades] = useState(localidades);
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -158,6 +161,21 @@ export default function Localidades() {
       window.removeEventListener("actualizarTablaLocalidades", actualizarTabla);
     };
   }, [selectedDepartamento]);
+
+  useEffect(() => {
+    const applyEstadoFilter = () => {
+      if (selectedEstado === "Todos") {
+        setFilteredLocalidades(localidades);
+      } else {
+        const filtered = localidades.filter((loc) =>
+          selectedEstado === "S" ? loc.estado === "S" : loc.estado !== "S"
+        );
+        setFilteredLocalidades(filtered);
+      }
+    };
+
+    applyEstadoFilter();
+  }, [localidades, selectedEstado]);
 
   const filteredData = useMemo(() => {
     return searchTerm.length > 0
@@ -278,7 +296,7 @@ export default function Localidades() {
   ];
 
   const table = useReactTable({
-    data: localidades,
+    data: filteredLocalidades,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -363,6 +381,19 @@ export default function Localidades() {
                 {dep.departamentonombre}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={selectedEstado || "S"}
+          onValueChange={(value) => setSelectedEstado(value)}
+        >
+          <SelectTrigger>
+            {selectedEstado === "S" ? "Activo" : selectedEstado === "N" ? "Pasivo" : "Todos"}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="S">Activo</SelectItem>
+            <SelectItem value="N">Pasivo</SelectItem>
+            <SelectItem value="Todos">Todos</SelectItem>
           </SelectContent>
         </Select>
         <Button onClick={() => setIsModalOpen(true)}>Importar</Button>
