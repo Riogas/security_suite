@@ -440,3 +440,38 @@ export const apiActualizarEstadoLocalidad = async (body: {
 
   return response.data;
 };
+
+export const apiGetCalles = async (body: { DepartamentoId: number; LocalidadId: number }) => {
+  try {
+    const response = await api.post("/getCalles", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (response.status !== 200) {
+      throw new Error("Failed to fetch calles");
+    }
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching calles:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+//apiActualizarEstadoCalle
+export const apiActualizarEstadoCalle = async (body: {
+  CalleId: number;
+  CalleEstado: string;
+}) => {
+  const response = await api.post(`/actualizarEstadoCalle`, body, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.status !== 200) {
+    throw new Error("Failed to update calle state");
+  }
+
+  return response.data;
+};
