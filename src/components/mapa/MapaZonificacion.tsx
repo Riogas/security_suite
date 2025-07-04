@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 interface LocalidadZona {
   id: string;
   name: string;
-  coordinates: [number, number][]; // Array of latitude and longitude pairs
+  coordinates: [number, number][][]; // Array of arrays of latitude and longitude pairs (polygons)
 }
 
 interface MapaZonificacionProps {
@@ -18,7 +18,9 @@ export default function MapaZonificacion({ zonas }: MapaZonificacionProps) {
 
   useEffect(() => {
     if (mapRef.current) {
-      const bounds = L.latLngBounds(zonas.flatMap((zona) => zona.coordinates));
+      const bounds = L.latLngBounds(
+        zonas.flatMap((zona) => zona.coordinates?.flat() || [])
+      );
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds);
       }
@@ -36,14 +38,16 @@ export default function MapaZonificacion({ zonas }: MapaZonificacionProps) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
       />
-      {zonas.map((zona, index) => (
-        <Polygon
-          key={`${zona.id}-${index}`}
-          positions={zona.coordinates}
-          color="blue"
-          fillOpacity={0.4}
-        />
-      ))}
+      {zonas.map((zona) =>
+        zona.coordinates?.map((polygon, index) => (
+          <Polygon
+            key={`${zona.id}-${index}`}
+            positions={polygon}
+            color="blue"
+            fillOpacity={0.4}
+          />
+        ))
+      )}
     </MapContainer>
   );
 }

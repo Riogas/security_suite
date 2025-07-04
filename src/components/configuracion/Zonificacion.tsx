@@ -19,13 +19,19 @@ interface Localidad {
   lon: number; // Longitude of the locality
 }
 
+interface LocalidadZona {
+  id: string;
+  name: string;
+  coordinates: [number, number][][]; // Array of arrays of latitude and longitude pairs (polygons)
+}
+
 export default function Zonificacion() {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
   const [selectedLocalidades, setSelectedLocalidades] = useState<Localidad[]>([]);
   const [localidadInput, setLocalidadInput] = useState<string>("");
-  const [zonas, setZonas] = useState<any[]>([]);
+  const [zonas, setZonas] = useState<LocalidadZona[]>([]);
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -56,40 +62,94 @@ export default function Zonificacion() {
     fetchLocalidades();
   }, [selectedDepartamento]);
 
-  const fetchPolygonForLocalidad = async (localidad: Localidad) => {
-    try {
-      const polygonData = await apiGetPolygonForLocalidad(localidad.lat, localidad.lon);
+  function connectWaysInOrder(ways: number[][]): number[] {
+  if (ways.length === 0) return [];
 
-      // Validate response structure
-      if (!polygonData || !polygonData.elements || !Array.isArray(polygonData.elements)) {
-        console.error("Invalid polygon data structure:", polygonData);
-        return null;
+  const result: number[] = [...ways[0]];
+  const used = new Set<number>();
+  used.add(0);
+
+  while (used.size < ways.length) {
+    const lastNode = result[result.length - 1];
+    let matched = false;
+
+    for (let i = 1; i < ways.length; i++) {
+      if (used.has(i)) continue;
+
+      const way = ways[i];
+      if (way[0] === lastNode) {
+        result.push(...way.slice(1));
+        used.add(i);
+        matched = true;
+        break;
+      } else if (way[way.length - 1] === lastNode) {
+        result.push(...way.slice(0, -1).reverse());
+        used.add(i);
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) break; // No se puede conectar más
+  }
+
+  return result;
+}
+
+
+  const fetchPolygonForLocalidad = async (localidad: Localidad) => {
+  try {
+    const polygonData = await apiGetPolygonForLocalidad(localidad.lat, localidad.lon);
+
+    const nodesById = new Map<number, [number, number]>();
+    const waysById = new Map<number, number[]>();
+
+    for (const el of polygonData.elements) {
+      if (el.type === "node") {
+        nodesById.set(el.id, [el.lat, el.lon]);
+      } else if (el.type === "way") {
+        waysById.set(el.id, el.nodes);
+      }
+    }
+
+    const relations = polygonData.elements.filter((el: any) => el.type === "relation");
+
+    const polygons: [number, number][][] = [];
+
+    for (const rel of relations) {
+      const outerWays = rel.members
+        .filter((m: any) => m.role === "outer" && m.type === "way")
+        .map((m: any) => waysById.get(m.ref))
+        .filter((nodes: any): nodes is number[] => !!nodes);
+
+      const orderedNodeIds = connectWaysInOrder(outerWays);
+
+      const polygonCoords: [number, number][] = orderedNodeIds
+        .map((nodeId) => nodesById.get(nodeId))
+        .filter((coords): coords is [number, number] => coords !== undefined);
+
+      // Cierra el polígono si es necesario
+      if (
+        polygonCoords.length > 0 &&
+        (polygonCoords[0][0] !== polygonCoords[polygonCoords.length - 1][0] ||
+         polygonCoords[0][1] !== polygonCoords[polygonCoords.length - 1][1])
+      ) {
+        polygonCoords.push(polygonCoords[0]);
       }
 
-      // Extract nodes and relations from Overpass response
-      const nodes = polygonData.elements.filter((el: any) => el.type === "node");
-      const relations = polygonData.elements.filter((el: any) => el.type === "relation");
-
-      // Process relations to extract member nodes
-      const polygons = relations.map((relation: any) => {
-        const memberNodes = relation.members
-          .filter((member: any) => member.type === "node")
-          .map((member: any) => {
-            const node = nodes.find((n: any) => n.id === member.ref);
-            return node ? [node.lat, node.lon] : null;
-          })
-          .filter((coords: any) => coords !== null);
-
-        return memberNodes.length > 0 ? memberNodes : null; // Ensure valid polygons
-      });
-
-      // Return the first valid polygon (if any)
-      return polygons.find((polygon: any) => polygon !== null) || []; // Return the first valid polygon or an empty array
-    } catch (error) {
-      console.error("Error fetching polygon for localidad:", error);
-      return null;
+      if (polygonCoords.length > 0) {
+        polygons.push(polygonCoords);
+      }
     }
-  };
+
+    return polygons.length > 0 ? polygons : null;
+  } catch (error) {
+    console.error("Error fetching polygon for localidad:", error);
+    return null;
+  }
+};
+
+
 
   const handleAddLocalidad = async (localidadName: string) => {
     const localidad = localidades.find((loc) => loc.name === localidadName);
@@ -99,7 +159,10 @@ export default function Zonificacion() {
 
       const polygon = await fetchPolygonForLocalidad(localidad);
       if (polygon) {
-        setZonas((prevZonas) => [...prevZonas, { id: localidad.id, polygon }]);
+        setZonas((prevZonas) => [
+          ...prevZonas,
+          { id: localidad.id, name: localidad.name, coordinates: polygon }
+        ]);
       }
     }
   };
@@ -110,23 +173,25 @@ export default function Zonificacion() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Select
-        value={selectedDepartamento}
-        onValueChange={setSelectedDepartamento}
-      >
-        <SelectTrigger>
-          {departamentos.find((dep) => dep.id === selectedDepartamento)?.name ||
-            "Seleccione un departamento"}
-        </SelectTrigger>
-        <SelectContent>
-          {departamentos.map((dep) => (
-            <SelectItem key={dep.id} value={dep.id}>
-              {dep.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="flex flex-col gap-4 relative">
+      <div className="z-10 mb-4"> {/* Wrap the Select component in a div with margin */}
+        <Select
+          value={selectedDepartamento}
+          onValueChange={setSelectedDepartamento}
+        >
+          <SelectTrigger>
+            {departamentos.find((dep) => dep.id === selectedDepartamento)?.name ||
+              "Seleccione un departamento"}
+          </SelectTrigger>
+          <SelectContent>
+            {departamentos.map((dep) => (
+              <SelectItem key={dep.id} value={dep.id}>
+                {dep.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="relative">
         <Input
@@ -139,7 +204,9 @@ export default function Zonificacion() {
           className="flex-grow"
         />
         {localidadInput && (
-          <div className="absolute top-full left-0 w-full bg-gray-800 text-white border rounded shadow-md mt-1">
+          <div
+            className="absolute top-full left-0 w-full bg-gray-800 text-white border rounded shadow-md mt-1 z-20" // Increase z-index
+          >
             {localidades
               .filter((loc) => loc.name.toLowerCase().includes(localidadInput.toLowerCase()))
               .map((loc) => (
@@ -169,7 +236,9 @@ export default function Zonificacion() {
         ))}
       </div>
 
-      <MapaZonificacion zonas={zonas.map((zona) => zona.polygon)} />
+      <div className="z-0">
+        <MapaZonificacion zonas={zonas} />
+      </div>
     </div>
   );
 }
