@@ -52,7 +52,6 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       { label: "Pedidos", icon: "package", path: "/dashboard/pedidos" },
       { label: "Moviles", icon: "truck", path: "/dashboard/moviles" },
       { label: "Zonas", icon: "map", path: "/dashboard/mapa" },
-
       {
         label: "Configuración",
         icon: "settings",
@@ -60,6 +59,7 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       },
       { label: "Reportes", icon: "bar-chart", path: "/dashboard/reportes" },
       { label: "Perfil", icon: "user", path: "/dashboard/perfil" },
+      { label: "Normalizar Calles", icon: "map", path: "/dashboard/normalizar-calles" },
     ],
     user: [
       { label: "Menu 1", icon: "file-text", path: "/dashboard/menu1" },
@@ -474,4 +474,21 @@ export const apiActualizarEstadoCalle = async (body: {
   }
 
   return response.data;
+};
+
+export const apiGetCallesICA = async (body: { DepartamentoId: number; LocalidadId: number }) => {
+  try {
+    const response = await api.post("/getCallesICA", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (response.status !== 200) {
+      throw new Error("Failed to fetch calles");
+    }
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching calles:", error.response?.data || error.message);
+    throw error;
+  }
 };
