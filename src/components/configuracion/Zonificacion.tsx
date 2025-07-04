@@ -6,6 +6,7 @@ import { apiGetDepartamentos, apiGetLocalidades } from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import MapaZonificacion from "@/components/mapa/MapaZonificacion";
 import { apiGetPolygonForLocalidad } from "@/services/api";
+import { Button } from "@/components/ui/button"; // Import Button component
 
 interface Departamento {
   id: string;
@@ -32,6 +33,7 @@ export default function Zonificacion() {
   const [selectedLocalidades, setSelectedLocalidades] = useState<Localidad[]>([]);
   const [localidadInput, setLocalidadInput] = useState<string>("");
   const [zonas, setZonas] = useState<LocalidadZona[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false); // State for loading indicator
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -172,9 +174,29 @@ export default function Zonificacion() {
     setZonas((prevZonas) => prevZonas.filter((zona) => zona.id !== id));
   };
 
+  const handleShowAllLocalidades = async () => {
+    if (!selectedDepartamento || localidades.length === 0) return;
+
+    setLoadingAll(true);
+    for (const localidad of localidades) {
+      if (!selectedLocalidades.some((loc) => loc.id === localidad.id)) {
+        setSelectedLocalidades((prev) => [...prev, localidad]);
+
+        const polygon = await fetchPolygonForLocalidad(localidad);
+        if (polygon) {
+          setZonas((prevZonas) => [
+            ...prevZonas,
+            { id: localidad.id, name: localidad.name, coordinates: polygon },
+          ]);
+        }
+      }
+    }
+    setLoadingAll(false);
+  };
+
   return (
     <div className="flex flex-col gap-4 relative">
-      <div className="z-10 mb-4"> {/* Wrap the Select component in a div with margin */}
+      <div className="z-10 mb-4 flex items-center gap-2"> {/* Wrap the Select and Button in a flex container */}
         <Select
           value={selectedDepartamento}
           onValueChange={setSelectedDepartamento}
@@ -191,6 +213,9 @@ export default function Zonificacion() {
             ))}
           </SelectContent>
         </Select>
+        <Button onClick={handleShowAllLocalidades} disabled={loadingAll}>
+          {loadingAll ? "Cargando..." : "Mostrar Todas"}
+        </Button>
       </div>
 
       <div className="relative">
