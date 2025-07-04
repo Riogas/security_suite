@@ -86,8 +86,7 @@ export default function ConfiguracionPage() {
             <CardContent>
               <Departamentos />
             </CardContent>
-            <CardFooter>
-            </CardFooter>
+            <CardFooter></CardFooter>
           </Card>
         </TabsContent>
 
@@ -100,8 +99,7 @@ export default function ConfiguracionPage() {
             <CardContent>
               <Localidades />
             </CardContent>
-            <CardFooter>
-            </CardFooter>
+            <CardFooter></CardFooter>
           </Card>
         </TabsContent>
 

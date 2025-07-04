@@ -52,7 +52,7 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       { label: "Pedidos", icon: "package", path: "/dashboard/pedidos" },
       { label: "Moviles", icon: "truck", path: "/dashboard/moviles" },
       { label: "Zonas", icon: "map", path: "/dashboard/mapa" },
-      
+
       {
         label: "Configuración",
         icon: "settings",
@@ -199,7 +199,9 @@ export const apiGetDepartamentos = async () => {
   return response.data;
 };
 
-export const apiImportarDepartamentos = async (body: { sdtDepartamentos: { DepartamentoId: string; DepartamentoNombre: string }[] }) => {
+export const apiImportarDepartamentos = async (body: {
+  sdtDepartamentos: { DepartamentoId: string; DepartamentoNombre: string }[];
+}) => {
   try {
     const response = await api.post("/importarDepartamentos", body, {
       headers: { "Content-Type": "application/json" },
@@ -207,23 +209,39 @@ export const apiImportarDepartamentos = async (body: { sdtDepartamentos: { Depar
     console.log("Departamentos importados correctamente:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error al importar departamentos:", error.response?.data || error.message);
+    console.error(
+      "Error al importar departamentos:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
 
-export const apiCambiarEstadoDepartamento = async (departamentoId: string, nuevoEstado: string) => {
+export const apiCambiarEstadoDepartamento = async (
+  departamentoId: string,
+  nuevoEstado: string,
+) => {
   try {
-    const response = await api.put(`/actualizarDepartamentos`, {
-      DepartamentoId: departamentoId,
-      DepartamentoEstado: nuevoEstado,
-    }, {
-      headers: { "Content-Type": "application/json" },
-    });
-    console.log(`Estado del departamento ${departamentoId} cambiado a ${nuevoEstado}:`, response.data);
+    const response = await api.put(
+      `/actualizarDepartamentos`,
+      {
+        DepartamentoId: departamentoId,
+        DepartamentoEstado: nuevoEstado,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    console.log(
+      `Estado del departamento ${departamentoId} cambiado a ${nuevoEstado}:`,
+      response.data,
+    );
     return response.data;
   } catch (error: any) {
-    console.error(`Error al cambiar estado del departamento ${departamentoId}:`, error.response?.data || error.message);
+    console.error(
+      `Error al cambiar estado del departamento ${departamentoId}:`,
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
@@ -237,7 +255,10 @@ export const apiGetLocalidades = async (body: { DepartamentoId: string }) => {
     console.log("Localidades obtenidas:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error al obtener localidades:", error.response?.data || error.message);
+    console.error(
+      "Error al obtener localidades:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
@@ -263,7 +284,10 @@ export const apiImportarLocalidades = async (body: {
     console.log("Localidades importadas correctamente:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error al importar localidades:", error.response?.data || error.message);
+    console.error(
+      "Error al importar localidades:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
@@ -289,12 +313,18 @@ export const apiImportarCalles = async (body: {
     console.log("Calles importadas correctamente:", response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error al importar calles:", error.response?.data || error.message);
+    console.error(
+      "Error al importar calles:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
 
-export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) => {
+export const obtenerCallesDesdeCoordenadas = async (
+  lat: number,
+  lon: number,
+) => {
   try {
     // Paso 1: Buscar la relación administrativa (localidad) que contiene las coordenadas
     const buscarRelacionQuery = `
@@ -318,7 +348,9 @@ export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) =>
     const areaId = relData.elements?.[0]?.id;
 
     if (!areaId) {
-      throw new Error("No se encontró un área administrativa (admin_level=8) para estas coordenadas.");
+      throw new Error(
+        "No se encontró un área administrativa (admin_level=8) para estas coordenadas.",
+      );
     }
 
     // Paso 2: Buscar calles dentro de esa área
@@ -328,11 +360,14 @@ export const obtenerCallesDesdeCoordenadas = async (lat: number, lon: number) =>
       out tags center;
     `;
 
-    const callesResponse = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: overpassQuery,
-    });
+    const callesResponse = await fetch(
+      "https://overpass-api.de/api/interpreter",
+      {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: overpassQuery,
+      },
+    );
 
     if (!callesResponse.ok) {
       throw new Error("Error al obtener calles desde Overpass API");
@@ -370,13 +405,9 @@ export const apiGetPolygonForLocalidad = async (lat: number, lon: number) => {
       out skel qt;
     `;
 
-    const response = await overpassApi.post(
-      "/interpreter",
-      query,
-      {
-        headers: { "Content-Type": "text/plain" },
-      }
-    );
+    const response = await overpassApi.post("/interpreter", query, {
+      headers: { "Content-Type": "text/plain" },
+    });
 
     if (response.data && response.data.elements) {
       return response.data; // Return the full Overpass API response
@@ -385,7 +416,27 @@ export const apiGetPolygonForLocalidad = async (lat: number, lon: number) => {
       return null;
     }
   } catch (error) {
-    console.error(`Error fetching polygon for coordinates: (${lat}, ${lon})`, error);
+    console.error(
+      `Error fetching polygon for coordinates: (${lat}, ${lon})`,
+      error,
+    );
     return null;
   }
+};
+
+export const apiActualizarEstadoLocalidad = async (body: {
+  LocalidadId: number;
+  LocalidadEstado: string;
+}) => {
+  const response = await api.post(`/actualizarEstadoLocalidad`, body, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.status !== 200) {
+    throw new Error("Failed to update localidad state");
+  }
+
+  return response.data;
 };

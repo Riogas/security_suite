@@ -21,14 +21,22 @@ import {
   ColumnFiltersState,
   FilterFn,
 } from "@tanstack/react-table";
-import { apiGetLocalidades, apiGetDepartamentos } from "@/services/api";
+import {
+  apiGetLocalidades,
+  apiGetDepartamentos,
+  apiActualizarEstadoLocalidad,
+} from "@/services/api";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
@@ -41,20 +49,25 @@ const multiValueFilter: FilterFn<any> = (row, columnId, filterValue) => {
 
 export default function Localidades() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [localidades, setLocalidades] = useState<{
-    id: number;
-    name: string;
-    alt_name: string | null;
-    place: string;
-    population: string | null;
-    lat: number;
-    lon: number;
-  }[]>([]);
+  const [localidades, setLocalidades] = useState<
+    {
+      id: number;
+      name: string;
+      alt_name: string | null;
+      place: string;
+      population: string | null;
+      lat: number;
+      lon: number;
+      estado: string; // Include estado
+    }[]
+  >([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [departamentosState, setDepartamentosState] = useState<{
-    departamentoid: string;
-    departamentonombre: string;
-  }[]>([]);
+  const [departamentosState, setDepartamentosState] = useState<
+    {
+      departamentoid: string;
+      departamentonombre: string;
+    }[]
+  >([]);
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
 
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
@@ -66,7 +79,10 @@ export default function Localidades() {
     const fetchDepartamentos = async () => {
       const data = await apiGetDepartamentos();
       const filteredDepartamentos = data.sdtDepartamentos
-        .filter((dep: { DepartamentoEstado: string }) => dep.DepartamentoEstado === "S")
+        .filter(
+          (dep: { DepartamentoEstado: string }) =>
+            dep.DepartamentoEstado === "S",
+        )
         .map((dep: { DepartamentoId: string; DepartamentoNombre: string }) => ({
           departamentoid: dep.DepartamentoId,
           departamentonombre: dep.DepartamentoNombre,
@@ -80,38 +96,29 @@ export default function Localidades() {
   useEffect(() => {
     const fetchLocalidades = async () => {
       if (!selectedDepartamento) return;
-      const data = await apiGetLocalidades({ DepartamentoId: selectedDepartamento });
-      interface ApiLocalidad {
-        LocalidadId: number;
-        LocalidadNombre: string;
-        LocalidadReferencia?: string;
-        LocalidadType: string;
-        LocalidadLatitud: string;
-        LocalidadLongitud: string;
-        LocalidadPoblacion: number | null;
-        LocalidadTipo: string;
+      try {
+        const data = await apiGetLocalidades({
+          DepartamentoId: selectedDepartamento,
+        });
+        const mappedLocalidades = (data.sdtLocalidad || []).map((loc: any) => ({
+          id: loc.LocalidadId,
+          name: loc.LocalidadNombre,
+          alt_name: loc.LocalidadReferencia || null,
+          place: loc.LocalidadTipo || loc.LocalidadType || "Desconocido",
+          population:
+            loc.LocalidadPoblacion !== null &&
+            loc.LocalidadPoblacion !== undefined
+              ? String(loc.LocalidadPoblacion)
+              : null,
+          lat: parseFloat(loc.LocalidadLatitud),
+          lon: parseFloat(loc.LocalidadLongitud),
+          estado: loc.LocalidadEstado,
+        }));
+        setLocalidades(mappedLocalidades);
+      } catch (error) {
+        console.error("Error fetching localidades:", error);
+        setLocalidades([]); // Fallback to empty array
       }
-
-      interface Localidad {
-        id: number;
-        name: string;
-        alt_name: string | null;
-        place: string;
-        population: string | null;
-        lat: number;
-        lon: number;
-      }
-
-      const mappedLocalidades: Localidad[] = (data.sdtLocalidad as ApiLocalidad[]).map((loc: ApiLocalidad): Localidad => ({
-        id: loc.LocalidadId,
-        name: loc.LocalidadNombre,
-        alt_name: loc.LocalidadReferencia || null,
-        place: loc.LocalidadTipo || loc.LocalidadType || "Desconocido",
-        population: loc.LocalidadPoblacion !== null && loc.LocalidadPoblacion !== undefined ? String(loc.LocalidadPoblacion) : null,
-        lat: parseFloat(loc.LocalidadLatitud),
-        lon: parseFloat(loc.LocalidadLongitud),
-      }));
-      setLocalidades(mappedLocalidades);
     };
 
     fetchLocalidades();
@@ -121,8 +128,25 @@ export default function Localidades() {
     const actualizarTabla = () => {
       const fetchLocalidades = async () => {
         if (!selectedDepartamento) return;
-        const data = await apiGetLocalidades({ DepartamentoId: selectedDepartamento });
-        setLocalidades(data);
+        const data = await apiGetLocalidades({
+          DepartamentoId: selectedDepartamento,
+        });
+        setLocalidades(
+          (data.sdtLocalidad || []).map((loc: any) => ({
+            id: loc.LocalidadId,
+            name: loc.LocalidadNombre,
+            alt_name: loc.LocalidadReferencia || null,
+            place: loc.LocalidadTipo || loc.LocalidadType || "Desconocido",
+            population:
+              loc.LocalidadPoblacion !== null &&
+              loc.LocalidadPoblacion !== undefined
+                ? String(loc.LocalidadPoblacion)
+                : null,
+            lat: parseFloat(loc.LocalidadLatitud),
+            lon: parseFloat(loc.LocalidadLongitud),
+            estado: loc.LocalidadEstado,
+          })),
+        );
       };
 
       fetchLocalidades();
@@ -138,22 +162,33 @@ export default function Localidades() {
   const filteredData = useMemo(() => {
     return searchTerm.length > 0
       ? localidades.filter((loc) =>
-          loc.name?.toLowerCase().includes(searchTerm.toLowerCase())
+          loc.name?.toLowerCase().includes(searchTerm.toLowerCase()),
         )
       : localidades;
   }, [searchTerm, localidades]);
 
-  const tiposUnicos = useMemo(() => Array.from(new Set(localidades.map((loc) => loc.place))), [localidades]);
-  const nombresUnicos = useMemo(() => Array.from(new Set(localidades.map((loc) => loc.name))), [localidades]);
+  const tiposUnicos = useMemo(() => {
+    if (!Array.isArray(localidades)) return [];
+    return Array.from(new Set(localidades.map((loc) => loc.place)));
+  }, [localidades]);
+  const nombresUnicos = useMemo(
+    () => Array.from(new Set(localidades.map((loc) => loc.name))),
+    [localidades],
+  );
   const altNamesUnicos = useMemo(() => {
     return Array.from(new Set(localidades.map((loc) => loc.alt_name || "N/A")));
   }, [localidades]);
 
   const localidadesFiltradas = useMemo(() => {
     return localidades.filter((loc) => {
-      const tipoOk = tipoFiltro.length > 0 ? tipoFiltro.includes(loc.place) : true;
-      const nombreOk = nombreFiltro.length > 0 ? nombreFiltro.includes(loc.name) : true;
-      const altNameOk = altNameFiltro.length > 0 ? altNameFiltro.includes(loc.alt_name || "N/A") : true;
+      const tipoOk =
+        tipoFiltro.length > 0 ? tipoFiltro.includes(loc.place) : true;
+      const nombreOk =
+        nombreFiltro.length > 0 ? nombreFiltro.includes(loc.name) : true;
+      const altNameOk =
+        altNameFiltro.length > 0
+          ? altNameFiltro.includes(loc.alt_name || "N/A")
+          : true;
       return tipoOk && nombreOk && altNameOk;
     });
   }, [localidades, tipoFiltro, nombreFiltro, altNameFiltro]);
@@ -169,6 +204,54 @@ export default function Localidades() {
       accessorKey: "name",
       header: "Nombre",
       filterFn: multiValueFilter,
+    },
+    {
+      accessorKey: "estado",
+      header: "Estado",
+      cell: ({
+        row,
+      }: {
+        row: { original: { estado: string; id: number } };
+      }) => {
+        const [popoverOpen, setPopoverOpen] = useState(false);
+        const localidadId = row.original.id;
+        const currentEstado = row.original.estado;
+        const oppositeEstado = currentEstado === "S" ? "N" : "S";
+
+        const handleEstadoChange = async () => {
+          try {
+            await apiActualizarEstadoLocalidad({
+              LocalidadId: localidadId,
+              LocalidadEstado: oppositeEstado,
+            });
+            setPopoverOpen(false);
+            const event = new Event("actualizarTablaLocalidades");
+            window.dispatchEvent(event);
+          } catch (error) {
+            console.error("Failed to update localidad state", error);
+            alert("Error updating state. Please try again.");
+          }
+        };
+
+        return (
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Badge
+                className={`cursor-pointer ${currentEstado === "S" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}
+              >
+                {currentEstado === "S" ? "Activo" : "Pasivo"}
+              </Badge>
+            </PopoverTrigger>
+            <PopoverContent>
+              <div className="flex flex-col gap-2">
+                <Button variant="default" onClick={handleEstadoChange}>
+                  {oppositeEstado === "S" ? "Activo" : "Pasivo"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      },
     },
     {
       accessorKey: "alt_name",
@@ -215,11 +298,45 @@ export default function Localidades() {
       const existingFilter = prev.find((filter) => filter.id === columnId);
       if (existingFilter) {
         return prev.map((filter) =>
-          filter.id === columnId ? { ...filter, value: values } : filter
+          filter.id === columnId ? { ...filter, value: values } : filter,
         );
       }
       return [...prev, { id: columnId, value: values }];
     });
+  };
+
+  const handleEstadoChange = async (
+    localidadId: number,
+    currentEstado: string,
+  ) => {
+    const nuevoEstado = currentEstado === "S" ? "P" : "S"; // Toggle between 'S' (Activo) and 'P' (Pasivo)
+
+    try {
+      await apiActualizarEstadoLocalidad({
+        LocalidadId: localidadId,
+        LocalidadEstado: nuevoEstado,
+      });
+      const data = await apiGetLocalidades({
+        DepartamentoId: selectedDepartamento,
+      });
+      const mappedLocalidades = data.sdtLocalidad.map((loc: any) => ({
+        id: loc.LocalidadId,
+        name: loc.LocalidadNombre,
+        alt_name: loc.LocalidadReferencia || null,
+        place: loc.LocalidadTipo || loc.LocalidadType || "Desconocido",
+        population:
+          loc.LocalidadPoblacion !== null &&
+          loc.LocalidadPoblacion !== undefined
+            ? String(loc.LocalidadPoblacion)
+            : null,
+        lat: parseFloat(loc.LocalidadLatitud),
+        lon: parseFloat(loc.LocalidadLongitud),
+        estado: loc.LocalidadEstado, // Include estado
+      }));
+      setLocalidades(mappedLocalidades);
+    } catch (error) {
+      console.error("Error updating localidad state:", error);
+    }
   };
 
   return (
@@ -237,7 +354,7 @@ export default function Localidades() {
         >
           <SelectTrigger>
             {departamentosState.find(
-              (dep) => dep.departamentoid === selectedDepartamento
+              (dep) => dep.departamentoid === selectedDepartamento,
             )?.departamentonombre || "Seleccione un departamento"}
           </SelectTrigger>
           <SelectContent>
@@ -271,10 +388,14 @@ export default function Localidades() {
                       {header.isPlaceholder ? null : (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex items-center gap-2"
+                            >
                               {flexRender(
                                 header.column.columnDef.header,
-                                header.getContext()
+                                header.getContext(),
                               )}
                               ▾
                             </Button>
@@ -286,13 +407,17 @@ export default function Localidades() {
                                   type="text"
                                   placeholder="Buscar nombre..."
                                   value={nombreSearch}
-                                  onChange={(e) => setNombreSearch(e.target.value)}
+                                  onChange={(e) =>
+                                    setNombreSearch(e.target.value)
+                                  }
                                   className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
                                 />
                                 <div className="flex flex-col gap-1">
                                   {nombresUnicos
                                     .filter((nombre) =>
-                                      nombre.toLowerCase().includes(nombreSearch.toLowerCase())
+                                      nombre
+                                        .toLowerCase()
+                                        .includes(nombreSearch.toLowerCase()),
                                     )
                                     .map((nombre) => (
                                       <label
@@ -300,13 +425,20 @@ export default function Localidades() {
                                         className="flex items-center gap-2 cursor-pointer"
                                       >
                                         <Checkbox
-                                          checked={nombreFiltro.includes(nombre)}
+                                          checked={nombreFiltro.includes(
+                                            nombre,
+                                          )}
                                           onCheckedChange={(checked) => {
                                             const updatedFiltro = checked
                                               ? [...nombreFiltro, nombre]
-                                              : nombreFiltro.filter((n) => n !== nombre);
+                                              : nombreFiltro.filter(
+                                                  (n) => n !== nombre,
+                                                );
                                             setNombreFiltro(updatedFiltro);
-                                            updateColumnFilter("name", updatedFiltro);
+                                            updateColumnFilter(
+                                              "name",
+                                              updatedFiltro,
+                                            );
                                           }}
                                         />
                                         <span>{nombre}</span>
@@ -321,13 +453,17 @@ export default function Localidades() {
                                   type="text"
                                   placeholder="Buscar nom. alt..."
                                   value={nombreSearch}
-                                  onChange={(e) => setNombreSearch(e.target.value)}
+                                  onChange={(e) =>
+                                    setNombreSearch(e.target.value)
+                                  }
                                   className="mb-2 w-full rounded border px-2 py-1 text-sm bg-background text-foreground"
                                 />
                                 <div className="flex flex-col gap-1">
                                   {altNamesUnicos
                                     .filter((altName) =>
-                                      altName.toLowerCase().includes(nombreSearch.toLowerCase())
+                                      altName
+                                        .toLowerCase()
+                                        .includes(nombreSearch.toLowerCase()),
                                     )
                                     .map((altName) => (
                                       <label
@@ -335,13 +471,20 @@ export default function Localidades() {
                                         className="flex items-center gap-2 cursor-pointer"
                                       >
                                         <Checkbox
-                                          checked={altNameFiltro.includes(altName)}
+                                          checked={altNameFiltro.includes(
+                                            altName,
+                                          )}
                                           onCheckedChange={(checked) => {
                                             const updatedFiltro = checked
                                               ? [...altNameFiltro, altName]
-                                              : altNameFiltro.filter((n) => n !== altName);
+                                              : altNameFiltro.filter(
+                                                  (n) => n !== altName,
+                                                );
                                             setAltNameFiltro(updatedFiltro);
-                                            updateColumnFilter("alt_name", updatedFiltro);
+                                            updateColumnFilter(
+                                              "alt_name",
+                                              updatedFiltro,
+                                            );
                                           }}
                                         />
                                         <span>{altName}</span>
@@ -362,9 +505,14 @@ export default function Localidades() {
                                       onCheckedChange={(checked) => {
                                         const updatedFiltro = checked
                                           ? [...tipoFiltro, tipo]
-                                          : tipoFiltro.filter((t) => t !== tipo);
+                                          : tipoFiltro.filter(
+                                              (t) => t !== tipo,
+                                            );
                                         setTipoFiltro(updatedFiltro);
-                                        updateColumnFilter("place", updatedFiltro);
+                                        updateColumnFilter(
+                                          "place",
+                                          updatedFiltro,
+                                        );
                                       }}
                                     />
                                     <span>{tipo}</span>
@@ -385,7 +533,10 @@ export default function Localidades() {
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

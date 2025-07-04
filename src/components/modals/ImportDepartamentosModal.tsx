@@ -15,7 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { importarDepartamentos, apiImportarDepartamentos, apiGetDepartamentos } from "@/services/api";
+import {
+  importarDepartamentos,
+  apiImportarDepartamentos,
+  apiGetDepartamentos,
+} from "@/services/api";
 import { toast } from "sonner";
 import {
   Popover,
@@ -90,9 +94,10 @@ export default function ImportDepartamentosModal({
       const data = await importarDepartamentos();
       const existingDepartamentos = await apiGetDepartamentos();
 
-      const existingNames = existingDepartamentos?.sdtDepartamentos?.map(
-        (dep: { DepartamentoNombre: string }) => dep.DepartamentoNombre
-      ) || [];
+      const existingNames =
+        existingDepartamentos?.sdtDepartamentos?.map(
+          (dep: { DepartamentoNombre: string }) => dep.DepartamentoNombre,
+        ) || [];
 
       const updatedDepartamentos = data.map((dep: any) => ({
         ...dep,
@@ -115,7 +120,9 @@ export default function ImportDepartamentosModal({
   };
 
   const importar = async () => {
-    const seleccionadosData = departamentosFiltrados.filter((dep) => seleccionados.includes(dep.name));
+    const seleccionadosData = departamentosFiltrados.filter((dep) =>
+      seleccionados.includes(dep.name),
+    );
     if (seleccionadosData.length === 0) {
       toast.error("Debe seleccionar al menos un departamento para importar.");
       return;
@@ -137,7 +144,9 @@ export default function ImportDepartamentosModal({
       window.dispatchEvent(new Event("actualizarTablaDepartamentos")); // Evento para actualizar la tabla
     } catch (error) {
       console.error("Error al importar departamentos:", error);
-      toast.error("Error al importar departamentos. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al importar departamentos. Consulte la consola para más detalles.",
+      );
     } finally {
       setImportLoading(false);
     }
@@ -257,9 +266,7 @@ export default function ImportDepartamentosModal({
               </TableHeader>
               <TableBody>
                 {departamentosFiltrados.map((dep, idx) => (
-                  <TableRow
-                    key={dep.name}
-                  >
+                  <TableRow key={dep.name}>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={seleccionados.includes(dep.name)}

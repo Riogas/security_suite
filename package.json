@@ -31,6 +31,8 @@
     "@sentry/react": "^9.30.0",
     "@sentry/tracing": "^7.120.3",
     "@tanstack/react-table": "^8.21.3",
+    "@turf/boolean-contains": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
     "@turf/turf": "^7.2.0",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",

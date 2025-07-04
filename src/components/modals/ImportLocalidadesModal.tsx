@@ -13,7 +13,12 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { importarLocalidades, apiGetDepartamentos, apiGetLocalidades, apiImportarLocalidades } from "@/services/api";
+import {
+  importarLocalidades,
+  apiGetDepartamentos,
+  apiGetLocalidades,
+  apiImportarLocalidades,
+} from "@/services/api";
 import { toast } from "sonner";
 import {
   Table,
@@ -51,10 +56,12 @@ export default function ImportLocalidadesModal({
   const [altNameFiltro, setAltNameFiltro] = useState<string[]>([]);
   const [seleccionados, setSeleccionados] = useState<string[]>([]); // Usar name como identificador único
   const [nombreSearch, setNombreSearch] = useState("");
-  const [departamentosState, setDepartamentosState] = useState<{
-    departamentoid: string;
-    departamentonombre: string;
-  }[]>([]);
+  const [departamentosState, setDepartamentosState] = useState<
+    {
+      departamentoid: string;
+      departamentonombre: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -72,7 +79,10 @@ export default function ImportLocalidadesModal({
     const fetchDepartamentos = async () => {
       const data = await apiGetDepartamentos();
       const filteredDepartamentos = data.sdtDepartamentos
-        .filter((dep: { DepartamentoEstado: string }) => dep.DepartamentoEstado === "S")
+        .filter(
+          (dep: { DepartamentoEstado: string }) =>
+            dep.DepartamentoEstado === "S",
+        )
         .map((dep: { DepartamentoId: string; DepartamentoNombre: string }) => ({
           departamentoid: dep.DepartamentoId,
           departamentonombre: dep.DepartamentoNombre,
@@ -91,7 +101,9 @@ export default function ImportLocalidadesModal({
       return;
     }
 
-    const seleccionadosData = localidadesPreview.filter((loc) => seleccionados.includes(loc.name));
+    const seleccionadosData = localidadesPreview.filter((loc) =>
+      seleccionados.includes(loc.name),
+    );
     if (seleccionadosData.length === 0) {
       toast.error("Debe seleccionar al menos una localidad para importar.");
       return;
@@ -103,7 +115,7 @@ export default function ImportLocalidadesModal({
         DepartamentoId: Number(departamento),
         LocalidadId: loc.id,
         LocalidadNombre: loc.name,
-        LocalidadEstado: "", 
+        LocalidadEstado: "",
         LocalidadLatitud: loc.lat,
         LocalidadLongitud: loc.lon,
         LocalidadReferencia: loc.alt_name || "",
@@ -124,7 +136,9 @@ export default function ImportLocalidadesModal({
       window.dispatchEvent(new Event("actualizarTablaLocalidades")); // Evento para actualizar la tabla
     } catch (error) {
       console.error("Error al importar localidades:", error);
-      toast.error("Error al importar localidades. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al importar localidades. Consulte la consola para más detalles.",
+      );
     } finally {
       setLoading(false);
     }
@@ -138,11 +152,13 @@ export default function ImportLocalidadesModal({
 
     // Obtener el nombre del departamento seleccionado
     const departamentoNombre = departamentosState.find(
-      (dep) => dep.departamentoid === departamento
+      (dep) => dep.departamentoid === departamento,
     )?.departamentonombre;
 
     if (!departamentoNombre) {
-      toast.error("No se pudo encontrar el nombre del departamento seleccionado.");
+      toast.error(
+        "No se pudo encontrar el nombre del departamento seleccionado.",
+      );
       return;
     }
 
@@ -160,17 +176,25 @@ export default function ImportLocalidadesModal({
       }[] = await importarLocalidades(departamentoNombre);
 
       // Obtener localidades existentes desde la API usando POST
-      const existingLocalidades = await apiGetLocalidades({ DepartamentoId: departamento });
-      const existingNames = existingLocalidades?.sdtLocalidad?.map(
-        (loc: { LocalidadNombre: string }) => loc.LocalidadNombre
-      ) || [];
+      const existingLocalidades = await apiGetLocalidades({
+        DepartamentoId: departamento,
+      });
+      const existingNames =
+        existingLocalidades?.sdtLocalidad?.map(
+          (loc: { LocalidadNombre: string }) => loc.LocalidadNombre,
+        ) || [];
       console.log("Nombres existentes en la API:", existingNames);
       console.log("Localidades obtenidas de la api:", existingLocalidades);
 
       setLocalidadesPreview(
         data.map((loc) => {
           const isNew = !existingNames.includes(loc.name.trim());
-          console.log("Procesando localidad:", loc.name.trim(), "| Marcado como nuevo:", isNew);
+          console.log(
+            "Procesando localidad:",
+            loc.name.trim(),
+            "| Marcado como nuevo:",
+            isNew,
+          );
           return {
             id: loc.id,
             lat: loc.lat,
@@ -218,11 +242,7 @@ export default function ImportLocalidadesModal({
   );
   // Obtener todos los nombres alternativos únicos
   const altNamesUnicos = Array.from(
-    new Set(
-      localidadesPreview
-        .map((loc) => loc.alt_name)
-        .filter(Boolean),
-    ),
+    new Set(localidadesPreview.map((loc) => loc.alt_name).filter(Boolean)),
   );
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
@@ -266,7 +286,9 @@ export default function ImportLocalidadesModal({
         </DialogHeader>
         <Select value={departamento} onValueChange={setDepartamento}>
           <SelectTrigger>
-            {departamentosState.find((dep) => dep.departamentoid === departamento)?.departamentonombre || "Seleccione un departamento"}
+            {departamentosState.find(
+              (dep) => dep.departamentoid === departamento,
+            )?.departamentonombre || "Seleccione un departamento"}
           </SelectTrigger>
           <SelectContent>
             {departamentosState.map((dep) => (
@@ -440,7 +462,9 @@ export default function ImportLocalidadesModal({
                     <TableCell>
                       {loc.name}
                       {loc.isNew && (
-                        <Badge className="ml-2 bg-green-500 text-white">Nuevo</Badge>
+                        <Badge className="ml-2 bg-green-500 text-white">
+                          Nuevo
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>{loc.place}</TableCell>

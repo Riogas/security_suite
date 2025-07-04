@@ -19,7 +19,7 @@ export default function MapaZonificacion({ zonas }: MapaZonificacionProps) {
   useEffect(() => {
     if (mapRef.current) {
       const bounds = L.latLngBounds(
-        zonas.flatMap((zona) => zona.coordinates?.flat() || [])
+        zonas.flatMap((zona) => zona.coordinates?.flat() || []),
       );
       if (bounds.isValid()) {
         mapRef.current.fitBounds(bounds);
@@ -46,7 +46,7 @@ export default function MapaZonificacion({ zonas }: MapaZonificacionProps) {
             color="blue"
             fillOpacity={0.4}
           />
-        ))
+        )),
       )}
     </MapContainer>
   );

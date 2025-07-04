@@ -9,9 +9,6 @@ const api = axios.create({
   },
 });
 
-
-
-
 // Instancia para Overpass
 const overpassApi = axios.create({
   baseURL: "https://overpass-api.de/api/interpreter",

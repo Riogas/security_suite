@@ -60,16 +60,20 @@ export default function ImportCallesModal({
   const [oldNameFiltro, setOldNameFiltro] = useState<string[]>([]);
   const [oldNameSearch, setOldNameSearch] = useState("");
 
-  const [departamentosState, setDepartamentosState] = useState<{
-    departamentoid: string;
-    departamentonombre: string;
-  }[]>([]);
-  const [localidadesState, setLocalidadesState] = useState<{
-    localidadid: string;
-    localidadnombre: string;
-    lat: number;
-    lon: number;
-  }[]>([]);
+  const [departamentosState, setDepartamentosState] = useState<
+    {
+      departamentoid: string;
+      departamentonombre: string;
+    }[]
+  >([]);
+  const [localidadesState, setLocalidadesState] = useState<
+    {
+      localidadid: string;
+      localidadnombre: string;
+      lat: number;
+      lon: number;
+    }[]
+  >([]);
 
   // Nombres únicos filtrados por búsqueda y paginados de a 20
   const nombresUnicos = Array.from(new Set(callesPreview.map((c) => c.name)));
@@ -160,7 +164,9 @@ export default function ImportCallesModal({
       onClose();
     } catch (error) {
       console.error("Error al importar calles:", error);
-      toast.error("Error al importar calles. Consulte la consola para más detalles.");
+      toast.error(
+        "Error al importar calles. Consulte la consola para más detalles.",
+      );
     } finally {
       setLoading(false);
     }
@@ -207,18 +213,25 @@ export default function ImportCallesModal({
         } catch (error) {
           console.error(
             `Error al importar calles para la localidad con ID ${localidad.id}:`,
-            error
+            error,
           );
           toast.error(
-            `Error al importar calles para la localidad con ID ${localidad.id}. Consulte la consola para más detalles.`
+            `Error al importar calles para la localidad con ID ${localidad.id}. Consulte la consola para más detalles.`,
           );
         }
       }
 
-      toast.success("Calles de todas las localidades importadas correctamente.");
+      toast.success(
+        "Calles de todas las localidades importadas correctamente.",
+      );
     } catch (error) {
-      console.error("Error general al importar calles de todas las localidades:", error);
-      toast.error("Error al importar calles. Consulte la consola para más detalles.");
+      console.error(
+        "Error general al importar calles de todas las localidades:",
+        error,
+      );
+      toast.error(
+        "Error al importar calles. Consulte la consola para más detalles.",
+      );
     } finally {
       setLoading(false);
     }
@@ -265,7 +278,10 @@ export default function ImportCallesModal({
     const fetchDepartamentos = async () => {
       const data = await apiGetDepartamentos();
       const filteredDepartamentos = data.sdtDepartamentos
-        .filter((dep: { DepartamentoEstado: string }) => dep.DepartamentoEstado === "S")
+        .filter(
+          (dep: { DepartamentoEstado: string }) =>
+            dep.DepartamentoEstado === "S",
+        )
         .map((dep: { DepartamentoId: string; DepartamentoNombre: string }) => ({
           departamentoid: dep.DepartamentoId,
           departamentonombre: dep.DepartamentoNombre,
@@ -281,13 +297,22 @@ export default function ImportCallesModal({
       if (!departamento) return;
       const data = await apiGetLocalidades({ DepartamentoId: departamento });
       const filteredLocalidades = data.sdtLocalidad
-        .filter((loc: { LocalidadEstado: string }) => loc.LocalidadEstado === "S")
-        .map((loc: { LocalidadId: string; LocalidadNombre: string; LocalidadLatitud: string; LocalidadLongitud: string }) => ({
-          localidadid: loc.LocalidadId,
-          localidadnombre: loc.LocalidadNombre,
-          lat: parseFloat(loc.LocalidadLatitud),
-          lon: parseFloat(loc.LocalidadLongitud),
-        }));
+        .filter(
+          (loc: { LocalidadEstado: string }) => loc.LocalidadEstado === "S",
+        )
+        .map(
+          (loc: {
+            LocalidadId: string;
+            LocalidadNombre: string;
+            LocalidadLatitud: string;
+            LocalidadLongitud: string;
+          }) => ({
+            localidadid: loc.LocalidadId,
+            localidadnombre: loc.LocalidadNombre,
+            lat: parseFloat(loc.LocalidadLatitud),
+            lon: parseFloat(loc.LocalidadLongitud),
+          }),
+        );
       setLocalidadesState(filteredLocalidades);
     };
 
@@ -295,7 +320,10 @@ export default function ImportCallesModal({
   }, [departamento]);
 
   const localidades = departamento
-    ? localidadesState.map((loc) => ({ id: loc.localidadid, name: loc.localidadnombre }))
+    ? localidadesState.map((loc) => ({
+        id: loc.localidadid,
+        name: loc.localidadnombre,
+      }))
     : [];
 
   useEffect(() => {
@@ -327,7 +355,9 @@ export default function ImportCallesModal({
             disabled={loading}
           >
             <SelectTrigger>
-              {departamentosState.find((dep) => dep.departamentoid === departamento)?.departamentonombre || "Seleccione un departamento"}
+              {departamentosState.find(
+                (dep) => dep.departamentoid === departamento,
+              )?.departamentonombre || "Seleccione un departamento"}
             </SelectTrigger>
             <SelectContent>
               {departamentosState.map((dep) => (
