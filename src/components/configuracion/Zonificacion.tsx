@@ -347,6 +347,75 @@ export default function Zonificacion() {
     setLoadingAll(false);
   };
 
+  // Exportar zonas a GeoJSON
+  const handleExportGeoJSON = () => {
+    const geojson = {
+      type: "FeatureCollection",
+      features: zonas.map((zona) => ({
+        type: "Feature",
+        properties: { id: zona.id, name: zona.name },
+        geometry: {
+          type: "Polygon",
+          coordinates: zona.coordinates.map((ring) => 
+            ring.map(([lat, lon]) => [lon, lat])
+          )
+        }
+      }))
+    };
+    
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { 
+      type: "application/geo+json" 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "zonas.geojson";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  };
+
+  // Importar zonas desde GeoJSON
+  const handleImportGeoJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const geojson = JSON.parse(event.target?.result as string);
+        if (geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
+          alert("El archivo no es un GeoJSON válido");
+          return;
+        }
+        
+        const nuevasZonas: LocalidadZona[] = geojson.features.map((feature: any, idx: number) => {
+          const coords = feature.geometry?.coordinates;
+          // Convertir [lon, lat] a [lat, lon]
+          const rings = coords?.map((ring: any) => 
+            ring.map(([lon, lat]: [number, number]) => [lat, lon])
+          ) || [];
+          
+          return {
+            id: feature.properties?.id || `imported-${idx}`,
+            name: feature.properties?.name || `Zona importada ${idx + 1}`,
+            coordinates: rings,
+          };
+        });
+        
+        setZonas(filtrarZonasSuperpuestas([...zonas, ...nuevasZonas]));
+      } catch (err) {
+        alert("Error al importar el archivo GeoJSON");
+      }
+    };
+    reader.readAsText(file);
+    // Limpiar input para permitir importar el mismo archivo de nuevo si se desea
+    e.target.value = "";
+  };
+
   return (
     <div className="flex flex-col gap-4 relative">
       <div className="z-10 mb-4 flex items-center gap-2">
@@ -368,6 +437,20 @@ export default function Zonificacion() {
         </Select>
         <Button onClick={handleShowAllLocalidades} disabled={loadingAll}>
           {loadingAll ? "Cargando..." : "Mostrar Todas"}
+        </Button>
+        <Button variant="outline" onClick={handleExportGeoJSON}>
+          Exportar
+        </Button>
+        <Button variant="outline" asChild>
+          <label className="cursor-pointer">
+            Importar
+            <input 
+              type="file" 
+              accept="application/geo+json,.geojson,.json" 
+              className="hidden" 
+              onChange={handleImportGeoJSON} 
+            />
+          </label>
         </Button>
       </div>
 
@@ -418,7 +501,27 @@ export default function Zonificacion() {
       </div>
 
       <div className="z-0">
-        <MapaZonificacion zonas={zonas} />
+        <MapaZonificacion
+          zonas={zonas}
+          onRename={(id, newName) => {
+            setZonas((prev) =>
+              prev.map((zona) =>
+                zona.id === id ? { ...zona, name: newName } : zona
+              )
+            );
+          }}
+          onRemove={(id) => {
+            setZonas((prev) => prev.filter((zona) => zona.id !== id));
+            setSelectedLocalidades((prev) => prev.filter((loc) => loc.id !== id));
+          }}
+          onEdit={(id, newCoords) => {
+            setZonas((prev) =>
+              prev.map((zona) =>
+                zona.id === id ? { ...zona, coordinates: newCoords } : zona
+              )
+            );
+          }}
+        />
       </div>
     </div>
   );
