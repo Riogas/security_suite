@@ -24,7 +24,11 @@ import {
   ColumnFiltersState,
   getFilteredRowModel,
 } from "@tanstack/react-table";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -53,7 +57,11 @@ interface Calle {
 }
 
 // Filtro múltiple
-const multiValueFilter = (row: any, columnId: string, filterValue: string[]) => {
+const multiValueFilter = (
+  row: any,
+  columnId: string,
+  filterValue: string[],
+) => {
   if (!Array.isArray(filterValue)) return true;
   return filterValue.includes(row.getValue(columnId));
 };
@@ -61,43 +69,55 @@ const multiValueFilter = (row: any, columnId: string, filterValue: string[]) => 
 export default function Calles() {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
-  const [selectedDepartamento, setSelectedDepartamento] = useState<number | null>(null);
-  const [selectedLocalidad, setSelectedLocalidad] = useState<number | null>(null);
+  const [selectedDepartamento, setSelectedDepartamento] = useState<
+    number | null
+  >(null);
+  const [selectedLocalidad, setSelectedLocalidad] = useState<number | null>(
+    null,
+  );
   const [calles, setCalles] = useState<Calle[]>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
   const [nombreSearch, setNombreSearch] = useState("");
 
   useEffect(() => {
-    apiGetDepartamentos().then((res) => {
-      toast.success("Departamentos cargados correctamente");
-      const activos = res.sdtDepartamentos.filter((d: any) => d.DepartamentoEstado === "S");
-      setDepartamentos(
-        activos.map((d: any) => ({
-          DepartamentoId: Number(d.DepartamentoId),
-          DepartamentoNombre: d.DepartamentoNombre,
-          DepartamentoEstado: d.DepartamentoEstado,
-        }))
-      );
-    }).catch(() => {
-      toast.error("Error al cargar departamentos");
-    });
+    apiGetDepartamentos()
+      .then((res) => {
+        toast.success("Departamentos cargados correctamente");
+        const activos = res.sdtDepartamentos.filter(
+          (d: any) => d.DepartamentoEstado === "S",
+        );
+        setDepartamentos(
+          activos.map((d: any) => ({
+            DepartamentoId: Number(d.DepartamentoId),
+            DepartamentoNombre: d.DepartamentoNombre,
+            DepartamentoEstado: d.DepartamentoEstado,
+          })),
+        );
+      })
+      .catch(() => {
+        toast.error("Error al cargar departamentos");
+      });
   }, []);
 
   useEffect(() => {
     if (selectedDepartamento) {
-      apiGetLocalidades({ DepartamentoId: selectedDepartamento.toString() }).then((res) => {
-        const activos = res.sdtLocalidad.filter((l: any) => l.LocalidadEstado === "S");
-        setLocalidades(
-          activos.map((l: any) => ({
-            LocalidadId: Number(l.LocalidadId),
-            LocalidadNombre: l.LocalidadNombre,
-            LocalidadEstado: l.LocalidadEstado,
-          }))
-        );
-      }).catch(() => {
-        toast.error("Error al cargar localidades");
-      });
+      apiGetLocalidades({ DepartamentoId: selectedDepartamento.toString() })
+        .then((res) => {
+          const activos = res.sdtLocalidad.filter(
+            (l: any) => l.LocalidadEstado === "S",
+          );
+          setLocalidades(
+            activos.map((l: any) => ({
+              LocalidadId: Number(l.LocalidadId),
+              LocalidadNombre: l.LocalidadNombre,
+              LocalidadEstado: l.LocalidadEstado,
+            })),
+          );
+        })
+        .catch(() => {
+          toast.error("Error al cargar localidades");
+        });
     }
   }, [selectedDepartamento]);
 
@@ -120,7 +140,7 @@ export default function Calles() {
 
   const nombresUnicos = useMemo(
     () => Array.from(new Set(calles.map((c) => c.CalleNombre))),
-    [calles]
+    [calles],
   );
 
   const updateColumnFilter = (columnId: string, values: string[]) => {
@@ -128,7 +148,9 @@ export default function Calles() {
       if (values.length === 0) return prev.filter((f) => f.id !== columnId);
       const existing = prev.find((f) => f.id === columnId);
       if (existing) {
-        return prev.map((f) => (f.id === columnId ? { ...f, value: values } : f));
+        return prev.map((f) =>
+          f.id === columnId ? { ...f, value: values } : f,
+        );
       }
       return [...prev, { id: columnId, value: values }];
     });
@@ -158,7 +180,10 @@ export default function Calles() {
         const cambiarEstado = async () => {
           try {
             toast("Actualizando estado de la calle...");
-            await apiActualizarEstadoCalle({ CalleId: id, CalleEstado: nuevoEstado });
+            await apiActualizarEstadoCalle({
+              CalleId: id,
+              CalleEstado: nuevoEstado,
+            });
             const updated = await apiGetCalles({
               DepartamentoId: selectedDepartamento!,
               LocalidadId: selectedLocalidad || 0,
@@ -207,27 +232,49 @@ export default function Calles() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <Input placeholder="Buscar calles..." className="w-1/2 bg-gray-700 text-white" />
+        <Input
+          placeholder="Buscar calles..."
+          className="w-1/2 bg-gray-700 text-white"
+        />
         <Button onClick={() => console.log("Importar")}>Importar</Button>
       </div>
 
       <div className="flex gap-4 mb-4">
-        <Select value={selectedDepartamento?.toString() || ""} onValueChange={(v) => setSelectedDepartamento(Number(v))}>
+        <Select
+          value={selectedDepartamento?.toString() || ""}
+          onValueChange={(v) => setSelectedDepartamento(Number(v))}
+        >
           <SelectTrigger>
-            {departamentos.find((d) => d.DepartamentoId === selectedDepartamento)?.DepartamentoNombre || "Departamento"}
+            {departamentos.find(
+              (d) => d.DepartamentoId === selectedDepartamento,
+            )?.DepartamentoNombre || "Departamento"}
           </SelectTrigger>
           <SelectContent>
             {departamentos.map((d) => (
-              <SelectItem key={d.DepartamentoId} value={d.DepartamentoId.toString()}>
+              <SelectItem
+                key={d.DepartamentoId}
+                value={d.DepartamentoId.toString()}
+              >
                 {d.DepartamentoNombre}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={selectedLocalidad === null ? "__todos__" : selectedLocalidad?.toString()} onValueChange={(v) => setSelectedLocalidad(v === "__todos__" ? null : Number(v))} disabled={!selectedDepartamento}>
+        <Select
+          value={
+            selectedLocalidad === null
+              ? "__todos__"
+              : selectedLocalidad?.toString()
+          }
+          onValueChange={(v) =>
+            setSelectedLocalidad(v === "__todos__" ? null : Number(v))
+          }
+          disabled={!selectedDepartamento}
+        >
           <SelectTrigger>
-            {localidades.find((l) => l.LocalidadId === selectedLocalidad)?.LocalidadNombre || "Localidad"}
+            {localidades.find((l) => l.LocalidadId === selectedLocalidad)
+              ?.LocalidadNombre || "Localidad"}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__todos__">Todos</SelectItem>
@@ -250,8 +297,15 @@ export default function Calles() {
                     {header.column.id === "CalleNombre" ? (
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
                             ▾
                           </Button>
                         </PopoverTrigger>
@@ -263,18 +317,30 @@ export default function Calles() {
                             className="mb-2"
                           />
                           {nombresUnicos
-                            .filter((n) => n.toLowerCase().includes(nombreSearch.toLowerCase()))
+                            .filter((n) =>
+                              n
+                                .toLowerCase()
+                                .includes(nombreSearch.toLowerCase()),
+                            )
                             .slice(0, 20) // Limitar a 20 resultados
                             .map((nombre) => (
-                              <label key={nombre} className="flex items-center gap-2 cursor-pointer">
+                              <label
+                                key={nombre}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
                                 <Checkbox
                                   checked={nombreFiltro.includes(nombre)}
                                   onCheckedChange={(checked) => {
                                     const actualizados = checked
                                       ? [...nombreFiltro, nombre]
-                                      : nombreFiltro.filter((n) => n !== nombre);
+                                      : nombreFiltro.filter(
+                                          (n) => n !== nombre,
+                                        );
                                     setNombreFiltro(actualizados);
-                                    updateColumnFilter("CalleNombre", actualizados);
+                                    updateColumnFilter(
+                                      "CalleNombre",
+                                      actualizados,
+                                    );
                                   }}
                                 />
                                 <span>{nombre}</span>
@@ -283,7 +349,10 @@ export default function Calles() {
                         </PopoverContent>
                       </Popover>
                     ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )
                     )}
                   </TableHead>
                 ))}
@@ -294,7 +363,9 @@ export default function Calles() {
             {table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
                 ))}
               </TableRow>
             ))}
@@ -316,13 +387,34 @@ export default function Calles() {
             </select>
           </div>
           <span>
-            Página {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
+            Página {table.getState().pagination.pageIndex + 1} de{" "}
+            {table.getPageCount()}
           </span>
           <div className="flex gap-2">
-            <Button onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>«</Button>
-            <Button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>‹</Button>
-            <Button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>›</Button>
-            <Button onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>»</Button>
+            <Button
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              «
+            </Button>
+            <Button
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              ‹
+            </Button>
+            <Button
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              ›
+            </Button>
+            <Button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              »
+            </Button>
           </div>
         </div>
       </div>

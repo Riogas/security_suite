@@ -59,7 +59,11 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
       },
       { label: "Reportes", icon: "bar-chart", path: "/dashboard/reportes" },
       { label: "Perfil", icon: "user", path: "/dashboard/perfil" },
-      { label: "Normalizar Calles", icon: "map", path: "/dashboard/normalizar-calles" },
+      {
+        label: "Normalizar Calles",
+        icon: "map",
+        path: "/dashboard/normalizar-calles",
+      },
     ],
     user: [
       { label: "Menu 1", icon: "file-text", path: "/dashboard/menu1" },
@@ -441,7 +445,10 @@ export const apiActualizarEstadoLocalidad = async (body: {
   return response.data;
 };
 
-export const apiGetCalles = async (body: { DepartamentoId: number; LocalidadId: number }) => {
+export const apiGetCalles = async (body: {
+  DepartamentoId: number;
+  LocalidadId: number;
+}) => {
   try {
     const response = await api.post("/getCalles", body, {
       headers: { "Content-Type": "application/json" },
@@ -453,7 +460,10 @@ export const apiGetCalles = async (body: { DepartamentoId: number; LocalidadId: 
 
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching calles:", error.response?.data || error.message);
+    console.error(
+      "Error fetching calles:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };
@@ -476,7 +486,10 @@ export const apiActualizarEstadoCalle = async (body: {
   return response.data;
 };
 
-export const apiGetCallesICA = async (body: { DepartamentoId: number; LocalidadId: number }) => {
+export const apiGetCallesICA = async (body: {
+  DepartamentoId: number;
+  LocalidadId: number;
+}) => {
   try {
     const response = await api.post("/getCallesICA", body, {
       headers: { "Content-Type": "application/json" },
@@ -488,7 +501,10 @@ export const apiGetCallesICA = async (body: { DepartamentoId: number; LocalidadI
 
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching calles:", error.response?.data || error.message);
+    console.error(
+      "Error fetching calles:",
+      error.response?.data || error.message,
+    );
     throw error;
   }
 };

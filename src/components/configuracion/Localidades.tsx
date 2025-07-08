@@ -168,7 +168,7 @@ export default function Localidades() {
         setFilteredLocalidades(localidades);
       } else {
         const filtered = localidades.filter((loc) =>
-          selectedEstado === "S" ? loc.estado === "S" : loc.estado !== "S"
+          selectedEstado === "S" ? loc.estado === "S" : loc.estado !== "S",
         );
         setFilteredLocalidades(filtered);
       }
@@ -388,7 +388,11 @@ export default function Localidades() {
           onValueChange={(value) => setSelectedEstado(value)}
         >
           <SelectTrigger>
-            {selectedEstado === "S" ? "Activo" : selectedEstado === "N" ? "Pasivo" : "Todos"}
+            {selectedEstado === "S"
+              ? "Activo"
+              : selectedEstado === "N"
+                ? "Pasivo"
+                : "Todos"}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="S">Activo</SelectItem>
