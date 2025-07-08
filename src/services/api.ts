@@ -326,74 +326,192 @@ export const apiImportarCalles = async (body: {
 };
 
 export const obtenerCallesDesdeCoordenadas = async (
-  lat: number,
-  lon: number,
+  lat?: number,
+  lon?: number,
+  nombre?: string,
 ) => {
   try {
-    // Paso 1: Buscar la relación administrativa (localidad) que contiene las coordenadas
-    const buscarRelacionQuery = `
-      [out:json][timeout:25];
-      is_in(${lat}, ${lon});
-      area._["admin_level"="8"]["boundary"="administrative"];
-      out ids tags;
-    `;
+    console.log("obtenerCallesDesdeCoordenadas:", lat, lon, nombre);
+    // Si recibimos coordenadas válidas, intentamos por coordenadas
+    if (typeof lat === "number" && typeof lon === "number") {
+      const buscarRelacionQuery = `
+        [out:json][timeout:25];
+        is_in(${lat}, ${lon});
+        area._["admin_level"="8"]["boundary"="administrative"];
+        out ids tags;
+      `;
 
-    const relResponse = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: buscarRelacionQuery,
-    });
-
-    if (!relResponse.ok) {
-      throw new Error("Error al buscar área administrativa desde coordenadas");
-    }
-
-    const relData = await relResponse.json();
-    const areaId = relData.elements?.[0]?.id;
-
-    if (!areaId) {
-      throw new Error(
-        "No se encontró un área administrativa (admin_level=8) para estas coordenadas.",
-      );
-    }
-
-    // Paso 2: Buscar calles dentro de esa área
-    const overpassQuery = `
-      [out:json][timeout:60];
-      way(area:${areaId})["highway"]["name"];
-      out tags center;
-    `;
-
-    const callesResponse = await fetch(
-      "https://overpass-api.de/api/interpreter",
-      {
+      const relResponse = await fetch("https://overpass-api.de/api/interpreter", {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: overpassQuery,
-      },
-    );
+        body: buscarRelacionQuery,
+      });
 
-    if (!callesResponse.ok) {
-      throw new Error("Error al obtener calles desde Overpass API");
+      if (relResponse.ok) {
+        const relData = await relResponse.json();
+        const areaId = relData.elements?.[0]?.id;
+        if (areaId) {
+          const overpassQuery = `
+            [out:json][timeout:60];
+            way(area:${areaId})["highway"]["name"];
+            out tags center;
+          `;
+          const callesResponse = await fetch(
+            "https://overpass-api.de/api/interpreter",
+            {
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: overpassQuery,
+            },
+          );
+
+          if (!callesResponse.ok) {
+            throw new Error("Error al obtener calles desde Overpass API");
+          }
+
+          const data = await callesResponse.json();
+          return data.elements.map((el: any) => ({
+            id: el.id,
+            name: el.tags?.name || "Sin nombre",
+            tipo: el.tags?.highway || "Desconocido",
+            lat: el.center?.lat,
+            lon: el.center?.lon,
+            highway: el.tags?.highway || null,
+            surface: el.tags?.surface || null,
+            old_name: el.tags?.old_name || null,
+          }));
+        }
+      }
     }
 
-    const data = await callesResponse.json();
+    // Si no hay coordenadas válidas o no se encontró área, buscar por nombre
+    if (nombre && typeof nombre === "string") {
+      let areaId: number | undefined;
+      // Buscar por admin_level=8
+      const buscarAreaQuery = `
+        [out:json][timeout:25];
+        area["name"="${nombre}"]["admin_level"="8"];
+        out ids tags;
+      `;
+      let areaResponse = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: buscarAreaQuery,
+      });
+      if (areaResponse.ok) {
+        const areaData = await areaResponse.json();
+        areaId = areaData.elements?.[0]?.id;
+      }
+      // Si no encontró, intentar con admin_level=4
+      if (!areaId) {
+        const buscarArea4Query = `
+          [out:json][timeout:25];
+          area["name"="${nombre}"]["admin_level"="4"];
+          out ids tags;
+        `;
+        areaResponse = await fetch("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: buscarArea4Query,
+        });
+        if (areaResponse.ok) {
+          const areaData = await areaResponse.json();
+          areaId = areaData.elements?.[0]?.id;
+        }
+      }
+      if (areaId) {
+        // Buscar calles en el área encontrada
+        const overpassQuery = `
+          [out:json][timeout:60];
+          way(area:${areaId})["highway"]["name"];
+          out tags center;
+        `;
+        const callesResponse = await fetch(
+          "https://overpass-api.de/api/interpreter",
+          {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: overpassQuery,
+          },
+        );
+        if (!callesResponse.ok) {
+          throw new Error("Error al obtener calles desde Overpass API por nombre");
+        }
+        const data = await callesResponse.json();
+        return data.elements.map((el: any) => ({
+          id: el.id,
+          name: el.tags?.name || "Sin nombre",
+          tipo: el.tags?.highway || "Desconocido",
+          lat: el.center?.lat,
+          lon: el.center?.lon,
+          highway: el.tags?.highway || null,
+          surface: el.tags?.surface || null,
+          old_name: el.tags?.old_name || null,
+        }));
+      }
 
-    return data.elements.map((el: any) => ({
-      id: el.id,
-      name: el.tags?.name || "Sin nombre",
-      tipo: el.tags?.highway || "Desconocido",
-      lat: el.center?.lat,
-      lon: el.center?.lon,
-      highway: el.tags?.highway || null,
-      surface: el.tags?.surface || null,
-      old_name: el.tags?.old_name || null,
-    }));
+      // Si no se encontró área por nombre, usar bounding box desde Nominatim
+      const responseNominatim = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          nombre + ", Uruguay",
+        )}`,
+        {
+          headers: {
+            "User-Agent": "TuApp/1.0 (tu@email.com)",
+          },
+        },
+      );
+
+      const nominatimData = await responseNominatim.json();
+
+      if (nominatimData.length > 0) {
+        const bbox = nominatimData[0].boundingbox;
+        const [south, north, west, east] = bbox.map(parseFloat);
+
+        const bboxQuery = `
+          [out:json][timeout:60];
+          (
+            way["highway"]["name"](${south}, ${west}, ${north}, ${east});
+          );
+          out tags center;
+        `;
+
+        const callesResponse = await fetch(
+          "https://overpass-api.de/api/interpreter",
+          {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: bboxQuery,
+          },
+        );
+
+        if (!callesResponse.ok) {
+          throw new Error("Error al obtener calles desde Overpass API por bounding box");
+        }
+
+        const data = await callesResponse.json();
+        return data.elements.map((el: any) => ({
+          id: el.id,
+          name: el.tags?.name || "Sin nombre",
+          tipo: el.tags?.highway || "Desconocido",
+          lat: el.center?.lat,
+          lon: el.center?.lon,
+          highway: el.tags?.highway || null,
+          surface: el.tags?.surface || null,
+          old_name: el.tags?.old_name || null,
+        }));
+      }
+
+      throw new Error(`No se encontró la localidad: ${nombre} ni por bounding box`);
+    }
+
+    throw new Error("No se pudo obtener calles: se requieren coordenadas o nombre válido");
   } catch (error) {
     console.error("Error general:", error);
     throw error;
   }
 };
+
 
 // Placeholder function to fetch polygon data for a locality
 export const apiGetPolygonForLocalidad = async (lat: number, lon: number) => {

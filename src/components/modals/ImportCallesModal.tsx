@@ -43,6 +43,16 @@ interface ImportCallesModalProps {
   localidadesPorDepartamento: Record<string, string[]>;
 }
 
+// Calle interface for type safety
+interface Calle {
+  name: string;
+  old_name?: string;
+  highway?: string;
+  surface?: string;
+  lat?: number;
+  lon?: number;
+}
+
 export default function ImportCallesModal({
   isOpen,
   onClose,
@@ -94,31 +104,42 @@ export default function ImportCallesModal({
     )
     .slice(0, 20);
 
-  // Filtrado de calles por nombre y nombre antiguo
-  const callesFiltradas = callesPreview.filter((c) => {
+  // Agrupar calles por nombre (solo una por nombre, la primera encontrada)
+  const callesAgrupadasPorNombre: Calle[] = Array.from(
+    callesPreview.reduce((map, calle) => {
+      if (!map.has(calle.name)) {
+        map.set(calle.name, calle);
+      }
+      return map;
+    }, new Map())
+    .values()
+  );
+
+  // Filtrado de calles agrupadas por nombre y nombre antiguo
+  const callesFiltradas: Calle[] = callesAgrupadasPorNombre.filter((c: Calle) => {
     const nombreOk =
       nombreFiltro.length > 0 ? nombreFiltro.includes(c.name) : true;
     const oldNameOk =
-      oldNameFiltro.length > 0 ? oldNameFiltro.includes(c.old_name) : true;
+      oldNameFiltro.length > 0 ? oldNameFiltro.includes(c.old_name ?? "") : true;
     return nombreOk && oldNameOk;
   });
 
   // Selección de filas
   const allSelected =
     callesFiltradas.length > 0 &&
-    callesFiltradas.every((c) => seleccionados.includes(c.name));
+    callesFiltradas.every((c: Calle) => seleccionados.includes(c.name));
   const toggleSelectAll = () => {
     if (allSelected) {
       setSeleccionados(
         seleccionados.filter(
-          (name) => !callesFiltradas.some((c) => c.name === name),
+          (name) => !callesFiltradas.some((c: Calle) => c.name === name),
         ),
       );
     } else {
       setSeleccionados([
         ...seleccionados,
         ...callesFiltradas
-          .map((c) => c.name)
+          .map((c: Calle) => c.name)
           .filter((name) => !seleccionados.includes(name)),
       ]);
     }
@@ -256,6 +277,7 @@ export default function ImportCallesModal({
       const calles = await obtenerCallesDesdeCoordenadas(
         selectedLocalidad.lat,
         selectedLocalidad.lon,
+        selectedLocalidad.localidadnombre
       );
       setCallesPreview(calles);
       setSeleccionados([]);
@@ -439,8 +461,8 @@ export default function ImportCallesModal({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {callesFiltradas.map((c) => (
-                  <TableRow key={c.id}>
+                {callesFiltradas.map((c: Calle) => (
+                  <TableRow key={c.name}>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={seleccionados.includes(c.name)}

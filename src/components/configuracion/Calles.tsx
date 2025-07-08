@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import ImportCallesModal from "@/components/modals/ImportCallesModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,6 +77,7 @@ export default function Calles() {
     null,
   );
   const [calles, setCalles] = useState<Calle[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [nombreFiltro, setNombreFiltro] = useState<string[]>([]);
   const [nombreSearch, setNombreSearch] = useState("");
@@ -236,8 +238,9 @@ export default function Calles() {
           placeholder="Buscar calles..."
           className="w-1/2 bg-gray-700 text-white"
         />
-        <Button onClick={() => console.log("Importar")}>Importar</Button>
+        <Button onClick={() => setIsModalOpen(true)}>Importar</Button>
       </div>
+      <ImportCallesModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} departamentos={[]} localidadesPorDepartamento={{}} />
 
       <div className="flex gap-4 mb-4">
         <Select
