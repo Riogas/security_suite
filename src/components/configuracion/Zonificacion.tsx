@@ -34,6 +34,8 @@ interface LocalidadZona {
   id: string;
   name: string;
   coordinates: [number, number][][];
+  color?: string;
+  shouldSimplify?: boolean; // true para zonas de localidades, false para importadas
 }
 
 // 🔄 Función para ordenar los ways
@@ -305,7 +307,7 @@ export default function Zonificacion() {
       if (polygon) {
         const nuevasZonas = [
           ...zonas,
-          { id: localidad.id, name: localidad.name, coordinates: polygon },
+          { id: localidad.id, name: localidad.name, coordinates: polygon, shouldSimplify: true },
         ];
         setZonas(filtrarZonasSuperpuestas(nuevasZonas));
       }
@@ -337,6 +339,7 @@ export default function Zonificacion() {
             id: localidad.id,
             name: localidad.name,
             coordinates: polygon,
+            shouldSimplify: true, // Simplificar zonas de localidades
           });
         }
       }
@@ -353,7 +356,15 @@ export default function Zonificacion() {
       type: "FeatureCollection",
       features: zonas.map((zona) => ({
         type: "Feature",
-        properties: { id: zona.id, name: zona.name },
+        properties: { 
+          id: zona.id, 
+          name: zona.name,
+          ...(zona.color && {
+            _umap_options: {
+              color: zona.color
+            }
+          })
+        },
         geometry: {
           type: "Polygon",
           coordinates: zona.coordinates.map((ring) => 
@@ -399,10 +410,15 @@ export default function Zonificacion() {
             ring.map(([lon, lat]: [number, number]) => [lat, lon])
           ) || [];
           
+          // Extraer color de _umap_options si existe
+          const color = feature.properties?._umap_options?.color;
+          
           return {
             id: feature.properties?.id || `imported-${idx}`,
             name: feature.properties?.name || `Zona importada ${idx + 1}`,
             coordinates: rings,
+            shouldSimplify: false, // No simplificar zonas importadas
+            ...(color && { color })
           };
         });
         

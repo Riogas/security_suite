@@ -20,6 +20,8 @@ interface LocalidadZona {
   id: string;
   name: string;
   coordinates: [number, number][][];
+  color?: string;
+  shouldSimplify?: boolean; // true para zonas de localidades, false para importadas
 }
 
 interface MapaZonificacionProps {
@@ -79,6 +81,12 @@ export default function MapaZonificacion({
     const tolerance = 0.0005;
     return zonas.map((zona) => {
       try {
+        // Solo simplificar si shouldSimplify es true (zonas de localidades)
+        // No simplificar zonas importadas (shouldSimplify: false)
+        if (zona.shouldSimplify === false) {
+          return zona; // Devolver zona sin simplificar
+        }
+        
         // Only simplify if there are many points
         const needsSimplify = zona.coordinates[0]?.length > 30;
         if (!needsSimplify) return zona;
@@ -106,98 +114,103 @@ export default function MapaZonificacion({
     return (
       <FeatureGroup ref={featureGroupRef}>
         {simplifiedZonas.map((zona, zonaIdx) =>
-          zona.coordinates?.map((polygon: [number, number][], index: number) => (
-            <Polygon
-              key={`${zona.id}-${index}`}
-              positions={polygon}
-              color={zonaIdx === lastZonaIndex ? lastColor : previousColor}
-              fillOpacity={zonaIdx === lastZonaIndex ? 0.7 : 0.4}
-              eventHandlers={{
-                dblclick: (e) => {
-                  setSelectedZona(zona.id);
-                  e.originalEvent.preventDefault();
-                  e.originalEvent.stopPropagation();
-                },
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -20]} permanent>
-                <span
-                  style={{
-                    fontWeight: 600,
-                    color: "#222",
-                    textShadow: "0 1px 2px #fff",
-                  }}
-                >
-                  {zona.name}
-                </span>
-              </Tooltip>
-              {selectedZona === zona.id && (
-                <Popup
-                  position={polygon[0]}
-                  eventHandlers={{
-                    remove: () => {
-                      setSelectedZona(null);
-                      setRenamingZona(null);
-                      setEditingZona(null);
-                    },
-                  }}
-                  autoPan={false}
-                >
-                  {renamingZona === zona.id ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        onRename(zona.id, renameValue);
+          zona.coordinates?.map((polygon: [number, number][], index: number) => {
+            // Usar color personalizado si existe, sino usar los colores por defecto
+            const polygonColor = zona.color || (zonaIdx === lastZonaIndex ? lastColor : previousColor);
+            
+            return (
+              <Polygon
+                key={`${zona.id}-${index}`}
+                positions={polygon}
+                color={polygonColor}
+                fillOpacity={zonaIdx === lastZonaIndex ? 0.7 : 0.4}
+                eventHandlers={{
+                  dblclick: (e) => {
+                    setSelectedZona(zona.id);
+                    e.originalEvent.preventDefault();
+                    e.originalEvent.stopPropagation();
+                  },
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -20]} permanent>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: "#222",
+                      textShadow: "0 1px 2px #fff",
+                    }}
+                  >
+                    {zona.name}
+                  </span>
+                </Tooltip>
+                {selectedZona === zona.id && (
+                  <Popup
+                    position={polygon[0]}
+                    eventHandlers={{
+                      remove: () => {
+                        setSelectedZona(null);
                         setRenamingZona(null);
-                      }}
-                      className="flex flex-col gap-2"
-                    >
-                      <input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        autoFocus
-                        className="border rounded px-2 py-1"
-                      />
-                      <div className="flex gap-2">
+                        setEditingZona(null);
+                      },
+                    }}
+                    autoPan={false}
+                  >
+                    {renamingZona === zona.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          onRename(zona.id, renameValue);
+                          setRenamingZona(null);
+                        }}
+                        className="flex flex-col gap-2"
+                      >
+                        <input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          autoFocus
+                          className="border rounded px-2 py-1"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="bg-blue-600 text-white px-2 py-1 rounded"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            type="button"
+                            className="bg-gray-300 px-2 py-1 rounded"
+                            onClick={() => setRenamingZona(null)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex flex-col gap-2 min-w-[140px]">
+                        <div className="font-bold mb-1">{zona.name}</div>
                         <button
-                          type="submit"
                           className="bg-blue-600 text-white px-2 py-1 rounded"
+                          onClick={() => {
+                            setRenamingZona(zona.id);
+                            setRenameValue(zona.name);
+                          }}
                         >
-                          Guardar
+                          Renombrar
                         </button>
                         <button
-                          type="button"
-                          className="bg-gray-300 px-2 py-1 rounded"
-                          onClick={() => setRenamingZona(null)}
+                          className="bg-red-600 text-white px-2 py-1 rounded"
+                          onClick={() => onRemove(zona.id)}
                         >
-                          Cancelar
+                          Quitar
                         </button>
                       </div>
-                    </form>
-                  ) : (
-                    <div className="flex flex-col gap-2 min-w-[140px]">
-                      <div className="font-bold mb-1">{zona.name}</div>
-                      <button
-                        className="bg-blue-600 text-white px-2 py-1 rounded"
-                        onClick={() => {
-                          setRenamingZona(zona.id);
-                          setRenameValue(zona.name);
-                        }}
-                      >
-                        Renombrar
-                      </button>
-                      <button
-                        className="bg-red-600 text-white px-2 py-1 rounded"
-                        onClick={() => onRemove(zona.id)}
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  )}
-                </Popup>
-              )}
-            </Polygon>
-          ))
+                    )}
+                  </Popup>
+                )}
+              </Polygon>
+            );
+          })
         )}
         <EditControl
           position="topright"
