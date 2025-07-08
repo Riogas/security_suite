@@ -513,38 +513,47 @@ export const obtenerCallesDesdeCoordenadas = async (
 };
 
 
-// Placeholder function to fetch polygon data for a locality
 export const apiGetPolygonForLocalidad = async (lat: number, lon: number) => {
   try {
-    const query = `
-      [out:json][timeout:25];
+    const makeQuery = (adminLevel: number) => `
+      [out:json][timeout:60];
       is_in(${lat}, ${lon})->.a;
       (
-        rel(pivot.a)["boundary"="administrative"]["admin_level"="8"];
+        rel(pivot.a)["boundary"="administrative"]["admin_level"="${adminLevel}"];
       );
       out body;
       >;
       out skel qt;
     `;
 
-    const response = await overpassApi.post("/interpreter", query, {
-      headers: { "Content-Type": "text/plain" },
-    });
+    const tryAdminLevels = [10, 9, 8]; // Primero barrios, después ciudades
+    for (const level of tryAdminLevels) {
+      console.log(`🔍 Buscando polígonos con admin_level=${level} para (${lat}, ${lon})`);
+      const response = await overpassApi.post("/interpreter", makeQuery(level), {
+        headers: {
+          "Content-Type": "text/plain",
+          "User-Agent": "RioGasGestion/1.0 (tu@email.com)",
+        },
+      });
 
-    if (response.data && response.data.elements) {
-      return response.data; // Return the full Overpass API response
-    } else {
-      console.error(`No elements found for coordinates: (${lat}, ${lon})`);
-      return null;
+      if (response.data?.elements?.length > 0) {
+        console.log(`✅ Polígonos encontrados con admin_level=${level}`);
+        return response.data;
+      }
+      console.warn(`⚠️ No se encontraron elementos para admin_level=${level}`);
     }
+
+    console.error(`❌ No se encontraron polígonos administrativos para (${lat}, ${lon})`);
+    return null;
+
   } catch (error) {
-    console.error(
-      `Error fetching polygon for coordinates: (${lat}, ${lon})`,
-      error,
-    );
+    console.error(`❌ Error al buscar polígonos para (${lat}, ${lon})`, error);
     return null;
   }
 };
+
+
+
 
 export const apiActualizarEstadoLocalidad = async (body: {
   LocalidadId: number;

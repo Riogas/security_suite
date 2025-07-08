@@ -134,7 +134,7 @@ export default function Zonificacion() {
         DepartamentoId: selectedDepartamento,
       });
       const filtered: Localidad[] = data.sdtLocalidad
-        .filter((loc: any) => loc.LocalidadEstado === "S") // ✅ Filtrar por estado
+        //.filter((loc: any) => loc.LocalidadEstado === "S") // ✅ Filtrar por estado
         .map((loc: any) => ({
           id: loc.LocalidadId,
           name: loc.LocalidadNombre,
@@ -146,53 +146,151 @@ export default function Zonificacion() {
     fetchLocalidades();
   }, [selectedDepartamento]);
 
+  // Modificado: Si no hay lat/lon, buscar por bounding box usando Nominatim
   const fetchPolygonForLocalidad = async (localidad: Localidad) => {
-    try {
-      const polygonData = await apiGetPolygonForLocalidad(
-        localidad.lat,
-        localidad.lon,
-      );
-      const nodesById = new Map<number, [number, number]>();
-      const waysById = new Map<number, number[]>();
+  try {
+    console.log("🔍 Iniciando fetchPolygonForLocalidad para:", localidad);
 
-      for (const el of polygonData.elements) {
-        if (el.type === "node") nodesById.set(el.id, [el.lat, el.lon]);
-        else if (el.type === "way") waysById.set(el.id, el.nodes);
+    let polygonData = null;
+
+    if (localidad.lat && localidad.lon) {
+      console.log("📍 Usando coordenadas:", localidad.lat, localidad.lon);
+      polygonData = await apiGetPolygonForLocalidad(localidad.lat, localidad.lon);
+      console.log("📦 polygonData desde coordenadas:", polygonData);
+    }
+
+    // Fallback: si no hay datos o el array viene vacío, usar bounding box por nombre
+    if (
+      !polygonData ||
+      !polygonData.elements ||
+      polygonData.elements.length === 0 ||
+      !localidad.lat ||
+      !localidad.lon
+    ) {
+      console.warn("⚠️ No se encontró polygonData útil. Intentando vía Nominatim...");
+
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=uy&extratags=1&limit=1&q=${encodeURIComponent(localidad.name + ', Uruguay')}`;
+      console.log("🌐 Consultando Nominatim:", nominatimUrl);
+
+      const responseNominatim = await fetch(nominatimUrl, {
+        headers: {
+          "User-Agent": "TuApp/1.0 (tu@email.com)",
+        },
+      });
+
+      const nominatimData = await responseNominatim.json();
+      console.log("📦 Respuesta de Nominatim:", nominatimData);
+
+      if (nominatimData.length > 0) {
+        const bbox = nominatimData[0].boundingbox;
+        const [south, north, west, east] = bbox.map(parseFloat);
+        console.log("📐 Bounding box obtenida:", { south, north, west, east });
+
+                const lat = (south + north) / 2;
+        const lon = (west + east) / 2;
+
+        const buscarAreaDesdeCentroQuery = `
+          [out:json][timeout:25];
+          is_in(${lat}, ${lon});
+          area._["admin_level"="8"]["boundary"="administrative"];
+          out ids tags;
+        `;
+
+        const responseArea = await fetch("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: buscarAreaDesdeCentroQuery,
+        });
+
+        const dataArea = await responseArea.json();
+        const areaId = dataArea.elements?.[0]?.id;
+
+        if (!areaId) throw new Error("No se encontró área desde bounding box");
+
+        const polygonQuery = `
+          [out:json][timeout:60];
+          rel(area:${areaId})["boundary"="administrative"]["admin_level"="8"];
+          out body;
+          >;
+          out skel qt;
+        `;
+
+        const responsePolygon = await fetch("https://overpass-api.de/api/interpreter", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: polygonQuery,
+        });
+
+        polygonData = await responsePolygon.json();
+
+        // Ya se obtuvo polygonData desde la consulta Overpass anterior
+      } else {
+        console.warn("⚠️ Nominatim no devolvió resultados para:", localidad.name);
       }
+    }
 
-      const relations = polygonData.elements.filter(
-        (el: any) => el.type === "relation",
-      );
-      const polygons: [number, number][][] = [];
-
-      for (const rel of relations) {
-        const outerWays = rel.members
-          .filter((m: any) => m.role === "outer" && m.type === "way")
-          .map((m: any) => waysById.get(m.ref))
-          .filter((nodes: any): nodes is number[] => !!nodes);
-
-        const orderedNodeIds = connectWaysInOrder(outerWays);
-        const polygonCoords: [number, number][] = orderedNodeIds
-          .map((nodeId) => nodesById.get(nodeId))
-          .filter((coords): coords is [number, number] => coords !== undefined);
-
-        if (
-          polygonCoords.length > 0 &&
-          (polygonCoords[0][0] !== polygonCoords[polygonCoords.length - 1][0] ||
-            polygonCoords[0][1] !== polygonCoords[polygonCoords.length - 1][1])
-        ) {
-          polygonCoords.push(polygonCoords[0]);
-        }
-
-        if (polygonCoords.length > 0) polygons.push(polygonCoords);
-      }
-
-      return polygons.length > 0 ? polygons : null;
-    } catch (error) {
-      console.error("Error fetching polygon for localidad:", error);
+    if (!polygonData || !polygonData.elements) {
+      console.warn("❌ No se encontraron elementos en polygonData");
       return null;
     }
-  };
+
+    console.log("✅ Procesando elementos de polygonData...");
+    const nodesById = new Map<number, [number, number]>();
+    const waysById = new Map<number, number[]>();
+
+    for (const el of polygonData.elements) {
+      if (el.type === "node") nodesById.set(el.id, [el.lat, el.lon]);
+      else if (el.type === "way") waysById.set(el.id, el.nodes);
+    }
+
+    const relations = polygonData.elements.filter((el: any) => el.type === "relation");
+    console.log("🔗 Relaciones encontradas:", relations.length);
+
+    const polygons: [number, number][][] = [];
+
+    for (const rel of relations) {
+      const outerWays = rel.members
+        .filter((m: any) => m.role === "outer" && m.type === "way")
+        .map((m: any) => waysById.get(m.ref))
+        .filter((nodes: any): nodes is number[] => !!nodes);
+
+      console.log(`🔄 Relation ${rel.id} tiene ${outerWays.length} outer ways`);
+
+      const orderedNodeIds = connectWaysInOrder(outerWays);
+      const polygonCoords: [number, number][] = orderedNodeIds
+        .map((nodeId) => nodesById.get(nodeId))
+        .filter((coords): coords is [number, number] => coords !== undefined);
+
+      if (
+        polygonCoords.length > 0 &&
+        (polygonCoords[0][0] !== polygonCoords[polygonCoords.length - 1][0] ||
+          polygonCoords[0][1] !== polygonCoords[polygonCoords.length - 1][1])
+      ) {
+        polygonCoords.push(polygonCoords[0]);
+      }
+
+      if (polygonCoords.length > 0) {
+        console.log(`✅ Polígono construido con ${polygonCoords.length} puntos`);
+        polygons.push(polygonCoords);
+      } else {
+        console.warn(`⚠️ Polígono vacío en relation ${rel.id}`);
+      }
+    }
+
+    if (polygons.length === 0) {
+      console.warn("❌ No se construyó ningún polígono válido");
+      return null;
+    }
+
+    console.log("✅ Total de polígonos devueltos:", polygons.length);
+    return polygons;
+  } catch (error) {
+    console.error("❌ Error fetching polygon for localidad:", error);
+    return null;
+  }
+};
+
+
 
   const handleAddLocalidad = async (localidadName: string) => {
     const localidad = localidades.find((loc) => loc.name === localidadName);
