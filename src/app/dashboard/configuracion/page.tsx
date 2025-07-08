@@ -28,6 +28,10 @@ export default function ConfiguracionPage() {
           <TabsTrigger value="localidades">Localidades</TabsTrigger>
           <TabsTrigger value="calles">Calles</TabsTrigger>
           <TabsTrigger value="zonificacion">Zonificación</TabsTrigger>
+          <TabsTrigger value="puestos">Puestos</TabsTrigger>
+          <TabsTrigger value="tipos-capa">Tipos de Capa</TabsTrigger>
+          <TabsTrigger value="capas">Capas</TabsTrigger>
+          <TabsTrigger value="zonas">Zonas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="usuarios">
@@ -129,6 +133,66 @@ export default function ConfiguracionPage() {
             </CardContent>
             <CardFooter>
               <div>Footer de Zonificación</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="puestos">
+          <Card>
+            <CardHeader>
+              <CardTitle>Puestos</CardTitle>
+              <CardDescription>Administración de puestos de trabajo.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Puestos - Componente pendiente de implementar</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Puestos</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tipos-capa">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tipos de Capa</CardTitle>
+              <CardDescription>Administración de tipos de capas del mapa.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Tipos de Capa - Componente pendiente de implementar</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Tipos de Capa</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="capas">
+          <Card>
+            <CardHeader>
+              <CardTitle>Capas</CardTitle>
+              <CardDescription>Administración de capas del mapa.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Capas - Componente pendiente de implementar</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Capas</div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="zonas">
+          <Card>
+            <CardHeader>
+              <CardTitle>Zonas</CardTitle>
+              <CardDescription>Administración de zonas geográficas.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div>Contenido de Zonas - Componente pendiente de implementar</div>
+            </CardContent>
+            <CardFooter>
+              <div>Footer de Zonas</div>
             </CardFooter>
           </Card>
         </TabsContent>
