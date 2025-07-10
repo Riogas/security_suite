@@ -635,3 +635,85 @@ export const apiGetCallesICA = async (body: {
     throw error;
   }
 };
+
+// ✅ Servicios para Puestos
+export const apiGetPuestos = async (puestoId: string = "") => {
+  try {
+    const response = await api.post("/getPuestos", {
+      PuestoId: puestoId,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching puestos:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// ✅ Servicios para Tipos de Capa
+export const apiGetTiposCapa = async () => {
+  try {
+    const response = await api.post("/getTipoCapa", {
+      PuestoId: "",
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error fetching tipos de capa:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// ✅ Servicios para Importar Zona
+export const apiImportarZona = async (
+  puestoId: number,
+  tipoCapa: number,
+  capaNombre: string,
+  capaGeoJson: string,
+  zonaGeoJson: string
+) => {
+  try {
+    const response = await api.post("/ImportarZona", {
+      PuestoId: puestoId,
+      TipoCapa: tipoCapa,
+      CapaNombre: capaNombre,
+      CapaGeoJson: capaGeoJson,
+      ZonaGeoJson: zonaGeoJson,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error al importar zona:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// ✅ Servicios para ABM Tipos de Capa
+export const apiABMTipoCapa = async (
+  modo: string,
+  tipoCapaId: number,
+  nombre: string,
+  estado: string
+) => {
+  try {
+    const response = await api.post("/ABMTipoCapa", {
+      Modo: modo,
+      TipoCapaId: tipoCapaId,
+      TipoCapaNombre: nombre,
+      TipoCapaEstado: estado,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error en ABM tipos de capa:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};

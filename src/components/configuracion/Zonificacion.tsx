@@ -11,12 +11,17 @@ import {
   apiGetDepartamentos,
   apiGetLocalidades,
   apiGetPolygonForLocalidad,
+  apiGetPuestos,
+  apiGetTiposCapa,
+  apiImportarZona,
 } from "@/services/api";
 import { Badge } from "@/components/ui/badge";
 import MapaZonificacion from "@/components/mapa/MapaZonificacion";
 import { Button } from "@/components/ui/button";
 import booleanContains from "@turf/boolean-contains";
 import { polygon as turfPolygon } from "@turf/helpers";
+import GuardarZonaModal from "@/components/configuracion/modals/GuardarZonaModal";
+import { toast } from "sonner";
 
 interface Departamento {
   id: string;
@@ -28,6 +33,16 @@ interface Localidad {
   name: string;
   lat: number;
   lon: number;
+}
+
+interface Puesto {
+  id: string;
+  name: string;
+}
+
+interface TipoCapa {
+  id: string;
+  name: string;
 }
 
 interface LocalidadZona {
@@ -107,13 +122,18 @@ function filtrarZonasSuperpuestas(zonas: LocalidadZona[]): LocalidadZona[] {
 export default function Zonificacion() {
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [localidades, setLocalidades] = useState<Localidad[]>([]);
+  const [puestos, setPuestos] = useState<Puesto[]>([]);
+  const [tiposCapa, setTiposCapa] = useState<TipoCapa[]>([]);
   const [selectedDepartamento, setSelectedDepartamento] = useState<string>("");
+  const [selectedPuesto, setSelectedPuesto] = useState<string>("");
+  const [selectedTipoCapa, setSelectedTipoCapa] = useState<string>("");
   const [selectedLocalidades, setSelectedLocalidades] = useState<Localidad[]>(
     [],
   );
   const [localidadInput, setLocalidadInput] = useState<string>("");
   const [zonas, setZonas] = useState<LocalidadZona[]>([]);
   const [loadingAll, setLoadingAll] = useState(false);
+  const [isGuardarModalOpen, setIsGuardarModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -127,6 +147,38 @@ export default function Zonificacion() {
       setDepartamentos(filtered);
     };
     fetchDepartamentos();
+  }, []);
+
+  useEffect(() => {
+    const fetchPuestos = async () => {
+      try {
+        const data = await apiGetPuestos();
+        const filtered: Puesto[] = data.sdtPuestosData.map((puesto: any) => ({
+          id: puesto.PuestoId,
+          name: puesto.PuestoDsc,
+        }));
+        setPuestos(filtered);
+      } catch (error) {
+        console.error("Error fetching puestos:", error);
+      }
+    };
+    fetchPuestos();
+  }, []);
+
+  useEffect(() => {
+    const fetchTiposCapa = async () => {
+      try {
+        const data = await apiGetTiposCapa();
+        const filtered: TipoCapa[] = data.sdtTipoCapa.map((tipo: any) => ({
+          id: tipo.TipoCapaId,
+          name: tipo.TipoCapaNombre,
+        }));
+        setTiposCapa(filtered);
+      } catch (error) {
+        console.error("Error fetching tipos de capa:", error);
+      }
+    };
+    fetchTiposCapa();
   }, []);
 
   useEffect(() => {
@@ -432,6 +484,85 @@ export default function Zonificacion() {
     e.target.value = "";
   };
 
+  // 🔧 Función para dividir GeoJSON por zonas
+  const splitGeoJsonByZona = (geojson: any) => {
+    const zonasMap: { [key: string]: any[] } = {};
+
+    for (const feature of geojson.features) {
+      const zona = feature.properties.name || feature.properties.nombre || `Zona-${feature.properties.id}`;
+      if (!zonasMap[zona]) {
+        zonasMap[zona] = [];
+      }
+      zonasMap[zona].push(feature);
+    }
+
+    // Convertir cada grupo en un GeoJSON
+    const coleccion = Object.entries(zonasMap).map(([nombre, features]) => ({
+      nombre,
+      geojson: {
+        type: "FeatureCollection",
+        features
+      }
+    }));
+
+    return coleccion;
+  };
+
+  // 💾 Función para guardar zona
+  const handleGuardarZona = async (capaNombre: string) => {
+    try {
+      if (!selectedPuesto || !selectedTipoCapa) {
+        toast.error("Debe seleccionar un puesto y tipo de capa");
+        return;
+      }
+
+      if (zonas.length === 0) {
+        toast.error("No hay zonas dibujadas para guardar");
+        return;
+      }
+
+      // Generar GeoJSON completo de las zonas
+      const capaGeoJson = {
+        type: "FeatureCollection",
+        features: zonas.map((zona) => ({
+          type: "Feature",
+          properties: { 
+            id: zona.id, 
+            name: zona.name,
+            ...(zona.color && {
+              _umap_options: {
+                color: zona.color
+              }
+            })
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: zona.coordinates.map((ring) => 
+              ring.map(([lat, lon]) => [lon, lat])
+            )
+          }
+        }))
+      };
+
+      // Dividir por zonas
+      const zonasSeparadas = splitGeoJsonByZona(capaGeoJson);
+
+      await apiImportarZona(
+        parseInt(selectedPuesto),
+        parseInt(selectedTipoCapa),
+        capaNombre,
+        JSON.stringify(capaGeoJson),
+        JSON.stringify(zonasSeparadas)
+      );
+
+      toast.success("Zona guardada exitosamente");
+    } catch (error) {
+      console.error("Error al guardar zona:", error);
+      toast.error("Error al guardar la zona");
+      throw error;
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 relative">
       <div className="z-10 mb-4 flex items-center gap-2">
@@ -468,6 +599,51 @@ export default function Zonificacion() {
             />
           </label>
         </Button>
+        
+        <div className="ml-auto flex items-center gap-2">
+          <Select
+            value={selectedPuesto}
+            onValueChange={setSelectedPuesto}
+          >
+            <SelectTrigger className="w-[200px]">
+              {puestos.find((puesto) => puesto.id === selectedPuesto)
+                ?.name || "Seleccione un puesto"}
+            </SelectTrigger>
+            <SelectContent>
+              {puestos.map((puesto) => (
+                <SelectItem key={puesto.id} value={puesto.id}>
+                  {puesto.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select
+            value={selectedTipoCapa}
+            onValueChange={setSelectedTipoCapa}
+          >
+            <SelectTrigger className="w-[200px]">
+              {tiposCapa.find((tipo) => tipo.id === selectedTipoCapa)
+                ?.name || "Seleccione tipo de capa"}
+            </SelectTrigger>
+            <SelectContent>
+              {tiposCapa.map((tipo) => (
+                <SelectItem key={tipo.id} value={tipo.id}>
+                  {tipo.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Button 
+            variant="default"
+            onClick={() => setIsGuardarModalOpen(true)}
+            disabled={!selectedPuesto || !selectedTipoCapa || zonas.length === 0}
+            className="transition-all duration-200 hover:scale-105 hover:shadow-lg"
+          >
+            Guardar
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
@@ -539,6 +715,12 @@ export default function Zonificacion() {
           }}
         />
       </div>
+      
+      <GuardarZonaModal
+        isOpen={isGuardarModalOpen}
+        onClose={() => setIsGuardarModalOpen(false)}
+        onConfirm={handleGuardarZona}
+      />
     </div>
   );
 }

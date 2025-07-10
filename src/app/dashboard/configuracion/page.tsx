@@ -15,6 +15,7 @@ import Usuarios from "@/components/configuracion/Usuarios";
 import Roles from "@/components/configuracion/Roles";
 import Permisos from "@/components/configuracion/Permisos";
 import Zonificacion from "@/components/configuracion/Zonificacion";
+import TiposCapa from "@/components/configuracion/TiposCapa";
 
 export default function ConfiguracionPage() {
   return (
@@ -159,7 +160,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de tipos de capas del mapa.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Tipos de Capa - Componente pendiente de implementar</div>
+              <TiposCapa />
             </CardContent>
             <CardFooter>
               <div>Footer de Tipos de Capa</div>
