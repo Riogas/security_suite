@@ -22,6 +22,10 @@ import booleanContains from "@turf/boolean-contains";
 import { polygon as turfPolygon } from "@turf/helpers";
 import GuardarZonaModal from "@/components/configuracion/modals/GuardarZonaModal";
 import { toast } from "sonner";
+import { 
+  convertFeatureCollectionToGenexus, 
+  convertZonasSeparadasToGenexus 
+} from "@/lib/convertirGeoJson";
 
 interface Departamento {
   id: string;
@@ -547,12 +551,16 @@ export default function Zonificacion() {
       // Dividir por zonas
       const zonasSeparadas = splitGeoJsonByZona(capaGeoJson);
 
+      // 🔄 Convertir al formato Genexus antes de enviar
+      const capaGeoJsonGenexus = convertFeatureCollectionToGenexus(capaGeoJson);
+      const zonasSeparadasGenexus = convertZonasSeparadasToGenexus(zonasSeparadas);
+
       await apiImportarZona(
         parseInt(selectedPuesto),
         parseInt(selectedTipoCapa),
         capaNombre,
-        JSON.stringify(capaGeoJson),
-        JSON.stringify(zonasSeparadas)
+        JSON.stringify(capaGeoJsonGenexus),
+        JSON.stringify(zonasSeparadasGenexus)
       );
 
       toast.success("Zona guardada exitosamente");

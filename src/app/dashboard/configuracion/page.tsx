@@ -16,6 +16,7 @@ import Roles from "@/components/configuracion/Roles";
 import Permisos from "@/components/configuracion/Permisos";
 import Zonificacion from "@/components/configuracion/Zonificacion";
 import TiposCapa from "@/components/configuracion/TiposCapa";
+import Puestos from "@/components/configuracion/Puestos";
 
 export default function ConfiguracionPage() {
   return (
@@ -145,7 +146,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de puestos de trabajo.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Puestos - Componente pendiente de implementar</div>
+              <Puestos />
             </CardContent>
             <CardFooter>
               <div>Footer de Puestos</div>

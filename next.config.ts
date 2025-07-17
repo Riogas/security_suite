@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
@@ -12,4 +13,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Configuración de Sentry
+const sentryWebpackPluginOptions = {
+  // Configuración adicional del plugin de Sentry
+  silent: true, // Suprimir logs durante el build
+  org: "riogas",
+  project: "goya",
+};
+
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);

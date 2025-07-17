@@ -9,6 +9,8 @@ import { useState } from "react";
 import { toast } from "sonner"; // 👈 Notificaciones visuales
 import { apiLogin } from "@/services/api"; // 👈 Importa tu API
 import { useRouter } from "next/navigation"; // 👈 Para redirección
+import LogRocket from 'logrocket'; // 👈 Para identificar usuario
+import * as Sentry from '@sentry/nextjs'; // 👈 Para testing de errores
 
 export default function LoginPage() {
   const { theme, toggleTheme } = useTheme();
@@ -56,6 +58,25 @@ export default function LoginPage() {
         // Guardar datos de sesión
         localStorage.setItem("user", JSON.stringify(response.data.user));
 
+        // 🎯 Identificar usuario en LogRocket
+        const user = response.data.user;
+        LogRocket.identify(user.email || 'user-' + Date.now(), {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          // Añadir cualquier otra propiedad útil
+          loginTime: new Date().toISOString(),
+        });
+
+        // 📊 Registrar evento de login exitoso
+        LogRocket.track('Login Success', {
+          email: user.email,
+          role: user.role,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log('👤 Usuario identificado en LogRocket:', user.name, user.email);
+
         toast.success("Inicio de sesión exitoso", {
           description: "Redirigiendo al panel...",
           duration: 3000,
@@ -68,6 +89,13 @@ export default function LoginPage() {
       } catch (error: any) {
         console.error("❌ Error al iniciar sesión:", error);
 
+        // 📊 Registrar intento de login fallido
+        LogRocket.track('Login Failed', {
+          email: email,
+          error: error.message || 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+
         toast.error("Login fallido", {
           description:
             error.response?.data?.message || "Verifica tus credenciales.",
@@ -77,6 +105,13 @@ export default function LoginPage() {
         setLoading(false);
       }
     }
+  };
+
+  // 🧪 Función de prueba para Sentry
+  const testSentryError = () => {
+    console.log('🧪 Generando error de prueba para Sentry...');
+    Sentry.captureException(new Error('Error de prueba desde Login Page'));
+    throw new Error('Error de prueba manual');
   };
 
   return (
@@ -162,6 +197,18 @@ export default function LoginPage() {
             Recuperar contraseña
           </a>
         </p>
+        
+        {/* 🧪 Botón de prueba temporal para Sentry */}
+        {process.env.NODE_ENV === "development" && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={testSentryError}
+            className="w-full mt-2 text-xs"
+          >
+            🧪 Test Sentry Error
+          </Button>
+        )}
       </div>
     </main>
   );

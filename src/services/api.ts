@@ -1,4 +1,5 @@
 import { api, overpassApi } from "@/lib/axios";
+import { withApiLogging, setSentryUser, clearSentryUser } from "@/lib/sentryHelpers";
 
 // Tipos globales
 export type Role = "admin" | "user";
@@ -21,24 +22,43 @@ export const apiLogin = async (
   email: string,
   password: string,
 ): Promise<{ data: { success: boolean; user: User } }> => {
-  // TODO: Descomentá esto cuando tengas backend
-  // return api.post("/auth/login", { email, password });
+  return withApiLogging(
+    "/auth/login",
+    async () => {
+      // TODO: Descomentá esto cuando tengas backend
+      // return api.post("/auth/login", { email, password });
 
-  // Mock temporal
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      resolve({
-        data: {
-          success: true,
-          user: {
+      // Mock temporal
+      const result = await new Promise<{ data: { success: boolean; user: User } }>((resolve) =>
+        setTimeout(() => {
+          const user = {
             name: "Julio Gómez",
             email: "julio.gomez@riogas.com.uy",
-            role: "admin", // Cambiar a "user" si querés simular otro perfil
+            role: "admin" as Role, // Cambiar a "user" si querés simular otro perfil
             token: "fake-jwt-token-12345",
-          },
-        },
-      });
-    }, 1000),
+          };
+
+          // Configurar usuario en Sentry después del login exitoso
+          setSentryUser({
+            id: user.email,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          });
+
+          resolve({
+            data: {
+              success: true,
+              user,
+            },
+          });
+        }, 1000)
+      );
+      
+      return result;
+    },
+    "POST",
+    { email, password: "[HIDDEN]" } // No loggear la contraseña real
   );
 };
 
@@ -75,7 +95,15 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
 };
 
 // ✅ Funciones reales (cuando el backend esté listo)
-export const apiGetCurrentUser = () => api.get("/auth/me");
+export const apiGetCurrentUser = () =>
+  withApiLogging(
+    "/auth/me",
+    async () => {
+      const response = await api.get("/auth/me");
+      return response.data;
+    },
+    "GET"
+  );
 
 export const apiUpdateProfile = (data: { name: string; avatar?: string }) =>
   api.put("/user/profile", data);
@@ -197,29 +225,30 @@ export const importarDepartamentos = async () => {
   }
 };
 
-export const apiGetDepartamentos = async () => {
-  const response = await api.get("/getDepartamentos"); // redirige a http://192.168.1.72:8082/puestos/gestion/getDepartamentos
-  console.log("Departamentos obtenidos:", response.data);
-  return response.data;
-};
+export const apiGetDepartamentos = async () =>
+  withApiLogging(
+    "/getDepartamentos",
+    async () => {
+      const response = await api.get("/getDepartamentos");
+      return response.data;
+    },
+    "GET"
+  );
 
 export const apiImportarDepartamentos = async (body: {
   sdtDepartamentos: { DepartamentoId: string; DepartamentoNombre: string }[];
-}) => {
-  try {
-    const response = await api.post("/importarDepartamentos", body, {
-      headers: { "Content-Type": "application/json" },
-    });
-    console.log("Departamentos importados correctamente:", response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error(
-      "Error al importar departamentos:",
-      error.response?.data || error.message,
-    );
-    throw error;
-  }
-};
+}) =>
+  withApiLogging(
+    "/importarDepartamentos",
+    async () => {
+      const response = await api.post("/importarDepartamentos", body, {
+        headers: { "Content-Type": "application/json" },
+      });
+      return response.data;
+    },
+    "POST",
+    body
+  );
 
 export const apiCambiarEstadoDepartamento = async (
   departamentoId: string,
@@ -638,18 +667,17 @@ export const apiGetCallesICA = async (body: {
 
 // ✅ Servicios para Puestos
 export const apiGetPuestos = async (puestoId: string = "") => {
-  try {
-    const response = await api.post("/getPuestos", {
-      PuestoId: puestoId,
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error(
-      "Error fetching puestos:",
-      error.response?.data || error.message,
-    );
-    throw error;
-  }
+  return withApiLogging(
+    "/getPuestos",
+    async () => {
+      const response = await api.post("/getPuestos", {
+        PuestoId: puestoId,
+      });
+      return response.data;
+    },
+    "POST",
+    { PuestoId: puestoId }
+  );
 };
 
 // ✅ Servicios para Tipos de Capa
@@ -712,6 +740,30 @@ export const apiABMTipoCapa = async (
   } catch (error: any) {
     console.error(
       "Error en ABM tipos de capa:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// ✅ Servicios para ABM Puestos
+export const apiABMPuesto = async (
+  modo: string,
+  puestoId: number,
+  descripcion: string,
+  estado: string
+) => {
+  try {
+    const response = await api.post("/ABMPuesto", {
+      Modo: modo,
+      PuestoId: puestoId,
+      PuestoDsc: descripcion,
+      PuestoEstado: estado,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error en ABM puestos:",
       error.response?.data || error.message,
     );
     throw error;
