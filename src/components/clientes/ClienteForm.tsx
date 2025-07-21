@@ -29,6 +29,8 @@ import { Pencil, Trash } from "lucide-react";
 import { Combobox } from "@headlessui/react";
 import Mapa from "@/components/mapa/OpenStreetMap";
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard";
+import { apiGetCapaGoya } from "@/services/api";
+import { GenexusFeatureCollectionToGeoJson } from "@/lib/convertirGeoJson";
 
 // Cargamos el mapa dinámicamente (por ahora sin SSR)
 const DynamicMapa = dynamic(() => import("@/components/mapa/OpenStreetMap"), {
@@ -115,6 +117,28 @@ const mockStreets = [
   "Avenida General Flores",
 ];
 
+function getPuestoActual() {
+  if (typeof window === "undefined") return null;
+  const actual = localStorage.getItem("puestoActual");
+  if (actual) {
+    try {
+      return JSON.parse(actual);
+    } catch {
+      return null;
+    }
+  }
+  // fallback: busca el único puesto
+  const p = localStorage.getItem("puesto");
+  if (p) {
+    try {
+      return JSON.parse(p);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export default function ClienteForm({ clienteId }: ClienteFormProps) {
   const [coords, setCoords] = useState({ lat: "", lng: "" });
   const [loading, setLoading] = useState(false);
@@ -132,6 +156,8 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
   const [esquina1, setEsquina1] = useState<string>("");
   const [esquina2, setEsquina2] = useState<string>("");
   const [runTour, setRunTour] = useState(false);
+  const [capas, setCapas] = useState<any[]>([]);
+  const [capasGeoJson, setCapasGeoJson] = useState<any[]>([]);
 
   const steps: Step[] = [
     {
@@ -178,6 +204,38 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
     const alreadySeen = localStorage.getItem("clienteFormTour");
     if (!alreadySeen) {
       setTimeout(() => setRunTour(true), 1000);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Obtener el puesto actual
+    const puesto = getPuestoActual();
+    if (puesto && puesto.puestoId) {
+      apiGetCapaGoya({ PuestoId: String(puesto.puestoId), TipoCapaId: "" })
+        .then((data) => {
+          const capasArr = data?.sdtCapasGoya || [];
+          setCapas(capasArr);
+          // Convertir cada capa a GeoJSON válido
+          const geojsons = capasArr.map((capa: any) => {
+            let parsed = null;
+            try {
+              parsed = typeof capa.CapaGeoJson === "string" ? JSON.parse(capa.CapaGeoJson) : capa.CapaGeoJson;
+            } catch {
+              parsed = null;
+            }
+            // Si es FeatureCollection con coords {lng,lat}, convertir a GeoJSON válido
+            if (parsed && parsed.type === "FeatureCollection") {
+              return GenexusFeatureCollectionToGeoJson(parsed);
+            }
+            return null;
+          }).filter(Boolean);
+          setCapasGeoJson(geojsons);
+        })
+        .catch((err) => {
+          setCapas([]);
+          setCapasGeoJson([]);
+          console.error("Error al obtener capas para el puesto:", err);
+        });
     }
   }, []);
 
@@ -440,6 +498,7 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
                 nroPuerta={nroPuerta}
                 esquina1={esquina1}
                 esquina2={esquina2}
+                zonas={capasGeoJson}
               />
             </div>
           </CardContent>

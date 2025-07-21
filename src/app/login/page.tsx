@@ -55,8 +55,15 @@ export default function LoginPage() {
         const response = res as { data: any };
         console.log("✅ Login exitoso:", response.data);
 
+
         // Guardar datos de sesión
         localStorage.setItem("user", JSON.stringify(response.data.user));
+        // Guardar puesto por defecto (cookie y localStorage)
+        const puestoDefault = { puestoId: 4, PuestoDsc: "SALTO" };
+        localStorage.setItem("puesto", JSON.stringify(puestoDefault));
+        // Guardar en cookie (expira en 30 días)
+        document.cookie = `puestoId=4; path=/; max-age=${60 * 60 * 24 * 30}`;
+        document.cookie = `PuestoDsc=SALTO; path=/; max-age=${60 * 60 * 24 * 30}`;
 
         // 🎯 Identificar usuario en LogRocket
         const user = response.data.user;

@@ -32,6 +32,7 @@ type Props = {
   nroPuerta?: string;
   esquina1?: string;
   esquina2?: string;
+  zonas?: any[]; // Array of GeoJSON FeatureCollections or Features
 };
 
 export default function OpenStreetMap({
@@ -42,17 +43,16 @@ export default function OpenStreetMap({
   nroPuerta,
   esquina1,
   esquina2,
+  zonas = [],
 }: Props) {
+
   const mapRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const polylineRefs = useRef<L.Polyline[]>([]);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-
-  // Crear una referencia separada para el mapa principal
+  const polygonLayerRef = useRef<L.LayerGroup | null>(null); // For zonas polygons
   const mainMapInstanceRef = useRef<L.Map | null>(null);
-
-  // Crear una referencia separada para el contenedor del modal
   const modalMapRef = useRef<HTMLDivElement>(null);
+  const modalMapInstanceRef = useRef<L.Map | null>(null); // Fix: modal map instance
 
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); // Estado para el modal
@@ -69,12 +69,55 @@ export default function OpenStreetMap({
   useEffect(() => {
     if (mapRef.current && !mainMapInstanceRef.current) {
       const map = L.map(mapRef.current).setView([-34.9011, -56.1645], 13);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      L.tileLayer("http://osmtileserver.riogas.uy/tile/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(map);
       mainMapInstanceRef.current = map;
     }
   }, []);
+
+  // Draw zonas polygons and fit bounds
+  useEffect(() => {
+    const map = mainMapInstanceRef.current;
+    if (!map) return;
+
+    // Remove previous polygons
+    if (polygonLayerRef.current) {
+      polygonLayerRef.current.clearLayers();
+      map.removeLayer(polygonLayerRef.current);
+      polygonLayerRef.current = null;
+    }
+
+    if (zonas && zonas.length > 0) {
+      const layerGroup = L.layerGroup();
+      let allBounds: L.LatLngBounds | null = null;
+
+      zonas.forEach((geojson) => {
+        if (!geojson) return;
+        const gjLayer = L.geoJSON(geojson, {
+          style: { color: '#e11d48', weight: 2, fillOpacity: 0.2 },
+        });
+        gjLayer.addTo(layerGroup);
+        try {
+          const gjBounds = gjLayer.getBounds();
+          if (gjBounds.isValid()) {
+            if (!allBounds) {
+              allBounds = gjBounds as L.LatLngBounds;
+            } else {
+              (allBounds as L.LatLngBounds).extend(gjBounds);
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+      layerGroup.addTo(map);
+      polygonLayerRef.current = layerGroup;
+      if (allBounds && (allBounds as L.LatLngBounds).isValid()) {
+        map.fitBounds(allBounds as L.LatLngBounds, { padding: [20, 20] });
+      }
+    }
+  }, [zonas]);
 
   useEffect(() => {
     console.log("Ejecución de updateMap por cambio en:", {
@@ -222,7 +265,7 @@ export default function OpenStreetMap({
     if (isModalOpen) {
       setTimeout(() => {
         if (modalMapRef.current) {
-          if (!mapInstanceRef.current) {
+          if (!modalMapInstanceRef.current) {
             const map = L.map(modalMapRef.current).setView(
               [-34.9011, -56.1645],
               13,
@@ -230,16 +273,16 @@ export default function OpenStreetMap({
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
               attribution: "&copy; OpenStreetMap contributors",
             }).addTo(map);
-            mapInstanceRef.current = map;
+            modalMapInstanceRef.current = map;
           } else {
-            mapInstanceRef.current.invalidateSize(); // Ajustar tamaño del mapa
+            modalMapInstanceRef.current.invalidateSize(); // Ajustar tamaño del mapa
           }
         }
       }, 500); // Incrementar tiempo para asegurar renderizado
     } else {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+      if (modalMapInstanceRef.current) {
+        modalMapInstanceRef.current.remove();
+        modalMapInstanceRef.current = null;
       }
     }
   }, [isModalOpen]); // Reaccionar al estado del modal

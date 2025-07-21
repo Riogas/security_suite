@@ -28,6 +28,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Pencil, Trash, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const mockClients = [
   {
@@ -55,6 +56,7 @@ const mockClients = [
 
 export default function ClientesPage() {
   const [clients, setClients] = useState(mockClients);
+  const router = useRouter();
 
   return (
     <div className="p-4 space-y-6">
@@ -77,8 +79,7 @@ export default function ClientesPage() {
               <SelectItem value="pasivo">Pasivo</SelectItem>
             </SelectContent>
           </Select>
-
-          <Button className="ml-auto">
+          <Button className="ml-auto" onClick={() => router.push("/dashboard/clientes/nuevo") }>
             <Plus className="w-4 h-4 mr-2" />
             Crear Cliente
           </Button>
