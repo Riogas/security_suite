@@ -364,10 +364,10 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
   // Resultado final
   if (inZone) {
     console.log("[ZONA DEBUG] ✅ El cliente está en zona");
-    toast.success("Cliente en zona", { duration: 2500 });
+    toast.success("Cliente en zona", { duration: Infinity, closeButton: true });
   } else {
     console.log("[ZONA DEBUG] ❌ El cliente está fuera de zona");
-    toast.error("Cliente fuera de zona", { duration: 2500 });
+    toast.error("Cliente fuera de zona", { duration: Infinity, closeButton: true });
   }
 }, [coords, capasGeoJson]);
 
