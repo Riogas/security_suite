@@ -20,17 +20,19 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 
-// Reemplaza esto por tu API real
-// import { apiGetCapas, apiABMCapa } from "@/services/api";
+import { apiGetCapaGoya } from "@/services/api";
+import { GenexusFeatureCollectionToGeoJson } from "@/lib/convertirGeoJson";
+import MostrarMapaModal from "@/components/configuracion/modals/MostrarMapaModal";
 
 interface Capa {
-  id: string;
-  tipoCapa: string;
-  capa: string;
-  estado: string;
-  inicio: string;
-  fin: string;
-  geojson: any;
+  CapaId: string;
+  TipoCapaId: string;
+  CapaNombre: string;
+  CapaEstado: string;
+  CapaInicio: string;
+  CapaFin: string;
+  CapaGeoJson: string;
+  PuestoId: string;
 }
 
 export default function Capa() {
@@ -38,6 +40,7 @@ export default function Capa() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mapModal, setMapModal] = useState<{ open: boolean; geojson: any | null }>({ open: false, geojson: null });
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -47,29 +50,9 @@ export default function Capa() {
     const fetchCapas = async () => {
       try {
         setLoading(true);
-        // const data = await apiGetCapas();
-        // setCapas(data);
-        // MOCK DATA
-        setCapas([
-          {
-            id: "1",
-            tipoCapa: "Tipo 1",
-            capa: "Capa A",
-            estado: "A",
-            inicio: "2024-01-01",
-            fin: "2024-12-31",
-            geojson: {},
-          },
-          {
-            id: "2",
-            tipoCapa: "Tipo 2",
-            capa: "Capa B",
-            estado: "P",
-            inicio: "2023-01-01",
-            fin: "2023-12-31",
-            geojson: {},
-          },
-        ]);
+        // Puedes cambiar estos valores por defecto según tu lógica de negocio
+        const data = await apiGetCapaGoya({ PuestoId: "", TipoCapaId: "" });
+        setCapas(data.sdtCapasGoya || []);
       } catch (error) {
         setCapas([]);
       } finally {
@@ -85,9 +68,9 @@ export default function Capa() {
   );
 
   const filteredData = useMemo(() => {
-    return searchTerm.length >= 0
+    return searchTerm.length > 0
       ? capas.filter((capa) =>
-          capa.capa
+          capa.CapaNombre
             .toLowerCase()
             .includes((debouncedSearchTerm(searchTerm) ?? "").toLowerCase()),
         )
@@ -104,9 +87,18 @@ export default function Capa() {
     alert(`Eliminando capa: ${id}`);
   };
 
-  const handleShowMap = (geojson: any) => {
-    // TODO: Mostrar modal/mapa con el geojson
-    alert("Mostrar mapa (GeoJSON): " + JSON.stringify(geojson));
+  const handleShowMap = (geojson: string) => {
+    let parsed: any = null;
+    try {
+      parsed = typeof geojson === "string" ? JSON.parse(geojson) : geojson;
+    } catch {
+      parsed = null;
+    }
+    // Si es FeatureCollection con coords {lng,lat}, convertir a GeoJSON válido
+    if (parsed && parsed.type === "FeatureCollection") {
+      parsed = GenexusFeatureCollectionToGeoJson(parsed);
+    }
+    setMapModal({ open: true, geojson: parsed });
   };
 
   // TODO: Implementar modal de creación
@@ -115,30 +107,30 @@ export default function Capa() {
   };
 
   const columns = [
-    { accessorKey: "tipoCapa", header: "Tipo Capa" },
-    { accessorKey: "capa", header: "Capa" },
+    { accessorKey: "TipoCapaId", header: "Tipo Capa" },
+    { accessorKey: "CapaNombre", header: "Capa" },
     {
-      accessorKey: "estado",
+      accessorKey: "CapaEstado",
       header: "Estado",
       cell: ({ row }: { row: { original: Capa } }) => (
         <Badge
           className={
-            row.original.estado === "A"
+            row.original.CapaEstado === "A"
               ? "bg-green-100 text-green-800 border-green-300"
               : "bg-red-100 text-red-800 border-red-300"
           }
         >
-          {row.original.estado === "A" ? "Activo" : "Pasivo"}
+          {row.original.CapaEstado === "A" ? "Activo" : "Pasivo"}
         </Badge>
       ),
     },
-    { accessorKey: "inicio", header: "Inicio" },
-    { accessorKey: "fin", header: "Fin" },
+    { accessorKey: "CapaInicio", header: "Inicio" },
+    { accessorKey: "CapaFin", header: "Fin" },
     {
       id: "mapa",
       header: "",
       cell: ({ row }: { row: { original: Capa } }) => (
-        <Button variant="ghost" size="icon" onClick={() => handleShowMap(row.original.geojson)}>
+        <Button variant="ghost" size="icon" onClick={() => handleShowMap(row.original.CapaGeoJson)}>
           <MapPin className="h-5 w-5 text-blue-600" />
         </Button>
       ),
@@ -149,13 +141,13 @@ export default function Capa() {
       cell: ({ row }: { row: { original: Capa } }) => (
         <div className="flex space-x-2">
           <button
-            onClick={() => handleEdit(row.original.id)}
+            onClick={() => handleEdit(row.original.CapaId)}
             className="p-1 hover:bg-gray-100 rounded transition-colors duration-200"
           >
             <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800" />
           </button>
           <button
-            onClick={() => handleDelete(row.original.id)}
+            onClick={() => handleDelete(row.original.CapaId)}
             className="p-1 hover:bg-gray-100 rounded transition-colors duration-200"
           >
             <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800" />
@@ -319,6 +311,17 @@ export default function Capa() {
           </Button>
         </div>
       </div>
+
+      {/* Modal para mostrar el mapa */}
+      {mapModal.open && (
+        <MostrarMapaModal
+          isOpen={mapModal.open}
+          geojson={mapModal.geojson}
+          onClose={() => setMapModal({ open: false, geojson: null })}
+          title="Mapa de la Capa"
+          description="Visualización del polígono de la capa en el mapa."
+        />
+      )}
 
       {/* Modal de creación aquí si lo necesitas */}
     </div>

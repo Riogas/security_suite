@@ -1,3 +1,16 @@
+// Convierte un FeatureCollection Genexus (con coords {lng,lat}) a GeoJSON válido (arrays [lng,lat])
+export function GenexusFeatureCollectionToGeoJson(genexusFC: any): any {
+  if (!genexusFC || genexusFC.type !== "FeatureCollection" || !Array.isArray(genexusFC.features)) {
+    return genexusFC;
+  }
+  return {
+    ...genexusFC,
+    features: genexusFC.features.map((feature: any) => ({
+      ...feature,
+      geometry: genexusToGeojson(feature.geometry),
+    })),
+  };
+}
 export type {
   GeoJsonFeatureCollection,
   GeoJsonFeature,
@@ -121,22 +134,38 @@ export function convertZonasSeparadasToGenexus(zonasSeparadas: any[]): any[] {
 export function genexusToGeojson(geometry: GenexusGeometry): GeoJsonGeometry {
   if (!geometry || !geometry.type || !geometry.coordinates) return geometry as any;
 
+  // Polygon: coordinates puede venir como un solo array de puntos (no array de arrays)
   if (geometry.type === "Polygon") {
+    let coords = geometry.coordinates as any;
+    // Si es un solo anillo (array de puntos), lo envolvemos en un array
+    if (Array.isArray(coords) && coords.length > 0 && !Array.isArray(coords[0])) {
+      coords = [coords];
+    }
     return {
       ...geometry,
-      coordinates: (geometry.coordinates as GenexusPolygonCoords).map(
-        (ring) => ring.map(({ lng, lat }) => [lng, lat] as Position)
+      coordinates: (coords as GenexusPolygonCoords).map(
+        (ring) => Array.isArray(ring)
+          ? ring.map((pt) => [pt.lng, pt.lat] as Position)
+          : []
       ),
     };
   }
 
   if (geometry.type === "MultiPolygon") {
+    let coords = geometry.coordinates as any;
+    // Si es un solo polígono, lo envolvemos en un array
+    if (Array.isArray(coords) && coords.length > 0 && !Array.isArray(coords[0][0])) {
+      coords = [coords];
+    }
     return {
       ...geometry,
-      coordinates: (geometry.coordinates as GenexusMultiPolygonCoords).map(
-        (polygon) => polygon.map(
-          (ring) => ring.map(({ lng, lat }) => [lng, lat] as Position)
-        )
+      coordinates: (coords as GenexusMultiPolygonCoords).map(
+        (polygon) => Array.isArray(polygon)
+          ? polygon.map((ring) => Array.isArray(ring)
+            ? ring.map((pt) => [pt.lng, pt.lat] as Position)
+            : []
+          )
+          : []
       ),
     };
   }

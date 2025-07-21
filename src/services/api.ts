@@ -1,3 +1,18 @@
+// ✅ Servicio para obtener capas Goya
+export const apiGetCapaGoya = async (body: { PuestoId: string; TipoCapaId: string }) => {
+  try {
+    const response = await api.post("/getCapaGoya", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error al obtener capas Goya:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
 import { api, overpassApi } from "@/lib/axios";
 import { withApiLogging, setSentryUser, clearSentryUser } from "@/lib/sentryHelpers";
 
