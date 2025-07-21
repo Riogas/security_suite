@@ -1,67 +1,145 @@
-/**
- * Utilidades para conversión de formatos GeoJSON
- */
+export type {
+  GeoJsonFeatureCollection,
+  GeoJsonFeature,
+  GenexusFeatureCollection,
+  GenexusFeature,
+  GeoJsonGeometry,
+  GenexusGeometry
+};
 
-/**
- * Convierte GeoJSON Polygon/MultiPolygon a formato Genexus (collection de objetos {lng, lat})
- * @param geojson - Objeto GeoJSON de tipo Polygon o MultiPolygon
- * @returns GeoJSON convertido al formato Genexus
- */
-export function geojsonToGenexus(geojson: any): any {
-  // Soporta Polygon o MultiPolygon
-  if (!geojson || !geojson.type || !geojson.coordinates) return geojson;
 
-  const convertRings = (rings: number[][][]) =>
-    rings.map(
-      (line) =>
-        line.map(
-          ([lng, lat]) => ({ lng, lat })
-        )
-    );
+// Tipos básicos GeoJSON y Genexus
+type Position = [number, number];
+type Ring = Position[];
+type PolygonCoords = Ring[];
+type MultiPolygonCoords = PolygonCoords[];
+
+type GenexusPoint = { lng: number, lat: number };
+type GenexusRing = GenexusPoint[];
+type GenexusPolygonCoords = GenexusRing[];
+type GenexusMultiPolygonCoords = GenexusPolygonCoords[];
+
+interface GeoJsonGeometry {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: PolygonCoords | MultiPolygonCoords;
+  [key: string]: any;
+}
+
+interface GenexusGeometry {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: GenexusPolygonCoords | GenexusMultiPolygonCoords;
+  [key: string]: any;
+}
+
+interface GeoJsonFeature {
+  type: "Feature";
+  geometry: GeoJsonGeometry;
+  properties?: Record<string, any>;
+  [key: string]: any;
+}
+
+interface GenexusFeature {
+  type: "Feature";
+  geometry: GenexusGeometry;
+  properties?: Record<string, any>;
+  [key: string]: any;
+}
+
+interface GeoJsonFeatureCollection {
+  type: "FeatureCollection";
+  features: GeoJsonFeature[];
+  [key: string]: any;
+}
+
+interface GenexusFeatureCollection {
+  type: "FeatureCollection";
+  features: GenexusFeature[];
+  [key: string]: any;
+}
+
+// -------- GeoJSON → Genexus (mantiene todos los anillos) --------
+
+export function geojsonToGenexus(geojson: GeoJsonGeometry): GenexusGeometry {
+  if (!geojson || !geojson.type || !geojson.coordinates) return geojson as any;
 
   if (geojson.type === "Polygon") {
     return {
       ...geojson,
-      coordinates: convertRings([...geojson.coordinates])
+      coordinates: (geojson.coordinates as PolygonCoords).map(
+        (ring) => ring.map(([lng, lat]) => ({ lng, lat }))
+      ),
     };
-  } else if (geojson.type === "MultiPolygon") {
-    // MultiPolygon: array de polígonos (array de array de array)
+  }
+
+  if (geojson.type === "MultiPolygon") {
     return {
       ...geojson,
-      coordinates: geojson.coordinates.map((rings: number[][][]) => convertRings(rings))
+      coordinates: (geojson.coordinates as MultiPolygonCoords).map(
+        (polygon) => polygon.map(
+          (ring) => ring.map(([lng, lat]) => ({ lng, lat }))
+        )
+      ),
     };
   }
-  
-  return geojson;
+
+  return geojson as any;
 }
 
-/**
- * Convierte un Feature Collection completo al formato Genexus
- * @param featureCollection - GeoJSON FeatureCollection
- * @returns FeatureCollection con geometrías convertidas al formato Genexus
- */
-export function convertFeatureCollectionToGenexus(featureCollection: any): any {
-  if (!featureCollection || featureCollection.type !== "FeatureCollection") {
-    return featureCollection;
-  }
+// -------- FeatureCollection (GeoJSON → Genexus) --------
 
+export function convertFeatureCollectionToGenexus(
+  featureCollection: GeoJsonFeatureCollection
+): GenexusFeatureCollection {
+  if (
+    !featureCollection ||
+    featureCollection.type !== "FeatureCollection" ||
+    !Array.isArray(featureCollection.features)
+  ) {
+    return featureCollection as any;
+  }
   return {
     ...featureCollection,
-    features: featureCollection.features.map((feature: any) => ({
+    features: featureCollection.features.map((feature) => ({
       ...feature,
-      geometry: geojsonToGenexus(feature.geometry)
-    }))
+      geometry: geojsonToGenexus(feature.geometry),
+    })),
   };
 }
 
-/**
- * Convierte una colección de zonas separadas al formato Genexus
- * @param zonasSeparadas - Array de objetos con nombre y geojson
- * @returns Array convertido al formato Genexus
- */
+// -------- Batch zonas (GeoJSON → Genexus) --------
+
 export function convertZonasSeparadasToGenexus(zonasSeparadas: any[]): any[] {
+  if (!Array.isArray(zonasSeparadas)) return zonasSeparadas;
   return zonasSeparadas.map(zona => ({
     ...zona,
-    geojson: convertFeatureCollectionToGenexus(zona.geojson)
+    geojson: convertFeatureCollectionToGenexus(zona.geojson),
   }));
+}
+
+// -------- Genexus → GeoJSON (inverso, mantiene todos los aros) --------
+
+export function genexusToGeojson(geometry: GenexusGeometry): GeoJsonGeometry {
+  if (!geometry || !geometry.type || !geometry.coordinates) return geometry as any;
+
+  if (geometry.type === "Polygon") {
+    return {
+      ...geometry,
+      coordinates: (geometry.coordinates as GenexusPolygonCoords).map(
+        (ring) => ring.map(({ lng, lat }) => [lng, lat] as Position)
+      ),
+    };
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return {
+      ...geometry,
+      coordinates: (geometry.coordinates as GenexusMultiPolygonCoords).map(
+        (polygon) => polygon.map(
+          (ring) => ring.map(({ lng, lat }) => [lng, lat] as Position)
+        )
+      ),
+    };
+  }
+
+  return geometry as any;
 }

@@ -16,6 +16,8 @@ import Roles from "@/components/configuracion/Roles";
 import Permisos from "@/components/configuracion/Permisos";
 import Zonificacion from "@/components/configuracion/Zonificacion";
 import TiposCapa from "@/components/configuracion/TiposCapa";
+import Capa from "@/components/configuracion/Capa";
+import Zona from "@/components/configuracion/Zona";
 import Puestos from "@/components/configuracion/Puestos";
 
 export default function ConfiguracionPage() {
@@ -176,7 +178,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de capas del mapa.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Capas - Componente pendiente de implementar</div>
+              <Capa />
             </CardContent>
             <CardFooter>
               <div>Footer de Capas</div>
@@ -191,7 +193,7 @@ export default function ConfiguracionPage() {
               <CardDescription>Administración de zonas geográficas.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div>Contenido de Zonas - Componente pendiente de implementar</div>
+              <Zona />
             </CardContent>
             <CardFooter>
               <div>Footer de Zonas</div>

@@ -705,6 +705,8 @@ export const apiImportarZona = async (
   zonaGeoJson: string
 ) => {
   try {
+    // Log de los parámetros recibidos
+    console.log('[apiImportarZona] params:', { puestoId, tipoCapa, capaNombre, capaGeoJson, zonaGeoJson });
     const response = await api.post("/ImportarZona", {
       PuestoId: puestoId,
       TipoCapa: tipoCapa,

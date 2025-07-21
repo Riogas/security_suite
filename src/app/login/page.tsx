@@ -199,7 +199,7 @@ export default function LoginPage() {
         </p>
         
         {/* 🧪 Botón de prueba temporal para Sentry */}
-        {process.env.NODE_ENV === "development" && (
+        {/*{process.env.NODE_ENV === "development" && (
           <Button 
             variant="outline" 
             size="sm" 
@@ -208,7 +208,7 @@ export default function LoginPage() {
           >
             🧪 Test Sentry Error
           </Button>
-        )}
+        )}*/}
       </div>
     </main>
   );

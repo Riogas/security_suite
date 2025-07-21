@@ -1,0 +1,14 @@
+render_list -a --min-zoom=5 --max-zoom=5 --min-x=10 --max-x=11 --min-y=18 --max-y=19 --num-threads=4 --verbose
+render_list -a --min-zoom=6 --max-zoom=6 --min-x=21 --max-x=22 --min-y=37 --max-y=38 --num-threads=4 --verbose
+render_list -a --min-zoom=7 --max-zoom=7 --min-x=43 --max-x=45 --min-y=74 --max-y=77 --num-threads=4 --verbose
+render_list -a --min-zoom=8 --max-zoom=8 --min-x=86 --max-x=90 --min-y=149 --max-y=155 --num-threads=4 --verbose
+render_list -a --min-zoom=9 --max-zoom=9 --min-x=172 --max-x=181 --min-y=299 --max-y=310 --num-threads=4 --verbose
+render_list -a --min-zoom=10 --max-zoom=10 --min-x=344 --max-x=362 --min-y=598 --max-y=620 --num-threads=4 --verbose
+render_list -a --min-zoom=11 --max-zoom=11 --min-x=688 --max-x=725 --min-y=1196 --max-y=1240 --num-threads=4 --verbose
+render_list -a --min-zoom=12 --max-zoom=12 --min-x=1376 --max-x=1450 --min-y=2393 --max-y=2480 --num-threads=4 --verbose
+render_list -a --min-zoom=13 --max-zoom=13 --min-x=2753 --max-x=2901 --min-y=4786 --max-y=4961 --num-threads=4 --verbose
+render_list -a --min-zoom=14 --max-zoom=14 --min-x=5506 --max-x=5802 --min-y=9572 --max-y=9922 --num-threads=4 --verbose
+render_list -a --min-zoom=15 --max-zoom=15 --min-x=11013 --max-x=11605 --min-y=19144 --max-y=19844 --num-threads=4 --verbose
+render_list -a --min-zoom=16 --max-zoom=16 --min-x=22027 --max-x=23210 --min-y=38288 --max-y=39688 --num-threads=4 --verbose
+render_list -a --min-zoom=17 --max-zoom=17 --min-x=44054 --max-x=46421 --min-y=76576 --max-y=79377 --num-threads=4 --verbose
+render_list -a --min-zoom=18 --max-zoom=18 --min-x=88109 --max-x=92842 --min-y=153153 --max-y=158755 --num-threads=4 --verbose

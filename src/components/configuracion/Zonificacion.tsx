@@ -26,6 +26,8 @@ import {
   convertFeatureCollectionToGenexus, 
   convertZonasSeparadasToGenexus 
 } from "@/lib/convertirGeoJson";
+import type { GeoJsonFeatureCollection } from "@/lib/convertirGeoJson";
+
 
 interface Departamento {
   id: string;
@@ -477,8 +479,9 @@ export default function Zonificacion() {
             ...(color && { color })
           };
         });
-        
-        setZonas(filtrarZonasSuperpuestas([...zonas, ...nuevasZonas]));
+        // Al importar, NO filtrar zonas superpuestas: conservar todas las importadas
+        setZonas([...zonas, ...nuevasZonas]);
+        console.log('[DEBUG] Zonas después de importar:', [...zonas, ...nuevasZonas]);
       } catch (err) {
         alert("Error al importar el archivo GeoJSON");
       }
@@ -525,7 +528,10 @@ export default function Zonificacion() {
         return;
       }
 
-      // Generar GeoJSON completo de las zonas
+      // DEBUG: Mostrar todas las zonas antes de exportar
+      console.log("[DEBUG] Zonas actuales:", JSON.stringify(zonas, null, 2));
+
+      // Generar GeoJSON completo de las zonas (formato Genexus: coordinates como array de objetos {lng, lat})
       const capaGeoJson = {
         type: "FeatureCollection",
         features: zonas.map((zona) => ({
@@ -541,26 +547,49 @@ export default function Zonificacion() {
           },
           geometry: {
             type: "Polygon",
-            coordinates: zona.coordinates.map((ring) => 
-              ring.map(([lat, lon]) => [lon, lat])
-            )
+            // Todos los aros de la zona, aplanados en un solo array de objetos {lng, lat}
+            coordinates: zona.coordinates
+              .map(ring => ring.map(([lat, lon]) => ({ lng: lon, lat: lat })))
+              .flat()
           }
         }))
       };
 
-      // Dividir por zonas
-      const zonasSeparadas = splitGeoJsonByZona(capaGeoJson);
+      // DEBUG: Mostrar capaGeoJson completo
+      console.log("[DEBUG] capaGeoJson (FeatureCollection):", JSON.stringify(capaGeoJson, null, 2));
 
-      // 🔄 Convertir al formato Genexus antes de enviar
-      const capaGeoJsonGenexus = convertFeatureCollectionToGenexus(capaGeoJson);
-      const zonasSeparadasGenexus = convertZonasSeparadasToGenexus(zonasSeparadas);
 
+      // Dividir por zonas (cada zona tendrá coordinates como array de objetos {lng, lat})
+      const zonasSeparadas = zonas.map((zona) => ({
+        nombre: zona.name,
+        geojson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { id: zona.id, name: zona.name },
+              geometry: {
+                type: "Polygon",
+                coordinates: zona.coordinates
+                  .map(ring => ring.map(([lat, lon]) => ({ lng: lon, lat: lat })))
+                  .flat()
+              }
+            }
+          ]
+        }
+      }));
+
+      // DEBUG: Mostrar capaGeoJson y zonasSeparadas
+      console.log("[DEBUG] capaGeoJson (FeatureCollection):", JSON.stringify(capaGeoJson, null, 2));
+      console.log("[DEBUG] zonasSeparadas:", JSON.stringify(zonasSeparadas, null, 2));
+
+      // Enviar directamente el formato esperado por Genexus (sin conversión extra)
       await apiImportarZona(
         parseInt(selectedPuesto),
         parseInt(selectedTipoCapa),
         capaNombre,
-        JSON.stringify(capaGeoJsonGenexus),
-        JSON.stringify(zonasSeparadasGenexus)
+        JSON.stringify(capaGeoJson),
+        JSON.stringify(zonasSeparadas)
       );
 
       toast.success("Zona guardada exitosamente");
