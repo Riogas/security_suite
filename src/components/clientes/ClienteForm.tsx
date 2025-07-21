@@ -112,18 +112,21 @@ const departamentos = [
 // Corrige todos los Feature Polygon/MultiPolygon en una FeatureCollection
 function fixPolygonCoords(featureCollection: any): any {
   if (!featureCollection || featureCollection.type !== "FeatureCollection") return featureCollection;
+
+  // Invertir coordenadas en todos los features
   return {
     ...featureCollection,
     features: featureCollection.features.map((feature: any) => {
       const geom = feature.geometry;
       if (!geom) return feature;
+
       if (geom.type === "Polygon") {
         return {
           ...feature,
           geometry: {
             ...geom,
             coordinates: geom.coordinates.map((ring: any) =>
-              ring.map(([lat, lng]: [number, number]) => [lng, lat])
+              ring.map((coord: [number, number]) => [coord[1], coord[0]]) // invierte [lat, lng] => [lng, lat]
             ),
           },
         };
@@ -135,7 +138,7 @@ function fixPolygonCoords(featureCollection: any): any {
             ...geom,
             coordinates: geom.coordinates.map((polygon: any) =>
               polygon.map((ring: any) =>
-                ring.map(([lat, lng]: [number, number]) => [lng, lat])
+                ring.map((coord: [number, number]) => [coord[1], coord[0]])
               )
             ),
           },
@@ -145,6 +148,8 @@ function fixPolygonCoords(featureCollection: any): any {
     }),
   };
 }
+
+
 
 
 
@@ -314,49 +319,59 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
   ];
 
   useEffect(() => {
-    const alreadySeen = localStorage.getItem("clienteFormTour");
-    if (!alreadySeen) {
-      setTimeout(() => setRunTour(true), 1000);
-    }
-  }, []);
-
-  // Detectar si el punto está dentro de alguna zona y mostrar toast
-  useEffect(() => {
   if (!coords.lat || !coords.lng || capasGeoJson.length === 0) return;
-  const pt = turfPoint([
-    parseFloat(coords.lng),
-    parseFloat(coords.lat),
-  ]);
+
+  // Asegurate que el punto sea [lng, lat]
+  const pt = turfPoint([parseFloat(coords.lng), parseFloat(coords.lat)]);
   let inZone = false;
 
+  console.log("[ZONA DEBUG] === Comprobando punto:", pt);
+
   capasGeoJson.forEach((zona, idx) => {
-    // 🔥 Asegura formato [lng, lat]!
-    const zonaFix = fixPolygonCoords(zona);
-    try {
-      if (
-        zonaFix.type === "FeatureCollection" &&
-        Array.isArray(zonaFix.features)
-      ) {
-        zonaFix.features.forEach((feature: any) => {
-          try {
-            if (booleanPointInPolygon(pt, feature)) {
-              inZone = true;
-            }
-          } catch (e) {
-            console.log("[ZONA DEBUG] Error en booleanPointInPolygon (feature)", e, feature);
+    // Log primer coordenada del polígono
+    if (
+      zona &&
+      zona.features &&
+      zona.features.length > 0 &&
+      zona.features[0].geometry &&
+      zona.features[0].geometry.coordinates &&
+      zona.features[0].geometry.coordinates[0] &&
+      zona.features[0].geometry.coordinates[0][0]
+    ) {
+      console.log("[ZONA DEBUG] Primer punto del polígono antes:", zona.features[0].geometry.coordinates[0][0]); // [lng, lat]
+    }
+
+    if (zona.type === "FeatureCollection" && Array.isArray(zona.features)) {
+      zona.features.forEach((feature: any, i: number) => {
+        const nombre = feature.properties?.name || feature.properties?.id || `[sin nombre]`;
+        try {
+          const inside = booleanPointInPolygon(pt, feature);
+          console.log(
+            `[ZONA DEBUG] ¿El punto está en el polígono '${nombre}'? -> ${inside}`,
+            { feature }
+          );
+          if (inside) {
+            inZone = true;
+            console.log(`[ZONA DEBUG] El punto está DENTRO de '${nombre}' (feature #${i} de la zona #${idx})`);
           }
-        });
-      }
-    } catch (e) {
-      console.log("[ZONA DEBUG] Error en booleanPointInPolygon", e, zonaFix);
+        } catch (e) {
+          console.warn("[ZONA DEBUG] Error en booleanPointInPolygon (feature)", e, feature);
+        }
+      });
     }
   });
+
+  // Resultado final
   if (inZone) {
+    console.log("[ZONA DEBUG] ✅ El cliente está en zona");
     toast.success("Cliente en zona", { duration: 2500 });
   } else {
+    console.log("[ZONA DEBUG] ❌ El cliente está fuera de zona");
     toast.error("Cliente fuera de zona", { duration: 2500 });
   }
 }, [coords, capasGeoJson]);
+
+
 
 
   useEffect(() => {
