@@ -20,16 +20,19 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 
-// Reemplaza esto por tu API real
-// import { apiGetZonas, apiABMZona } from "@/services/api";
+import { apiGetZonaGoya } from "@/services/api";
+import { zonaGoyaStringToGeoJson } from "@/lib/geojsonZonaGoya";
+import MostrarMapaModal from "@/components/configuracion/modals/MostrarMapaModal";
+
 
 interface Zona {
-  id: string;
-  tipoCapa: string;
-  capa: string;
-  zona: string;
-  estado: string;
-  geojson: any;
+  ZonaId: string;
+  ZonaNombre: string;
+  TipoCapaId: string;
+  CapaId: string;
+  PuestoId: string;
+  ZonaEstado: string;
+  ZonaGeoJson: any;
 }
 
 export default function Zona() {
@@ -37,6 +40,7 @@ export default function Zona() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mapModal, setMapModal] = useState<{ open: boolean; geojson: any | null }>({ open: false, geojson: null });
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
@@ -46,27 +50,12 @@ export default function Zona() {
     const fetchZonas = async () => {
       try {
         setLoading(true);
-        // const data = await apiGetZonas();
-        // setZonas(data);
-        // MOCK DATA
-        setZonas([
-          {
-            id: "1",
-            tipoCapa: "Tipo 1",
-            capa: "Capa A",
-            zona: "Zona X",
-            estado: "A",
-            geojson: {},
-          },
-          {
-            id: "2",
-            tipoCapa: "Tipo 2",
-            capa: "Capa B",
-            zona: "Zona Y",
-            estado: "P",
-            geojson: {},
-          },
-        ]);
+        const data = await apiGetZonaGoya({ PuestoId: "", TipoCapaId: "", CapaId: "" });
+        const zonasConvertidas = (data?.sdtZonaGoya || []).map((zona: any) => ({
+          ...zona,
+          ZonaGeoJson: zonaGoyaStringToGeoJson(zona.ZonaGeoJson, zona.ZonaId, zona.ZonaNombre),
+        }));
+        setZonas(zonasConvertidas);
       } catch (error) {
         setZonas([]);
       } finally {
@@ -82,9 +71,9 @@ export default function Zona() {
   );
 
   const filteredData = useMemo(() => {
-    return searchTerm.length >= 0
+    return searchTerm.length > 0
       ? zonas.filter((zona) =>
-          zona.zona
+          zona.ZonaNombre
             .toLowerCase()
             .includes((debouncedSearchTerm(searchTerm) ?? "").toLowerCase()),
         )
@@ -102,8 +91,7 @@ export default function Zona() {
   };
 
   const handleShowMap = (geojson: any) => {
-    // TODO: Mostrar modal/mapa con el geojson
-    alert("Mostrar mapa (GeoJSON): " + JSON.stringify(geojson));
+    setMapModal({ open: true, geojson });
   };
 
   // TODO: Implementar modal de creación
@@ -112,21 +100,21 @@ export default function Zona() {
   };
 
   const columns = [
-    { accessorKey: "tipoCapa", header: "Tipo Capa" },
-    { accessorKey: "capa", header: "Capa" },
-    { accessorKey: "zona", header: "Zona" },
+    { accessorKey: "TipoCapaId", header: "Tipo Capa" },
+    { accessorKey: "CapaId", header: "Capa" },
+    { accessorKey: "ZonaNombre", header: "Zona" },
     {
-      accessorKey: "estado",
+      accessorKey: "ZonaEstado",
       header: "Estado",
       cell: ({ row }: { row: { original: Zona } }) => (
         <Badge
           className={
-            row.original.estado === "A"
+            row.original.ZonaEstado === "A"
               ? "bg-green-100 text-green-800 border-green-300"
               : "bg-red-100 text-red-800 border-red-300"
           }
         >
-          {row.original.estado === "A" ? "Activo" : "Pasivo"}
+          {row.original.ZonaEstado === "A" ? "Activo" : "Pasivo"}
         </Badge>
       ),
     },
@@ -134,7 +122,7 @@ export default function Zona() {
       id: "mapa",
       header: "",
       cell: ({ row }: { row: { original: Zona } }) => (
-        <Button variant="ghost" size="icon" onClick={() => handleShowMap(row.original.geojson)}>
+        <Button variant="ghost" size="icon" onClick={() => handleShowMap(row.original.ZonaGeoJson)}>
           <MapPin className="h-5 w-5 text-blue-600" />
         </Button>
       ),
@@ -145,13 +133,13 @@ export default function Zona() {
       cell: ({ row }: { row: { original: Zona } }) => (
         <div className="flex space-x-2">
           <button
-            onClick={() => handleEdit(row.original.id)}
+            onClick={() => handleEdit(row.original.ZonaId)}
             className="p-1 hover:bg-gray-100 rounded transition-colors duration-200"
           >
             <Edit className="h-4 w-4 text-blue-600 hover:text-blue-800" />
           </button>
           <button
-            onClick={() => handleDelete(row.original.id)}
+            onClick={() => handleDelete(row.original.ZonaId)}
             className="p-1 hover:bg-gray-100 rounded transition-colors duration-200"
           >
             <Trash2 className="h-4 w-4 text-red-600 hover:text-red-800" />
@@ -316,6 +304,16 @@ export default function Zona() {
         </div>
       </div>
 
+      {/* Modal para mostrar el mapa de la zona */}
+      {mapModal.open && (
+        <MostrarMapaModal
+          isOpen={mapModal.open}
+          geojson={mapModal.geojson}
+          onClose={() => setMapModal({ open: false, geojson: null })}
+          title="Mapa de la Zona"
+          description="Visualización del polígono de la zona en el mapa."
+        />
+      )}
       {/* Modal de creación aquí si lo necesitas */}
     </div>
   );
