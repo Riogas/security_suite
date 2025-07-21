@@ -31,6 +31,9 @@ import Mapa from "@/components/mapa/OpenStreetMap";
 import { CollapsibleCard } from "@/components/ui/CollapsibleCard";
 import { apiGetCapaGoya } from "@/services/api";
 import { GenexusFeatureCollectionToGeoJson } from "@/lib/convertirGeoJson";
+import { point as turfPoint } from "@turf/helpers";
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import { toast } from "sonner"; // Para notificaciones visuales
 
 // Cargamos el mapa dinámicamente (por ahora sin SSR)
 const DynamicMapa = dynamic(() => import("@/components/mapa/OpenStreetMap"), {
@@ -102,7 +105,115 @@ const departamentos = [
     nombre: "Maldonado",
     localidades: ["Punta del Este", "San Carlos", "La Barra"],
   },
+  { nombre: "Salto", localidades: ["Salto"] },
 ];
+
+
+// Corrige todos los Feature Polygon/MultiPolygon en una FeatureCollection
+function fixPolygonCoords(featureCollection: any): any {
+  if (!featureCollection || featureCollection.type !== "FeatureCollection") return featureCollection;
+  return {
+    ...featureCollection,
+    features: featureCollection.features.map((feature: any) => {
+      const geom = feature.geometry;
+      if (!geom) return feature;
+      if (geom.type === "Polygon") {
+        return {
+          ...feature,
+          geometry: {
+            ...geom,
+            coordinates: geom.coordinates.map((ring: any) =>
+              ring.map(([lat, lng]: [number, number]) => [lng, lat])
+            ),
+          },
+        };
+      }
+      if (geom.type === "MultiPolygon") {
+        return {
+          ...feature,
+          geometry: {
+            ...geom,
+            coordinates: geom.coordinates.map((polygon: any) =>
+              polygon.map((ring: any) =>
+                ring.map(([lat, lng]: [number, number]) => [lng, lat])
+              )
+            ),
+          },
+        };
+      }
+      return feature;
+    }),
+  };
+}
+
+
+
+// Helper para asegurar que los polígonos estén en formato [lng, lat]
+function ensurePolygonsLngLat(geojson: any): any {
+  if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) return geojson;
+  return {
+    ...geojson,
+    features: geojson.features.map((feature: any) => {
+      if (!feature.geometry || !feature.geometry.coordinates) return feature;
+      const geom = feature.geometry;
+      if (geom.type === "Polygon") {
+        return {
+          ...feature,
+          geometry: {
+            ...geom,
+            coordinates: geom.coordinates.map((ring: any) =>
+              ring.map((coord: any) =>
+                Array.isArray(coord) && coord.length === 2
+                  ? [
+                      typeof coord[0] === "number" && typeof coord[1] === "number"
+                        ? Math.abs(coord[0]) > 90
+                          ? coord[0]
+                          : coord[1]
+                        : coord[0],
+                      typeof coord[0] === "number" && typeof coord[1] === "number"
+                        ? Math.abs(coord[0]) > 90
+                          ? coord[1]
+                          : coord[0]
+                        : coord[1],
+                    ]
+                  : coord
+              )
+            ),
+          },
+        };
+      }
+      if (geom.type === "MultiPolygon") {
+        return {
+          ...feature,
+          geometry: {
+            ...geom,
+            coordinates: geom.coordinates.map((polygon: any) =>
+              polygon.map((ring: any) =>
+                ring.map((coord: any) =>
+                  Array.isArray(coord) && coord.length === 2
+                    ? [
+                        typeof coord[0] === "number" && typeof coord[1] === "number"
+                          ? Math.abs(coord[0]) > 90
+                            ? coord[0]
+                            : coord[1]
+                          : coord[0],
+                        typeof coord[0] === "number" && typeof coord[1] === "number"
+                          ? Math.abs(coord[0]) > 90
+                            ? coord[1]
+                            : coord[0]
+                          : coord[1],
+                      ]
+                    : coord
+                )
+              )
+            ),
+          },
+        };
+      }
+      return feature;
+    }),
+  };
+}
 
 const mockStreets = [
   "Avenida Italia",
@@ -138,6 +249,8 @@ function getPuestoActual() {
   }
   return null;
 }
+
+
 
 export default function ClienteForm({ clienteId }: ClienteFormProps) {
   const [coords, setCoords] = useState({ lat: "", lng: "" });
@@ -206,6 +319,45 @@ export default function ClienteForm({ clienteId }: ClienteFormProps) {
       setTimeout(() => setRunTour(true), 1000);
     }
   }, []);
+
+  // Detectar si el punto está dentro de alguna zona y mostrar toast
+  useEffect(() => {
+  if (!coords.lat || !coords.lng || capasGeoJson.length === 0) return;
+  const pt = turfPoint([
+    parseFloat(coords.lng),
+    parseFloat(coords.lat),
+  ]);
+  let inZone = false;
+
+  capasGeoJson.forEach((zona, idx) => {
+    // 🔥 Asegura formato [lng, lat]!
+    const zonaFix = fixPolygonCoords(zona);
+    try {
+      if (
+        zonaFix.type === "FeatureCollection" &&
+        Array.isArray(zonaFix.features)
+      ) {
+        zonaFix.features.forEach((feature: any) => {
+          try {
+            if (booleanPointInPolygon(pt, feature)) {
+              inZone = true;
+            }
+          } catch (e) {
+            console.log("[ZONA DEBUG] Error en booleanPointInPolygon (feature)", e, feature);
+          }
+        });
+      }
+    } catch (e) {
+      console.log("[ZONA DEBUG] Error en booleanPointInPolygon", e, zonaFix);
+    }
+  });
+  if (inZone) {
+    toast.success("Cliente en zona", { duration: 2500 });
+  } else {
+    toast.error("Cliente fuera de zona", { duration: 2500 });
+  }
+}, [coords, capasGeoJson]);
+
 
   useEffect(() => {
     // Obtener el puesto actual

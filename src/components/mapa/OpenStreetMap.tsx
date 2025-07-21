@@ -451,6 +451,7 @@ function getCoordinatesForDepartamento(
     Montevideo: [-34.9011, -56.1645],
     Canelones: [-34.6692, -56.2645],
     Maldonado: [-34.9002, -54.9501],
+    Salto: [-31.3833, -57.9667],   
   };
   return data[departamento] || null;
 }

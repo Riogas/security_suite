@@ -80,6 +80,9 @@ importers:
       '@turf/boolean-contains':
         specifier: ^7.2.0
         version: 7.2.0
+      '@turf/boolean-point-in-polygon':
+        specifier: ^7.2.0
+        version: 7.2.0
       '@turf/helpers':
         specifier: ^7.2.0
         version: 7.2.0
@@ -6056,8 +6059,8 @@ snapshots:
 
   '@jridgewell/source-map@0.3.10':
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/gen-mapping': 0.3.12
+      '@jridgewell/trace-mapping': 0.3.29
 
   '@jridgewell/sourcemap-codec@1.5.0': {}
 
@@ -11631,7 +11634,7 @@ snapshots:
 
   terser-webpack-plugin@5.3.14(esbuild@0.25.5)(webpack@5.100.2(esbuild@0.25.5)):
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.29
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
