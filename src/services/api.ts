@@ -82,3 +82,19 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
 
   return menusByRole[role] || [];
 };
+
+// ✅ Función para crear usuario
+export const apiCreateUser = async (body: any) => {
+  try {
+    const response = await api.post("/createUser", body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error al crear usuario:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};

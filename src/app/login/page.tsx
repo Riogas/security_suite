@@ -3,41 +3,34 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Loader2 } from "lucide-react";
+import { Moon, Sun, Loader2, Lock, LockOpen } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { useState } from "react";
-import { toast } from "sonner"; // 👈 Notificaciones visuales
-import { apiLogin } from "@/services/api"; // 👈 Importa tu API
-import { useRouter } from "next/navigation"; // 👈 Para redirección
-import LogRocket from 'logrocket'; // 👈 Para identificar usuario
-import * as Sentry from '@sentry/nextjs'; // 👈 Para testing de errores
+import { toast } from "sonner";
+import { apiLogin } from "@/services/api";
+import { useRouter } from "next/navigation";
+import LogRocket from 'logrocket';
+import * as Sentry from '@sentry/nextjs';
+import Image from "next/image";
 
 export default function LoginPage() {
   const { theme, toggleTheme } = useTheme();
 
-  const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<{ usuario?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [lockState, setLockState] = useState<"idle" | "locked" | "unlocked">("idle");
   const router = useRouter();
-
-  const validateEmail = (value: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: typeof errors = {};
 
-    if (!email.trim()) newErrors.email = "El email es obligatorio";
-    else if (!validateEmail(email))
-      newErrors.email = "Formato de email inválido";
-
+    if (!usuario.trim()) newErrors.usuario = "El usuario es obligatorio";
     if (!password.trim()) newErrors.password = "La contraseña es obligatoria";
 
-    if (newErrors.email || newErrors.password) {
-      console.log("❌ Datos inválidos, mostrar errores:", newErrors);
+    if (newErrors.usuario || newErrors.password) {
       toast.error("Por favor, corrige los errores", {
         description: "Revisa los campos resaltados",
         duration: 3000,
@@ -48,64 +41,55 @@ export default function LoginPage() {
 
     if (Object.keys(newErrors).length === 0) {
       try {
-        setLoading(true); // 👈 Esto activa la animación
+        setLoading(true);
+        setLockState("locked"); // Mostrar candado cerrado
 
-        const res = await apiLogin(email, password); // 👈 Llamada real a la API
-        // Asume que la respuesta tiene la forma { data: any }
+        const res = await apiLogin(usuario, password);
         const response = res as { data: any };
-        console.log("✅ Login exitoso:", response.data);
+        setLockState("unlocked"); // Mostrar candado abierto
 
+        await new Promise(resolve => setTimeout(resolve, 900)); // animación
 
-        // Guardar datos de sesión
+        // Guardar datos de sesión (ajusta esto según tu backend)
         localStorage.setItem("user", JSON.stringify(response.data.user));
-        // Guardar puesto por defecto (cookie y localStorage)
         const puestoDefault = { puestoId: 4, PuestoDsc: "SALTO" };
         localStorage.setItem("puesto", JSON.stringify(puestoDefault));
-        // Guardar en cookie (expira en 30 días)
         document.cookie = `puestoId=4; path=/; max-age=${60 * 60 * 24 * 30}`;
         document.cookie = `PuestoDsc=SALTO; path=/; max-age=${60 * 60 * 24 * 30}`;
 
-        // 🎯 Identificar usuario en LogRocket
+        // 🎯 LogRocket identificación
         const user = response.data.user;
         LogRocket.identify(user.email || 'user-' + Date.now(), {
           name: user.name,
           email: user.email,
           role: user.role,
-          // Añadir cualquier otra propiedad útil
           loginTime: new Date().toISOString(),
         });
 
-        // 📊 Registrar evento de login exitoso
         LogRocket.track('Login Success', {
           email: user.email,
           role: user.role,
           timestamp: new Date().toISOString()
         });
 
-        console.log('👤 Usuario identificado en LogRocket:', user.name, user.email);
-
         toast.success("Inicio de sesión exitoso", {
           description: "Redirigiendo al panel...",
-          duration: 3000,
+          duration: 2200,
         });
 
-        // Aquí podrías guardar el token y redirigir, por ejemplo:
-        // localStorage.setItem("token", response.data.token);
-        // router.push("/dashboard");
-        router.push("/dashboard");
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 1200);
       } catch (error: any) {
-        console.error("❌ Error al iniciar sesión:", error);
-
-        // 📊 Registrar intento de login fallido
+        setLockState("idle");
         LogRocket.track('Login Failed', {
-          email: email,
-          error: error.message || 'Unknown error',
+          email: usuario,
+          error: error?.message || 'Unknown error',
           timestamp: new Date().toISOString()
         });
 
         toast.error("Login fallido", {
-          description:
-            error.response?.data?.message || "Verifica tus credenciales.",
+          description: error?.response?.data?.message || "Verifica tus credenciales.",
           duration: 4000,
         });
       } finally {
@@ -114,41 +98,34 @@ export default function LoginPage() {
     }
   };
 
-  // 🧪 Función de prueba para Sentry
-  const testSentryError = () => {
-    console.log('🧪 Generando error de prueba para Sentry...');
-    Sentry.captureException(new Error('Error de prueba desde Login Page'));
-    throw new Error('Error de prueba manual');
-  };
+  // Modal de candado animado
+  const renderLockModal = () => (
+    (lockState === "locked" || lockState === "unlocked") && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all">
+        <div className="bg-card/90 rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-fade-in">
+          {lockState === "locked" && (
+            <Lock className="w-16 h-16 text-red-400 animate-pulse mb-4" />
+          )}
+          {lockState === "unlocked" && (
+            <LockOpen className="w-16 h-16 text-green-400 animate-bounce mb-4" />
+          )}
+          <span className="text-lg font-semibold">
+            {lockState === "locked" ? "Validando credenciales..." : "¡Acceso concedido!"}
+          </span>
+        </div>
+      </div>
+    )
+  );
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 relative">
-      {/* SVG decorativo de fondo */}
-      <svg
-        className="absolute inset-0 w-full h-full -z-10 opacity-25 blur-2xl"
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="none"
-        viewBox="0 0 1200 1200"
-        fill="none"
-      >
-        <path
-          d="M1200 0L1091.7 100C983.3 200 766.7 400 550 400C333.3 400 116.7 200 8.333 100L0 0V1200H1200V0Z"
-          fill="url(#gradient)"
-        />
-        <defs>
-          <linearGradient
-            id="gradient"
-            x1="0"
-            y1="0"
-            x2="1200"
-            y2="1200"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stopColor="#4f46e5" />
-            <stop offset="1" stopColor="#0ea5e9" />
-          </linearGradient>
-        </defs>
-      </svg>
+    <main className="min-h-screen flex items-center justify-center text-foreground px-4 relative">
+      {/* Imagen de fondo */}
+      <div
+        className="absolute inset-0 w-full h-full -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/fondosecure.png')" }}
+      />
+      {/* Overlay para mejorar legibilidad */}
+      <div className="absolute inset-0 w-full h-full -z-5 bg-black/30" />
 
       {/* Toggle Dark/Light */}
       <button
@@ -159,24 +136,39 @@ export default function LoginPage() {
         {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
       </button>
 
-      <div className="w-full max-w-sm space-y-6 p-6 rounded-2xl shadow-xl border bg-card">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold">Iniciar sesión</h1>
-          <p className="text-sm text-muted-foreground">Accedé a tu cuenta</p>
+      {renderLockModal()}
+
+      {/* Card principal */}
+      <div className={(lockState === "locked" || lockState === "unlocked")
+        ? "pointer-events-none blur-sm select-none w-full max-w-sm p-6 rounded-2xl shadow-xl border bg-card/90 backdrop-blur-sm"
+        : "w-full max-w-sm p-6 rounded-2xl shadow-xl border bg-card/90 backdrop-blur-sm transition-all duration-300"}
+      >
+        <div className="text-center mb-6">
+          <div className="flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={350}
+              height={350}
+              className="object-contain"
+              priority
+            />
+          </div>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="usuario">Usuario</Label>
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="correo@ejemplo.com"
-              className={errors.email ? "border-red-500" : ""}
+              id="usuario"
+              type="text"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              placeholder="nombre de usuario"
+              className={errors.usuario ? "border-red-500" : ""}
+              disabled={loading}
             />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email}</p>
+            {errors.usuario && (
+              <p className="text-sm text-red-500">{errors.usuario}</p>
             )}
           </div>
           <div className="space-y-2">
@@ -188,34 +180,31 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               className={errors.password ? "border-red-500" : ""}
+              disabled={loading}
             />
             {errors.password && (
               <p className="text-sm text-red-500">{errors.password}</p>
             )}
           </div>
-          <Button className="w-full" type="submit" disabled={loading}>
-            {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
-            {loading ? "Ingresando..." : "Ingresar"}
+          <Button className="w-full transition-all duration-300" type="submit" disabled={loading || lockState === "locked"}>
+            <div className="flex items-center justify-center">
+              {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
+              <span>
+                {lockState === "locked"
+                  ? "Validando..."
+                  : lockState === "unlocked"
+                  ? "¡Acceso concedido!"
+                  : "Ingresar"}
+              </span>
+            </div>
           </Button>
         </form>
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground mt-2">
           ¿Has olvidado la contraseña?{" "}
           <a href="#" className="underline">
             Recuperar contraseña
           </a>
         </p>
-        
-        {/* 🧪 Botón de prueba temporal para Sentry */}
-        {/*{process.env.NODE_ENV === "development" && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={testSentryError}
-            className="w-full mt-2 text-xs"
-          >
-            🧪 Test Sentry Error
-          </Button>
-        )}*/}
       </div>
     </main>
   );

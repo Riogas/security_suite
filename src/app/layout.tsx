@@ -17,11 +17,25 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Riogas Security Suite",
   description: "Sistema de Gestión de seguridad",
-  icons: {
-    icon: '/favicon.ico', // Ruta al favicon en la carpeta public
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
-  },
+  icons: [
+    {
+      rel: 'icon',
+      type: 'image/png',
+      sizes: '32x32',
+      url: '/icon.png',
+    },
+    {
+      rel: 'icon',
+      type: 'image/png', 
+      sizes: '16x16',
+      url: '/icon.png',
+    },
+    {
+      rel: 'apple-touch-icon',
+      sizes: '180x180',
+      url: '/icon.png',
+    },
+  ],
 };
 
 export default function RootLayout({
