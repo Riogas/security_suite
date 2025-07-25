@@ -803,3 +803,23 @@ export const apiGetZonaGoya = async (body: { PuestoId: string; TipoCapaId: strin
     throw error;
   }
 };
+
+// En tu servicio de permisos:
+export const apiCheckPermiso = async (ruta: string, token: string): Promise<boolean> => {
+  try {
+    const response = await api.post(
+      "/permisos",
+      { ruta },
+      {
+        headers: {
+          // Content-Type ya lo pone la instancia
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return !!response.data?.permitido;
+  } catch (error) {
+    console.error("Error al chequear permisos:", error);
+    return false;
+  }
+};
