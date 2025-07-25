@@ -40,7 +40,7 @@ export const clearUserIdentity = () => {
     });
     
     // Reinicializar LogRocket para nueva sesión anónima
-    LogRocket.init('w2ree2/Security Suite');
+    LogRocket.init('w2ree2/securitysuite');
   }
 };
 

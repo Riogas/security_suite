@@ -28,10 +28,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "flex min-h-screen transition-colors duration-300",
-        theme === "dark"
-          ? "bg-gray-900 text-white"
-          : "bg-background text-foreground",
+        "flex min-h-screen transition-colors duration-300 bg-background text-foreground"
       )}
     >
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
