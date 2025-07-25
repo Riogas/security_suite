@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Riogas GOYA",
-  description: "Sistema de Gestión",
+  title: "Riogas Security Suite",
+  description: "Sistema de Gestión de seguridad",
   icons: {
     icon: '/favicon.ico', // Ruta al favicon en la carpeta public
     shortcut: '/favicon-16x16.png',

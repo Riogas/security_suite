@@ -772,32 +772,32 @@ export const apiABMPuesto = async (
   }
 };
 
-// ✅ Servicio para obtener capas Goya
-export const apiGetCapaGoya = async (body: { PuestoId: string; TipoCapaId: string }) => {
+// ✅ Servicio para obtener capas Security Suite
+export const apiGetCapaSecurity Suite = async (body: { PuestoId: string; TipoCapaId: string }) => {
   try {
-    const response = await api.post("/getCapaGoya", body, {
+    const response = await api.post("/getCapaSecurity Suite", body, {
       headers: { "Content-Type": "application/json" },
     });
     return response.data;
   } catch (error: any) {
     console.error(
-      "Error al obtener capas Goya:",
+      "Error al obtener capas Security Suite:",
       error.response?.data || error.message,
     );
     throw error;
   }
 };
 
-// ✅ Servicio para obtener zonas Goya
-export const apiGetZonaGoya = async (body: { PuestoId: string; TipoCapaId: string; CapaId: string }) => {
+// ✅ Servicio para obtener zonas Security Suite
+export const apiGetZonaSecurity Suite = async (body: { PuestoId: string; TipoCapaId: string; CapaId: string }) => {
   try {
-    const response = await api.post("/getzonaGoya", body, {
+    const response = await api.post("/getzonaSecurity Suite", body, {
       headers: { "Content-Type": "application/json" },
     });
     return response.data;
   } catch (error: any) {
     console.error(
-      "Error al obtener zonas Goya:",
+      "Error al obtener zonas Security Suite:",
       error.response?.data || error.message,
     );
     throw error;

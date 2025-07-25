@@ -11,7 +11,7 @@ export function useLogRocket() {
   useEffect(() => {
     // Solo inicializar en el cliente y una vez
     if (typeof window !== 'undefined' && !window.LogRocket) {
-      LogRocket.init('w2ree2/goya');
+      LogRocket.init('w2ree2/Security Suite');
       window.LogRocket = true; // Marcar como inicializado
     }
   }, []);

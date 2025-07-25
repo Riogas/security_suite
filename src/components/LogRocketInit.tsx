@@ -7,7 +7,7 @@ export default function LogRocketInit() {
     // Inicializar LogRocket solo una vez
     if (typeof window !== 'undefined') {
       console.log('🎯 Inicializando LogRocket...');
-      LogRocket.init('w2ree2/goya');
+      LogRocket.init('w2ree2/Security Suite');
       console.log('✅ LogRocket inicializado correctamente');
       
       // 🔍 Verificar Sentry DSN

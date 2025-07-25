@@ -1,5 +1,5 @@
 // Convierte el string de ZonaGeoJson (array de puntos {lng,lat}) a un FeatureCollection GeoJSON válido
-export function zonaGoyaStringToGeoJson(
+export function zonaSecurity SuiteStringToGeoJson(
   zonaGeoJsonString: string,
   zonaId?: string,
   zonaNombre?: string

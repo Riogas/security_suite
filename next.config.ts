@@ -18,7 +18,7 @@ const sentryWebpackPluginOptions = {
   // Configuración adicional del plugin de Sentry
   silent: true, // Suprimir logs durante el build
   org: "riogas",
-  project: "goya",
+  project: "Security Suite",
 };
 
 export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);
