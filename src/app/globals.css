@@ -119,3 +119,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes sweep {
+    0% {
+      left: -75%;
+    }
+    100% {
+      left: 125%;
+    }
+  }
+
+  .animate-sweep {
+    animation: sweep 1.5s infinite;
+  }
+}

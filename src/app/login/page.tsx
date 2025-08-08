@@ -200,18 +200,29 @@ export default function LoginPage() {
             </div>
             {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
           </div>
-          <Button className="w-full transition-all duration-300" type="submit" disabled={loading || lockState === "locked"}>
-            <div className="flex items-center justify-center">
-              {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
-              <span>
-                {lockState === "locked"
-                  ? "Validando..."
-                  : lockState === "unlocked"
-                  ? "¡Acceso concedido!"
-                  : "Ingresar"}
-              </span>
-            </div>
-          </Button>
+          <Button
+  type="submit"
+  disabled={loading || lockState === "locked"}
+  className="w-full relative overflow-hidden rounded-xl py-2 px-4 font-semibold text-white bg-gradient-to-r from-blue-900 to-slate-800 shadow-md transition-all duration-300 group"
+>
+  <span className="relative z-10 flex items-center justify-center space-x-2">
+    {loading && <Loader2 className="animate-spin w-4 h-4" />}
+    <span>
+      {lockState === "locked"
+        ? "Validando..."
+        : lockState === "unlocked"
+        ? "¡Acceso concedido!"
+        : "Ingresar"}
+    </span>
+  </span>
+
+  {/* Efecto shimmer */}
+  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+    <span className="absolute top-0 left-[-75%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/25 to-transparent transform skew-x-[-20deg] animate-sweep" />
+  </span>
+</Button>
+
+
         </form>
         <p className="text-center text-sm text-muted-foreground mt-2">
           ¿Has olvidado la contraseña? <a href="#" className="underline">Recuperar contraseña</a>
