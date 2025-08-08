@@ -1,8 +1,13 @@
 // src/app/no-autorizado/page.tsx
-import { LockKeyhole } from "lucide-react"; // O cualquier ícono SVG moderno que uses
+"use client";
+
+import { LockKeyhole } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export default function NoAutorizado() {
+  const router = useRouter();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#181f2a]">
       <div className="bg-[#232c3b] rounded-2xl shadow-xl p-10 max-w-lg w-full flex flex-col items-center">
@@ -19,12 +24,12 @@ export default function NoAutorizado() {
           alt="No autorizado"
           className="mb-6 rounded-lg shadow"
         />
-        <a
-          href="/"
+        <button
+          onClick={() => router.back()}
           className="mt-2 px-5 py-2 rounded-lg bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition"
         >
-          Volver al inicio
-        </a>
+          Volver
+        </button>
       </div>
     </div>
   );

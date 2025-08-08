@@ -2,7 +2,7 @@ import { api, overpassApi } from "@/lib/axios";
 import { withApiLogging, setSentryUser, clearSentryUser } from "@/lib/sentryHelpers";
 
 // Tipos globales
-export type Role = "admin" | "user";
+export type Role = "admin" | "user" | "root";
 
 export interface User {
   name: string;
@@ -67,6 +67,13 @@ export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   const menusByRole: Record<Role, MenuItem[]> = {
+    root: [
+      { label: "Usuarios", icon: "users", path: "/dashboard/usuarios" },
+      { label: "Roles", icon: "userCog", path: "/dashboard/roles" },
+      { label: "Objetos", icon: "package", path: "/dashboard/objetos" },
+      { label: "Eventos", icon: "zap", path: "/dashboard/eventos" },
+      { label: "Permisos", icon: "shield", path: "/dashboard/permisos" },
+    ],
     admin: [
       { label: "Usuarios", icon: "users", path: "/dashboard/usuarios" },
       { label: "Roles", icon: "userCog", path: "/dashboard/roles" },
@@ -93,6 +100,40 @@ export const apiCreateUser = async (body: any) => {
   } catch (error: any) {
     console.error(
       "Error al crear usuario:",
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
+};
+
+// ✅ Login real contra backend externo
+export const apiLoginUser = async (body: { UserName: string; Password: string , Sistema: string }) => {
+  try {
+    const response = await api.post("/loginUser",
+      body,
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+      }
+    );
+    // Guardar token en cookie
+    if (response.data?.token) {
+      document.cookie = `token=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+    }
+    // Guardar usuario en localStorage
+    if (response.data?.user) {
+      localStorage.setItem("user", JSON.stringify({
+        nombre: response.data.user.nombre,
+        email: response.data.user.email,
+        username: response.data.user.username,
+        id: response.data.user.id,
+        isRoot: response.data.user.isRoot,
+      }));
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error al iniciar sesión:",
       error.response?.data || error.message,
     );
     throw error;

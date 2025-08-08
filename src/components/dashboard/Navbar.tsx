@@ -19,6 +19,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { useUser } from "@/hooks/useUser";
 
 const user =
   typeof window !== "undefined"
@@ -52,7 +53,8 @@ function getPuestosFromStorage() {
 }
 
 export function Navbar() {
-  const userInitials = user.name ? user.name.charAt(0) : "JD";
+  const { user } = useUser();
+  const userInitials = user?.nombre ? user.nombre.charAt(0) : "JD";
   const { theme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [puestos, setPuestos] = useState<any[]>([]);
@@ -89,29 +91,20 @@ export function Navbar() {
     }
   };
 
+  const handleLogout = () => {
+    // Eliminar token y usuario
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  };
+
   return (
     <header className="h-16 px-6 flex items-center justify-end border-b bg-card gap-4">
-      {/* Combo de puestos */}
-      {mounted && puestos.length > 1 && (
-        <Select
-          value={puestoActual?.puestoId?.toString() || ""}
-          onValueChange={handleChangePuesto}
-        >
-          <SelectTrigger className="w-[180px]">
-            Puesto: {puestoActual?.PuestoDsc || "-"}
-          </SelectTrigger>
-          <SelectContent>
-            {puestos.map((p) => (
-              <SelectItem key={p.puestoId} value={String(p.puestoId)}>
-                {p.PuestoDsc}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      {mounted && puestos.length === 1 && (
+      {/* Nombre de usuario */}
+      {mounted && user?.nombre && (
         <div className="text-sm text-muted-foreground px-3 py-1 border rounded bg-secondary">
-          Puesto: {puestos[0].PuestoDsc}
+          Usuario: {user.nombre}
         </div>
       )}
       <DropdownMenu>
@@ -141,7 +134,7 @@ export function Navbar() {
               ))}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => console.log("Cerrar sesión")}>
+          <DropdownMenuItem onClick={handleLogout}>
             Cerrar sesión
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*", // tu frontend llamará a /api/loquesea
-        destination: "http://192.168.1.72:8082/Serviciosjavaweb/SecuritySuite/:path*", // se redirige al backend GeneXus
+        destination: "http://192.168.1.72:8082/servicios/SecuritySuite/:path*", // se redirige al backend GeneXus
       },
     ];
   },

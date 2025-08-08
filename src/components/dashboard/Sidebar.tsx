@@ -31,9 +31,14 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
 
     if (storedUser) {
       try {
-        const user = JSON.parse(storedUser) as { role: Role };
-        const role: Role = user?.role || "user";
-
+        const user = JSON.parse(storedUser) as { role?: Role; isRoot?: boolean };
+        let role: Role = "user";
+        if (user?.role) {
+          role = user.role;
+        } else if (user?.isRoot === true) {
+          role = "root" as Role;
+        }
+    
         apiGetMenuByRole(role).then((items) => {
           setMenuItems(items as MenuItem[]);
           setLoading(false);
