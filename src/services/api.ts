@@ -62,33 +62,27 @@ export const apiLogin = async (
   );
 };
 
-// ✅ Mock de menús según rol
-export const apiGetMenuByRole = async (role: Role): Promise<MenuItem[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const menusByRole: Record<Role, MenuItem[]> = {
-    root: [
-      { label: "Usuarios", icon: "users", path: "/dashboard/usuarios" },
-      { label: "Roles", icon: "userCog", path: "/dashboard/roles" },
-      { label: "Objetos", icon: "package", path: "/dashboard/objetos" },
-      { label: "Eventos", icon: "zap", path: "/dashboard/eventos" },
-      { label: "Permisos", icon: "shield", path: "/dashboard/permisos" },
-    ],
-    admin: [
-      { label: "Usuarios", icon: "users", path: "/dashboard/usuarios" },
-      { label: "Roles", icon: "userCog", path: "/dashboard/roles" },
-      { label: "Objetos", icon: "package", path: "/dashboard/objetos" },
-      { label: "Eventos", icon: "zap", path: "/dashboard/eventos" },
-      { label: "Permisos", icon: "shield", path: "/dashboard/permisos" },
-    ],
-    user: [
-      { label: "Menu 1", icon: "file-text", path: "/dashboard/menu1" },
-      { label: "Menu 2", icon: "list", path: "/dashboard/menu2" },
-    ],
-  };
-
-  return menusByRole[role] || [];
+// ✅ Menú real: siempre envía { AplicacionNombre: "SecuritySuite" }
+export const apiMenu = async () => {
+  try {
+    const response = await api.post(
+      "/Menu",
+      { AplicacionNombre: "SecuritySuite" },
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error al obtener el menú:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
 };
+
 
 // ✅ Función para crear usuario
 export const apiCreateUser = async (body: any) => {
@@ -136,6 +130,85 @@ export const apiLoginUser = async (body: { UserName: string; Password: string , 
       "Error al iniciar sesión:",
       error.response?.data || error.message,
     );
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Validación de permisos (POST /Permisos)
+// Body requerido:
+// { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
+// =====================
+
+export type ValidarPermisoReq = {
+  AplicacionNombre: string;
+  ObjetoKey: string;          // ej: "page.dashboard.usuarios.add"
+  ObjetoTipo: "MENU" | "PAGE" | "FEATURE" | string;
+  AccionKey:
+    | "view"
+    | "execute"
+    | "create"
+    | "update"
+    | "delete"
+    | "export"
+    | string;
+};
+
+export type ValidarPermisoResp = {
+  permitido: boolean;
+  redirect?: string;
+  reason?: string;
+  [k: string]: unknown;
+};
+
+export const apiValidarPermiso = async (
+  payload: ValidarPermisoReq,
+  opts?: { signal?: AbortSignal }
+): Promise<ValidarPermisoResp> => {
+  try {
+    const res = await api.post(
+      "/Permisos",            // ⬅️ endpoint solicitado
+      payload,                // ⬅️ { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
+      { signal: opts?.signal, withCredentials: true }
+    );
+
+    const permitido =
+      res.data?.permitido === true ||
+      res.data?.ok === true ||
+      res.data?.success === true;
+
+    return {
+      permitido,
+      redirect: res.data?.redirect,
+      reason: res.data?.reason,
+      ...res.data,
+    } as ValidarPermisoResp;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return {
+        permitido: false,
+        reason: error?.response?.data?.reason || "FORBIDDEN",
+      } as ValidarPermisoResp;
+    }
+
     throw error;
   }
 };

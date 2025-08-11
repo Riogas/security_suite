@@ -10,20 +10,26 @@ import Link from "next/link";
 import Cookies from "js-cookie";
 import { motion, AnimatePresence } from "framer-motion";
 import { Orbit } from "lucide-react";
+import axios from "axios";
 
-
+import { apiValidarPermiso } from "@/services/api";
 
 const PUBLIC_PATHS = ["/", "/login", "/no-autorizado"];
-const PERMISOS_API_URL = process.env.NEXT_PUBLIC_PERMISOS_API_URL || "http://localhost:8082/permisos";
 const TAG = "🛡️ [DashboardGuard]";
+const APLICACION_NOMBRE = "SecuritySuite";
+
+// último segmento del path → ObjetoKey
+const getObjetoKeyFromPath = (path: string) => {
+  const segs = (path || "").split("/").filter(Boolean);
+  return segs.length ? segs[segs.length - 1] : "";
+};
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-
-  const [verificando, setVerificando] = useState(true); // ⏳ Nuevo estado de espera
+  const [verificando, setVerificando] = useState(true);
 
   // Breadcrumb
   const pathSegments = pathname
@@ -31,119 +37,113 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     .filter(Boolean)
     .map((segment, index, array) => {
       const href = "/" + array.slice(0, index + 1).join("/");
-      return {
-        label: segment.charAt(0).toUpperCase() + segment.slice(1),
-        href,
-      };
+      return { label: segment.charAt(0).toUpperCase() + segment.slice(1), href };
     });
 
-  // 🔐 Lógica de protección de ruta
+  // Guard
   useEffect(() => {
-    const checkPermiso = async () => {
-      const guardTag = `${TAG}[${pathname}]`;
+    const guardTag = `${TAG}[${pathname}]`;
+    const controller = new AbortController();
 
-      // 1. Si es ruta pública, salir
+    (async () => {
+      // públicas
       if (PUBLIC_PATHS.includes(pathname)) {
         console.log(`${guardTag} 🔓 Ruta pública, sin verificación`);
         setVerificando(false);
         return;
       }
 
-      // 2. Leer token de cookies
-      const token = Cookies.get("token");
+      // token rápido
+      const token =
+        Cookies.get("token") ||
+        (typeof window !== "undefined" ? localStorage.getItem("token") : null);
+
       if (!token) {
-        console.warn(`${guardTag} 🔐 No hay token, redirigiendo a /login`);
-        router.push("/login");
+        console.warn(`${guardTag} 🔐 No hay token → /login`);
+        router.replace("/login");
         return;
       }
 
-      // 3. Validar permiso vía API
+      // validar permiso (PAGE + view)
       try {
-        console.log(`${guardTag} 🔎 Validando permiso con token y ruta`);
+        const ObjetoKey = getObjetoKeyFromPath(pathname);
 
-        const resp = await fetch(PERMISOS_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+        const { Permitido, redirect } = await apiValidarPermiso(
+          {
+            AplicacionNombre: APLICACION_NOMBRE,
+            ObjetoKey,
+            ObjetoTipo: "PAGE",
+            AccionKey: "view",
           },
-          body: JSON.stringify({ ruta: pathname }),
-        });
+          { signal: controller.signal }
+        );
 
-        if (!resp.ok) {
-          console.warn(`${guardTag} ⚠️ Respuesta no OK (${resp.status}), redirigiendo a /no-autorizado`);
-          router.push("/no-autorizado");
+        if (!Permitido) {
+          console.warn(`${guardTag} ❌ Acceso denegado`);
+          router.replace(redirect || "/no-autorizado");
           return;
         }
 
-        const json = await resp.json();
-        const permitido = !!json.permitido;
-
-        if (!permitido) {
-          console.warn(`${guardTag} ❌ Acceso denegado, redirigiendo a /no-autorizado`);
-          router.push("/no-autorizado");
-        } else {
-          console.log(`${guardTag} ✅ Acceso concedido`);
-          setVerificando(false); // ⏳ Ya puede mostrar contenido
+        setVerificando(false);
+      } catch (err: any) {
+        // ignorar cancelaciones (cambio de ruta/unmount)
+        if (
+          axios.isCancel?.(err) ||
+          err?.code === "ERR_CANCELED" ||
+          err?.name === "CanceledError" ||
+          err?.name === "AbortError" ||
+          err?.message === "canceled"
+        ) {
+          return;
         }
-      } catch (error) {
-        console.error(`${guardTag} ❌ Error al validar permiso:`, error);
-        router.push("/no-autorizado");
-      }
-    };
 
-    checkPermiso();
+        if (err?.message === "UNAUTHORIZED" || err?.status === 401) {
+          console.warn(`${guardTag} ⚠️ Sesión inválida → /login`);
+          router.replace("/login");
+          return;
+        }
+
+        console.error(`${guardTag} ❌ Error al validar permiso:`, err);
+        router.replace("/no-autorizado");
+      }
+    })();
+
+    return () => controller.abort();
   }, [pathname, router]);
 
-  // ⏳ Mientras verifica permisos, no renderiza nada
+  // Loader
   if (verificando) {
-  return (
-    <AnimatePresence>
-      <motion.div
-        key="loader"
-        className="flex min-h-screen items-center justify-center bg-[#0f172a] text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4 }}
-      >
+    return (
+      <AnimatePresence>
         <motion.div
-          className="flex items-center justify-center rounded-full bg-[#1e293b] p-6 shadow-lg"
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
+          key="loader"
+          className="flex min-h-screen items-center justify-center bg-[#0f172a] text-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
         >
           <motion.div
-            animate={{
-              rotate: [0, 360],
-            }}
-            transition={{
-              repeat: Infinity,
-              duration: 2,
-              ease: "linear",
-            }}
+            className="flex items-center justify-center rounded-full bg-[#1e293b] p-6 shadow-lg"
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <Orbit
-              className="w-16 h-16 text-[#60a5fa]" // azul suave
-              strokeWidth={1.5}
-            />
+            <motion.div
+              animate={{ rotate: [0, 360] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            >
+              <Orbit className="w-16 h-16 text-[#60a5fa]" strokeWidth={1.5} />
+            </motion.div>
           </motion.div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
+      </AnimatePresence>
+    );
+  }
 
-
-
-
-
+  // Contenido
   return (
-    <div
-      className={cn(
-        "flex min-h-screen transition-colors duration-300 bg-background text-foreground"
-      )}
-    >
+    <div className={cn("flex min-h-screen transition-colors duration-300 bg-background text-foreground")}>
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <div className="flex flex-col flex-1">
         <Navbar />
@@ -151,10 +151,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <nav className="text-sm text-muted-foreground mb-4">
             <ol className="flex items-center space-x-2">
               <li>
-                <Link
-                  href="/dashboard"
-                  className="hover:underline text-primary"
-                >
+                <Link href="/dashboard" className="hover:underline text-primary">
                   Inicio
                 </Link>
               </li>
@@ -164,10 +161,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   {index === pathSegments.length - 1 ? (
                     <span className="text-foreground">{segment.label}</span>
                   ) : (
-                    <Link
-                      href={segment.href}
-                      className="hover:underline text-primary"
-                    >
+                    <Link href={segment.href} className="hover:underline text-primary">
                       {segment.label}
                     </Link>
                   )}
