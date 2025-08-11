@@ -1,0 +1,30 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # ⚠️ Evaluado en BUILD por next.config.* (rewrites)
+        BACKEND_BASE_URL: "http://192.168.1.72:8082/servicios/SecuritySuite"
+    container_name: security-users
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: "production"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+      # 🟢 Variables de runtime para tu frontend
+      NEXT_PUBLIC_MENU_API_URL: "/api/Menu"
+      NEXT_PUBLIC_PERMISOS_API_URL: "/api/Permisos"
+
+      # (Opcional) si usás Sentry por env:
+      # SENTRY_DSN: "https://<tu-dsn>"
+
+    restart: unless-stopped
+
+    # Healthcheck (Dockerfile ya instala wget)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
