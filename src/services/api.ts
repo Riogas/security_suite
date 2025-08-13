@@ -212,3 +212,87 @@ export const apiValidarPermiso = async (
     throw error;
   }
 };
+
+// =====================
+// ✅ Servicio: Listado de usuarios (POST /usuarios)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiUsuarios = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/usuarios",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Listado de aplicaciones (POST /aplicaciones)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiAplicaciones = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/aplicaciones",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};

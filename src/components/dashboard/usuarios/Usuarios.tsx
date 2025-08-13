@@ -1,47 +1,85 @@
-
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash } from "lucide-react";
+import { Pencil, Trash, Download } from "lucide-react";
 import { debounce } from "lodash";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, flexRender } from "@tanstack/react-table";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { apiUsuarios } from "@/services/api";
 
-// Mock de usuarios
-const mockUsuarios = [
-  {
-    usuario: "jgomez",
-    nombre: "Julio Gómez",
-    mail: "julio.gomez@ejemplo.com",
-    estado: "A",
-    fchUltLogin: "2025-07-20 10:23",
-    tipoUsuario: "G",
-    externo: false,
-  },
-  {
-    usuario: "lperez",
-    nombre: "Laura Pérez",
-    mail: "laura.perez@ejemplo.com",
-    estado: "I",
-    fchUltLogin: "2025-07-18 09:10",
-    tipoUsuario: "L",
-    externo: true,
-  },
-];
+// Tipo local para las filas de la tabla
+type UsuarioRow = {
+  usuario: string;
+  nombre: string;
+  mail: string;
+  estado: "A" | "I";
+  fchUltLogin: string;
+  tipoUsuario: "G" | "L" | string;
+  externo: boolean;
+};
 
 export default function UsuariosTable() {
   const router = useRouter();
-  const [usuarios] = useState(mockUsuarios);
+  const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [estado, setEstado] = useState("todos");
   const [externo, setExterno] = useState(false);
   const [tipoUsuario, setTipoUsuario] = useState("todos");
+  const [sinMigrar, setSinMigrar] = useState(true);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const handleImport = (u: UsuarioRow) => {
+    // TODO: implementar acción de importación
+    console.log("Importar usuario:", u.usuario);
+  };
+
+  // Cargar datos desde API (server-side pagination)
+  useEffect(() => {
+    const fetchUsuarios = async () => {
+      try {
+        const body = {
+          IncluyeExternos: externo,
+          sinMigrar: sinMigrar,
+          FiltroTexto: searchTerm,
+          TipoUsuario: tipoUsuario === "todos" ? "" : tipoUsuario,
+          Estado: estado === "A" ? "S" : estado === "I" ? "N" : "",
+          Pagesize: String(pageSize),
+          CurrentPage: String(pageIndex + 1),
+        };
+        const res = await apiUsuarios(body);
+        const rows: UsuarioRow[] = (res?.SdtUsuarios || []).map((u: any) => {
+          const fch = u?.UserExtendedFchUltLog as string | undefined;
+          const fchFmt = fch && fch !== "0000-00-00T00:00:00" ? fch.replace("T", " ").slice(0, 16) : "";
+          const externoStr = String(u?.UserExtendedExterno || u?.UserExtendedUserExterno || "").toUpperCase();
+          const estadoRaw = String(u?.UserExtendedEstado || "").toUpperCase();
+          const activo = estadoRaw === "S" || estadoRaw === "A" || estadoRaw === "ACTIVO";
+          return {
+            usuario: u?.UserExtendedUserName || "",
+            nombre: u?.UserExtendedNombre || "",
+            mail: u?.UserExtendedEmail || "",
+            estado: (activo ? "A" : "I") as "A" | "I",
+            fchUltLogin: fchFmt,
+            tipoUsuario: (u?.UserExtendedTipoUser || "") as "G" | "L" | string,
+            externo: externoStr === "S" || externoStr === "Y" || externoStr === "1" || externoStr === "TRUE",
+          } as UsuarioRow;
+        });
+        setUsuarios(rows);
+        const total = Number(res?.MaxRegistros ?? 0);
+        setTotalPages(Math.max(1, Math.ceil(total / pageSize)) || 0);
+      } catch (e) {
+        console.error("Error cargando usuarios:", e);
+      }
+    };
+    fetchUsuarios();
+  }, [searchTerm, estado, externo, tipoUsuario, pageIndex, pageSize, sinMigrar]);
 
   // Filtros
   const debouncedSearchTerm = useMemo(() => debounce((term) => term, 100), []);
@@ -68,7 +106,7 @@ export default function UsuariosTable() {
     {
       accessorKey: "estado",
       header: "Estado",
-      cell: ({ row }: { row: { original: typeof mockUsuarios[number] } }) => (
+      cell: ({ row }: { row: { original: UsuarioRow } }) => (
         <Badge className={row.original.estado === "A" ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
           {row.original.estado === "A" ? "Activo" : "Inactivo"}
         </Badge>
@@ -78,13 +116,19 @@ export default function UsuariosTable() {
     {
       accessorKey: "tipoUsuario",
       header: "Tipo Usuario",
-      cell: ({ row }: { row: { original: typeof mockUsuarios[number] } }) => (row.original.tipoUsuario === "G" ? "Global" : "Local"),
+      cell: ({ row }: { row: { original: UsuarioRow } }) => (row.original.tipoUsuario === "G" ? "Global" : row.original.tipoUsuario === "L" ? "Local" : ""),
     },
     {
       accessorKey: "acciones",
       header: "Acciones",
-      cell: ({ row }: { row: { original: typeof mockUsuarios[number] } }) => (
+      cell: ({ row }: { row: { original: UsuarioRow } }) => (
         <div className="space-x-2">
+          {sinMigrar && (
+            <Button variant="secondary" size="sm" onClick={() => handleImport(row.original)}>
+              <Download className="w-4 h-4" />
+              <span className="ml-1">Importar</span>
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/usuarios/editar/${row.original.usuario}`)}>
             <Pencil className="w-4 h-4" />
           </Button>
@@ -94,12 +138,24 @@ export default function UsuariosTable() {
     },
   ];
 
-  // react-table
+  // react-table (server-side pagination)
   const table = useReactTable({
-    data: filteredData,
+    data: usuarios,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    pageCount: totalPages,
+    state: { pagination: { pageIndex, pageSize } },
+    onPaginationChange: (updater: any) => {
+      if (typeof updater === "function") {
+        const next = updater({ pageIndex, pageSize });
+        setPageIndex(next.pageIndex);
+        setPageSize(next.pageSize);
+      } else {
+        setPageIndex(updater.pageIndex);
+        setPageSize(updater.pageSize);
+      }
+    },
   });
 
   return (
@@ -115,6 +171,10 @@ export default function UsuariosTable() {
           <div className="flex items-center gap-2">
             <Switch checked={externo} onCheckedChange={setExterno} />
             <span>Usuario Externo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={sinMigrar} onCheckedChange={setSinMigrar} />
+            <span>Sin importar</span>
           </div>
           <Select value={tipoUsuario} onValueChange={setTipoUsuario}>
             <SelectTrigger>
@@ -166,8 +226,8 @@ export default function UsuariosTable() {
         <div className="flex justify-between items-center mt-2 p-2">
           <div className="flex items-center gap-2">
             <span>Registros por página</span>
-            <Select value={String(table.getState().pagination.pageSize)} onValueChange={v => table.setPageSize(Number(v))}>
-              <SelectTrigger>{table.getState().pagination.pageSize}</SelectTrigger>
+            <Select value={String(pageSize)} onValueChange={v => { const ps = Number(v); setPageSize(ps); table.setPageSize(ps); setPageIndex(0); }}>
+              <SelectTrigger>{pageSize}</SelectTrigger>
               <SelectContent>
                 {[10, 25, 50].map((size) => (
                   <SelectItem key={size} value={String(size)}>{size}</SelectItem>
@@ -176,10 +236,10 @@ export default function UsuariosTable() {
             </Select>
           </div>
           <span>
-            Página {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
+            Página {pageIndex + 1} de {table.getPageCount()}
           </span>
           <div className="flex items-center gap-2">
-            <Button onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+            <Button onClick={() => table.setPageIndex(0)} disabled={pageIndex === 0}>
               «
             </Button>
             <Button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
