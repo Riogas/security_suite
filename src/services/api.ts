@@ -296,3 +296,171 @@ export const apiAplicaciones = async (
     throw error;
   }
 };
+
+// =====================
+// ✅ Servicio: Listado de roles (POST /roles)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiRoles = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/roles",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Listado de objetos (POST /objetos)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiObjetos = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/objetos",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Listado de eventos (POST /eventos)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiEventos = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/eventos",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Listado de permisos (POST /permisos)
+// Mismo formato que apiValidarPermiso, sin tipos adicionales
+// =====================
+export const apiPermisos = async (
+  payload: any,
+  opts?: { signal?: AbortSignal }
+) => {
+  try {
+    const res = await api.post(
+      "/permisos",
+      payload,
+      { signal: opts?.signal, withCredentials: true }
+    );
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try { clearSentryUser(); } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
