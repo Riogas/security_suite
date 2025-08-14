@@ -433,7 +433,7 @@ export const apiPermisos = async (
 ) => {
   try {
     const res = await api.post(
-      "/permisos",
+      "/accesos",
       payload,
       { signal: opts?.signal, withCredentials: true }
     );

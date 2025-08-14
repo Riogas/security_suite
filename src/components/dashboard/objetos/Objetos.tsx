@@ -18,6 +18,9 @@ export default function ObjetosTable() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
   const [sinMigrar, setSinMigrar] = useState(true);
+  // Nuevo: filtros adicionales
+  const [esPublico, setEsPublico] = useState(false);
+  const [tipo, setTipo] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -29,17 +32,25 @@ export default function ObjetosTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (opts: { FiltroTexto: string; Estado: string; sinMigrar: boolean; Pagesize: number; CurrentPage: number; signal?: AbortSignal; }) => {
+  const fetcher = async (opts: { FiltroTexto: string; Estado: string; sinMigrar: boolean; ObjetoEsPublico: "S" | "N"; ObjetoTipo: string; Pagesize: number; CurrentPage: number; signal?: AbortSignal; }) => {
     const res = await apiObjetos({
       FiltroTexto: opts.FiltroTexto,
       Estado: opts.Estado,
       sinMigrar: opts.sinMigrar,
+      ObjetoEsPublico: opts.ObjetoEsPublico,
+      ObjetoTipo: opts.ObjetoTipo,
       Pagesize: String(opts.Pagesize),
       CurrentPage: String(opts.CurrentPage),
     }, { signal: opts.signal });
     const items = res?.sdtObjetos || res?.SdtObjetos || res?.items || [];
     const total = Number(res?.MaxRegistros ?? res?.maxRegistros ?? res?.total ?? (items?.length || 0));
-    return { items, total };
+    // Normalizar para que las columnas existentes funcionen
+    const normalized = (items as any[]).map((o: any) => ({
+      ...o,
+      ObjetoNombre: o?.ObjetoNombre ?? o?.ObjetoLabel ?? o?.ObjetoKey ?? "",
+      ObjetoDescripcion: o?.ObjetoDescripcion ?? o?.ObjetoPath ?? "",
+    }));
+    return { items: normalized, total };
   };
 
   // load
@@ -51,6 +62,8 @@ export default function ObjetosTable() {
           FiltroTexto: debouncedSearch,
           Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
           sinMigrar,
+          ObjetoEsPublico: esPublico ? "S" : "N",
+          ObjetoTipo: tipo,
           Pagesize: pageSize,
           CurrentPage: pageIndex + 1,
           signal: ac.signal,
@@ -62,11 +75,25 @@ export default function ObjetosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, sinMigrar, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, sinMigrar, esPublico, tipo, pageIndex, pageSize]);
 
   const columns: any[] = [
-    { accessorKey: "ObjetoNombre", header: "Objeto" },
-    { accessorKey: "ObjetoDescripcion", header: "Descripción" },
+    {
+      id: "ObjetoNombre",
+      header: "Objeto",
+      cell: ({ row }: { row: { original: any } }) => {
+        const o = row.original || {};
+        return o?.ObjetoKey ?? o?.ObjetoLabel ?? "";
+      },
+    },
+    {
+      id: "ObjetoPath",
+      header: "Path",
+      cell: ({ row }: { row: { original: any } }) => {
+        const o = row.original || {};
+        return o?.ObjetoPath ?? "";
+      },
+    },
     { accessorKey: "ObjetoTipo", header: "Tipo" },
     {
       accessorKey: "ObjetoEstado",
@@ -136,6 +163,11 @@ export default function ObjetosTable() {
             <Switch checked={sinMigrar} onCheckedChange={(v) => { setSinMigrar(v); setPageIndex(0); }} />
             <span>Sin importar</span>
           </div>
+          {/* Nuevo: Es publico */}
+          <div className="flex items-center gap-2">
+            <Switch checked={esPublico} onCheckedChange={(v) => { setEsPublico(v); setPageIndex(0); }} />
+            <span>Es publico</span>
+          </div>
           <Select value={estado} onValueChange={(v) => { setEstado(v); setPageIndex(0); }}>
             <SelectTrigger>
               {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
@@ -144,6 +176,15 @@ export default function ObjetosTable() {
               <SelectItem value="A">Activo</SelectItem>
               <SelectItem value="I">Inactivo</SelectItem>
               <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+          {/* Nuevo: Tipo */}
+          <Select value={tipo} onValueChange={(v) => { setTipo(v); setPageIndex(0); }}>
+            <SelectTrigger>{tipo || "Tipo"}</SelectTrigger>
+            <SelectContent>
+              {(["MENU", "PAGE", "FEATURE"]).map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
