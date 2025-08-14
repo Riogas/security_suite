@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,7 +60,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     nombre: "",
     apellido: "",
     estado: "A",
-    fchIns: new Date().toISOString().split('T')[0],
+    fchIns: new Date().toISOString().split("T")[0],
     fchBaja: "",
     fchUltLog: "",
     externo: false,
@@ -118,7 +123,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         console.log("Actualizando usuario:", formData);
         toast.success("Usuario actualizado exitosamente");
       }
-      
+
       // Redirigir de vuelta a la lista
       router.push("/dashboard/usuarios");
     } catch (error) {
@@ -128,27 +133,41 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     }
   };
 
-  const handleInputChange = (field: keyof UsuarioData, value: string | boolean | number) => {
-    setFormData(prev => ({
+  const handleInputChange = (
+    field: keyof UsuarioData,
+    value: string | boolean | number,
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Button variant="outline" onClick={() => router.push("/dashboard/usuarios")}>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/usuarios")}
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Volver
         </Button>
         <div className="flex gap-4">
-          <Button type="button" variant="outline" onClick={() => router.push("/dashboard/usuarios")}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/dashboard/usuarios")}
+          >
             Cancelar
           </Button>
           <Button type="submit" form="usuario-form" disabled={loading}>
             <Save className="w-4 h-4 mr-2" />
-            {loading ? "Guardando..." : mode === "create" ? "Crear Usuario" : "Actualizar Usuario"}
+            {loading
+              ? "Guardando..."
+              : mode === "create"
+                ? "Crear Usuario"
+                : "Actualizar Usuario"}
           </Button>
         </div>
       </div>
@@ -177,8 +196,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  placeholder={mode === "edit" ? "Dejar vacío para mantener actual" : "Ingrese la contraseña"}
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  placeholder={
+                    mode === "edit"
+                      ? "Dejar vacío para mantener actual"
+                      : "Ingrese la contraseña"
+                  }
                   required={mode === "create"}
                 />
                 <Button
@@ -188,7 +213,11 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -241,11 +270,16 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
         {/* Configuración del Usuario */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Configuración del Usuario</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Configuración del Usuario
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
-              <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
+              <Select
+                value={formData.estado}
+                onValueChange={(value) => handleInputChange("estado", value)}
+              >
                 <SelectTrigger>
                   {formData.estado === "A" ? "Activo" : "Inactivo"}
                 </SelectTrigger>
@@ -258,7 +292,12 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="tipoUsuario">Tipo de Usuario</Label>
-              <Select value={formData.tipoUsuario} onValueChange={(value) => handleInputChange("tipoUsuario", value)}>
+              <Select
+                value={formData.tipoUsuario}
+                onValueChange={(value) =>
+                  handleInputChange("tipoUsuario", value)
+                }
+              >
                 <SelectTrigger>
                   {formData.tipoUsuario === "G" ? "Global" : "Local"}
                 </SelectTrigger>
@@ -274,7 +313,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <div className="flex items-center gap-2">
                 <Switch
                   checked={formData.externo}
-                  onCheckedChange={(checked) => handleInputChange("externo", checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("externo", checked)
+                  }
                 />
                 <span className="text-sm text-muted-foreground">
                   {formData.externo ? "Habilitado" : "Deshabilitado"}
@@ -287,7 +328,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <div className="flex items-center gap-2">
                 <Switch
                   checked={formData.modPerm}
-                  onCheckedChange={(checked) => handleInputChange("modPerm", checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("modPerm", checked)
+                  }
                 />
                 <span className="text-sm text-muted-foreground">
                   {formData.modPerm ? "Permitido" : "No permitido"}
@@ -300,7 +343,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <div className="flex items-center gap-2">
                 <Switch
                   checked={formData.cambioPass}
-                  onCheckedChange={(checked) => handleInputChange("cambioPass", checked)}
+                  onCheckedChange={(checked) =>
+                    handleInputChange("cambioPass", checked)
+                  }
                 />
                 <span className="text-sm text-muted-foreground">
                   {formData.cambioPass ? "Sí" : "No"}
@@ -314,7 +359,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                 <Input
                   id="userExterno"
                   value={formData.userExterno}
-                  onChange={(e) => handleInputChange("userExterno", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("userExterno", e.target.value)
+                  }
                   placeholder="Usuario para externo"
                 />
               </div>
@@ -331,7 +378,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Input
                 id="observacion"
                 value={formData.observacion}
-                onChange={(e) => handleInputChange("observacion", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("observacion", e.target.value)
+                }
                 placeholder="Observaciones del usuario"
                 maxLength={120}
               />
@@ -345,7 +394,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Input
                 id="observacion2"
                 value={formData.observacion2}
-                onChange={(e) => handleInputChange("observacion2", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("observacion2", e.target.value)
+                }
                 placeholder="Observaciones adicionales"
                 maxLength={120}
               />
@@ -358,7 +409,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
         {/* Fechas y Auditoría */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Información de Auditoría</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Información de Auditoría
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label htmlFor="cantFail">Intentos Fallidos</Label>
@@ -415,11 +468,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="creadoPor">Creado Por</Label>
-              <Input
-                id="creadoPor"
-                value={formData.creadoPor}
-                disabled
-              />
+              <Input id="creadoPor" value={formData.creadoPor} disabled />
             </div>
 
             <div className="space-y-2">

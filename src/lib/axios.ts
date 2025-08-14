@@ -21,7 +21,7 @@ const overpassApi = axios.create({
 
 function isJwtExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const payload = JSON.parse(atob(token.split(".")[1]));
     if (!payload.exp) return false; // Si no tiene expiración, no se expira
     const now = Math.floor(Date.now() / 1000);
     return payload.exp < now;

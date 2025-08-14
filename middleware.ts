@@ -1,17 +1,21 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // ✅ Rutas públicas (sin necesidad de login o permiso)
-const PUBLIC_PATHS = ['/', '/login', '/no-autorizado'];
+const PUBLIC_PATHS = ["/", "/login", "/no-autorizado"];
 
 // ✅ URL de la API de permisos (backend)
-const PERMISOS_API_URL = process.env.PERMISOS_API_URL || "http://localhost:8082/permisos";
+const PERMISOS_API_URL =
+  process.env.PERMISOS_API_URL || "http://localhost:8082/permisos";
 
 // 🧪 Tag para logs
-const TAG = '🛡️ [Middleware]';
+const TAG = "🛡️ [Middleware]";
 
 // ✅ Lógica para consultar la API de permisos
-async function apiCheckPermisoEdge(ruta: string, token: string): Promise<boolean> {
+async function apiCheckPermisoEdge(
+  ruta: string,
+  token: string,
+): Promise<boolean> {
   const apiTag = `${TAG}[PermisoAPI]`;
   try {
     console.log(`${apiTag} ▶️ Consultando permisos para ruta: ${ruta}`);
@@ -20,13 +24,15 @@ async function apiCheckPermisoEdge(ruta: string, token: string): Promise<boolean
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ruta }),
     });
 
     if (!resp.ok) {
-      console.warn(`${apiTag} ⚠️ Respuesta no OK (${resp.status}) desde el backend`);
+      console.warn(
+        `${apiTag} ⚠️ Respuesta no OK (${resp.status}) desde el backend`,
+      );
       return false;
     }
 
@@ -54,20 +60,24 @@ export async function middleware(request: NextRequest) {
   }
 
   // 2. Validar si hay token JWT en cookies
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get("token")?.value;
   if (!token) {
     console.warn(`${reqTag} 🔐 Sin token en cookies. Redirigiendo a /login`);
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  console.log(`${reqTag} 🔑 Token presente. Validando permisos para la ruta...`);
+  console.log(
+    `${reqTag} 🔑 Token presente. Validando permisos para la ruta...`,
+  );
 
   // 3. Verificar permisos llamando a la API
   const tienePermiso = await apiCheckPermisoEdge(pathname, token);
 
   if (!tienePermiso) {
-    console.warn(`${reqTag} ❌ Acceso denegado por permisos. Redirigiendo a /no-autorizado`);
-    return NextResponse.redirect(new URL('/no-autorizado', request.url));
+    console.warn(
+      `${reqTag} ❌ Acceso denegado por permisos. Redirigiendo a /no-autorizado`,
+    );
+    return NextResponse.redirect(new URL("/no-autorizado", request.url));
   }
 
   // 4. Permiso concedido, permitir el acceso
@@ -77,7 +87,5 @@ export async function middleware(request: NextRequest) {
 
 // ✅ Configuración: aplicar solo a rutas no estáticas ni de API
 export const config = {
-  matcher: [
-    '/((?!api|_next|static|favicon.ico).*)',
-  ],
+  matcher: ["/((?!api|_next|static|favicon.ico).*)"],
 };

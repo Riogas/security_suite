@@ -1,13 +1,13 @@
 // utils/validarDocumento.ts
 export function validarDocumento(numeroRaw: string) {
-  const numero = numeroRaw.replace(/\D/g, '');
+  const numero = numeroRaw.replace(/\D/g, "");
 
   if (numero.length < 6 || numero.length > 8) {
-    return { valido: false, mensajeError: 'Debe tener entre 6 y 8 dígitos' };
+    return { valido: false, mensajeError: "Debe tener entre 6 y 8 dígitos" };
   }
 
   if (!/^\d+$/.test(numero)) {
-    return { valido: false, mensajeError: 'Solo debe contener números' };
+    return { valido: false, mensajeError: "Solo debe contener números" };
   }
 
   if (esCIUruguaya(numero)) {
@@ -19,14 +19,14 @@ export function validarDocumento(numeroRaw: string) {
     return { valido: true };
   }
 
-  return { valido: false, mensajeError: 'Documento inválido para AR o UY' };
+  return { valido: false, mensajeError: "Documento inválido para AR o UY" };
 }
 
 function esCIUruguaya(ci: string): boolean {
   if (ci.length < 6 || ci.length > 8) return false;
   const coef = [2, 9, 8, 7, 6, 3, 4];
-  const ciPadded = ci.padStart(8, '0');
-  const nums = ciPadded.split('').map(Number);
+  const ciPadded = ci.padStart(8, "0");
+  const nums = ciPadded.split("").map(Number);
 
   let suma = 0;
   for (let i = 0; i < 7; i++) {

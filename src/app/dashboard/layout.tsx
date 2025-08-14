@@ -37,7 +37,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     .filter(Boolean)
     .map((segment, index, array) => {
       const href = "/" + array.slice(0, index + 1).join("/");
-      return { label: segment.charAt(0).toUpperCase() + segment.slice(1), href };
+      return {
+        label: segment.charAt(0).toUpperCase() + segment.slice(1),
+        href,
+      };
     });
 
   // Guard
@@ -75,7 +78,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             ObjetoTipo: "PAGE",
             AccionKey: "view",
           },
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
 
         if (!Permitido) {
@@ -143,7 +146,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // Contenido
   return (
-    <div className={cn("flex min-h-screen transition-colors duration-300 bg-background text-foreground")}>
+    <div
+      className={cn(
+        "flex min-h-screen transition-colors duration-300 bg-background text-foreground",
+      )}
+    >
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <div className="flex flex-col flex-1">
         <Navbar />
@@ -151,7 +158,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <nav className="text-sm text-muted-foreground mb-4">
             <ol className="flex items-center space-x-2">
               <li>
-                <Link href="/dashboard" className="hover:underline text-primary">
+                <Link
+                  href="/dashboard"
+                  className="hover:underline text-primary"
+                >
                   Inicio
                 </Link>
               </li>
@@ -161,7 +171,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   {index === pathSegments.length - 1 ? (
                     <span className="text-foreground">{segment.label}</span>
                   ) : (
-                    <Link href={segment.href} className="hover:underline text-primary">
+                    <Link
+                      href={segment.href}
+                      className="hover:underline text-primary"
+                    >
                       {segment.label}
                     </Link>
                   )}

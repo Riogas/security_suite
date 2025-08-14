@@ -14,7 +14,8 @@ export default function NoAutorizado() {
         <LockKeyhole size={60} className="text-[#3b82f6] mb-4" />
         <h1 className="text-3xl font-bold text-white mb-2">Acceso denegado</h1>
         <p className="text-gray-400 mb-6 text-center">
-          No tienes permisos para acceder a esta sección.<br />
+          No tienes permisos para acceder a esta sección.
+          <br />
           Si crees que esto es un error, contacta al administrador.
         </p>
         <Image

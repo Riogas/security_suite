@@ -19,21 +19,21 @@ export const metadata: Metadata = {
   description: "Sistema de Gestión de seguridad",
   icons: [
     {
-      rel: 'icon',
-      type: 'image/png',
-      sizes: '32x32',
-      url: '/icon.png',
+      rel: "icon",
+      type: "image/png",
+      sizes: "32x32",
+      url: "/icon.png",
     },
     {
-      rel: 'icon',
-      type: 'image/png', 
-      sizes: '16x16',
-      url: '/icon.png',
+      rel: "icon",
+      type: "image/png",
+      sizes: "16x16",
+      url: "/icon.png",
     },
     {
-      rel: 'apple-touch-icon',
-      sizes: '180x180',
-      url: '/icon.png',
+      rel: "apple-touch-icon",
+      sizes: "180x180",
+      url: "/icon.png",
     },
   ],
 };

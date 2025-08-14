@@ -4,12 +4,29 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Trash, Download } from "lucide-react";
 import { debounce } from "lodash";
-import { useReactTable, getCoreRowModel, getPaginationRowModel, flexRender } from "@tanstack/react-table";
-import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  flexRender,
+} from "@tanstack/react-table";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { apiUsuarios } from "@/services/api";
 
@@ -57,10 +74,16 @@ export default function UsuariosTable() {
         const res = await apiUsuarios(body);
         const rows: UsuarioRow[] = (res?.SdtUsuarios || []).map((u: any) => {
           const fch = u?.UserExtendedFchUltLog as string | undefined;
-          const fchFmt = fch && fch !== "0000-00-00T00:00:00" ? fch.replace("T", " ").slice(0, 16) : "";
-          const externoStr = String(u?.UserExtendedExterno || u?.UserExtendedUserExterno || "").toUpperCase();
+          const fchFmt =
+            fch && fch !== "0000-00-00T00:00:00"
+              ? fch.replace("T", " ").slice(0, 16)
+              : "";
+          const externoStr = String(
+            u?.UserExtendedExterno || u?.UserExtendedUserExterno || "",
+          ).toUpperCase();
           const estadoRaw = String(u?.UserExtendedEstado || "").toUpperCase();
-          const activo = estadoRaw === "S" || estadoRaw === "A" || estadoRaw === "ACTIVO";
+          const activo =
+            estadoRaw === "S" || estadoRaw === "A" || estadoRaw === "ACTIVO";
           return {
             usuario: u?.UserExtendedUserName || "",
             nombre: u?.UserExtendedNombre || "",
@@ -68,7 +91,11 @@ export default function UsuariosTable() {
             estado: (activo ? "A" : "I") as "A" | "I",
             fchUltLogin: fchFmt,
             tipoUsuario: (u?.UserExtendedTipoUser || "") as "G" | "L" | string,
-            externo: externoStr === "S" || externoStr === "Y" || externoStr === "1" || externoStr === "TRUE",
+            externo:
+              externoStr === "S" ||
+              externoStr === "Y" ||
+              externoStr === "1" ||
+              externoStr === "TRUE",
           } as UsuarioRow;
         });
         setUsuarios(rows);
@@ -79,7 +106,15 @@ export default function UsuariosTable() {
       }
     };
     fetchUsuarios();
-  }, [searchTerm, estado, externo, tipoUsuario, pageIndex, pageSize, sinMigrar]);
+  }, [
+    searchTerm,
+    estado,
+    externo,
+    tipoUsuario,
+    pageIndex,
+    pageSize,
+    sinMigrar,
+  ]);
 
   // Filtros
   const debouncedSearchTerm = useMemo(() => debounce((term) => term, 100), []);
@@ -93,7 +128,8 @@ export default function UsuariosTable() {
           .includes((debouncedSearchTerm(searchTerm) ?? "").toLowerCase());
       const matchesEstado = estado === "todos" || u.estado === estado;
       const matchesExterno = !externo || u.externo === externo;
-      const matchesTipo = tipoUsuario === "todos" || u.tipoUsuario === tipoUsuario;
+      const matchesTipo =
+        tipoUsuario === "todos" || u.tipoUsuario === tipoUsuario;
       return matchesSearch && matchesEstado && matchesExterno && matchesTipo;
     });
   }, [searchTerm, estado, externo, tipoUsuario, usuarios, debouncedSearchTerm]);
@@ -107,7 +143,13 @@ export default function UsuariosTable() {
       accessorKey: "estado",
       header: "Estado",
       cell: ({ row }: { row: { original: UsuarioRow } }) => (
-        <Badge className={row.original.estado === "A" ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
+        <Badge
+          className={
+            row.original.estado === "A"
+              ? "bg-green-900 text-green-200"
+              : "bg-red-900 text-red-200"
+          }
+        >
           {row.original.estado === "A" ? "Activo" : "Inactivo"}
         </Badge>
       ),
@@ -116,7 +158,12 @@ export default function UsuariosTable() {
     {
       accessorKey: "tipoUsuario",
       header: "Tipo Usuario",
-      cell: ({ row }: { row: { original: UsuarioRow } }) => (row.original.tipoUsuario === "G" ? "Global" : row.original.tipoUsuario === "L" ? "Local" : ""),
+      cell: ({ row }: { row: { original: UsuarioRow } }) =>
+        row.original.tipoUsuario === "G"
+          ? "Global"
+          : row.original.tipoUsuario === "L"
+            ? "Local"
+            : "",
     },
     {
       accessorKey: "acciones",
@@ -124,15 +171,27 @@ export default function UsuariosTable() {
       cell: ({ row }: { row: { original: UsuarioRow } }) => (
         <div className="space-x-2">
           {sinMigrar && (
-            <Button variant="secondary" size="sm" onClick={() => handleImport(row.original)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleImport(row.original)}
+            >
               <Download className="w-4 h-4" />
               <span className="ml-1">Importar</span>
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/usuarios/editar/${row.original.usuario}`)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              router.push(`/dashboard/usuarios/editar/${row.original.usuario}`)
+            }
+          >
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button variant="destructive" size="sm"><Trash className="w-4 h-4" /></Button>
+          <Button variant="destructive" size="sm">
+            <Trash className="w-4 h-4" />
+          </Button>
         </div>
       ),
     },
@@ -164,7 +223,7 @@ export default function UsuariosTable() {
         <Input
           placeholder="Búsqueda..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
@@ -178,7 +237,11 @@ export default function UsuariosTable() {
           </div>
           <Select value={tipoUsuario} onValueChange={setTipoUsuario}>
             <SelectTrigger>
-              {tipoUsuario === "G" ? "Global" : tipoUsuario === "L" ? "Local" : "Tipo Usuario"}
+              {tipoUsuario === "G"
+                ? "Global"
+                : tipoUsuario === "L"
+                  ? "Local"
+                  : "Tipo Usuario"}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="G">Global</SelectItem>
@@ -188,7 +251,11 @@ export default function UsuariosTable() {
           </Select>
           <Select value={estado} onValueChange={setEstado}>
             <SelectTrigger>
-              {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+              {estado === "A"
+                ? "Activo"
+                : estado === "I"
+                  ? "Inactivo"
+                  : "Estado"}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="A">Activo</SelectItem>
@@ -205,7 +272,10 @@ export default function UsuariosTable() {
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -226,11 +296,21 @@ export default function UsuariosTable() {
         <div className="flex justify-between items-center mt-2 p-2">
           <div className="flex items-center gap-2">
             <span>Registros por página</span>
-            <Select value={String(pageSize)} onValueChange={v => { const ps = Number(v); setPageSize(ps); table.setPageSize(ps); setPageIndex(0); }}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => {
+                const ps = Number(v);
+                setPageSize(ps);
+                table.setPageSize(ps);
+                setPageIndex(0);
+              }}
+            >
               <SelectTrigger>{pageSize}</SelectTrigger>
               <SelectContent>
                 {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -239,16 +319,28 @@ export default function UsuariosTable() {
             Página {pageIndex + 1} de {table.getPageCount()}
           </span>
           <div className="flex items-center gap-2">
-            <Button onClick={() => table.setPageIndex(0)} disabled={pageIndex === 0}>
+            <Button
+              onClick={() => table.setPageIndex(0)}
+              disabled={pageIndex === 0}
+            >
               «
             </Button>
-            <Button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+            <Button
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
               ‹
             </Button>
-            <Button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+            <Button
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
               ›
             </Button>
-            <Button onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
+            <Button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
               »
             </Button>
           </div>

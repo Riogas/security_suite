@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ export default function UsuariosPage() {
     <Card className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Administración de Usuarios</h1>
-        <Button onClick={() => router.push('/dashboard/usuarios/crear')}>
+        <Button onClick={() => router.push("/dashboard/usuarios/crear")}>
           Nuevo
           <Plus className="w-4 h-4 ml-2" />
         </Button>

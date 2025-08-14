@@ -6,9 +6,7 @@ Sentry.init({
   debug: process.env.NODE_ENV === "development",
   release: process.env.npm_package_version,
   environment: process.env.NODE_ENV,
-  integrations: [
-    Sentry.browserTracingIntegration(),
-  ],
+  integrations: [Sentry.browserTracingIntegration()],
   tracePropagationTargets: [
     "localhost",
     /^https:\/\/yourapi\.domain\.com\/api/,

@@ -1,5 +1,9 @@
 import { api, overpassApi } from "@/lib/axios";
-import { withApiLogging, setSentryUser, clearSentryUser } from "@/lib/sentryHelpers";
+import {
+  withApiLogging,
+  setSentryUser,
+  clearSentryUser,
+} from "@/lib/sentryHelpers";
 
 // Tipos globales
 export type Role = "admin" | "user" | "root";
@@ -29,7 +33,9 @@ export const apiLogin = async (
       // return api.post("/auth/login", { email, password });
 
       // Mock temporal
-      const result = await new Promise<{ data: { success: boolean; user: User } }>((resolve) =>
+      const result = await new Promise<{
+        data: { success: boolean; user: User };
+      }>((resolve) =>
         setTimeout(() => {
           const user = {
             name: "Julio Gómez",
@@ -52,13 +58,13 @@ export const apiLogin = async (
               user,
             },
           });
-        }, 1000)
+        }, 1000),
       );
-      
+
       return result;
     },
     "POST",
-    { email, password: "[HIDDEN]" } // No loggear la contraseña real
+    { email, password: "[HIDDEN]" }, // No loggear la contraseña real
   );
 };
 
@@ -71,18 +77,17 @@ export const apiMenu = async () => {
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: true,
-      }
+      },
     );
     return response.data;
   } catch (error: any) {
     console.error(
       "Error al obtener el menú:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
 };
-
 
 // ✅ Función para crear usuario
 export const apiCreateUser = async (body: any) => {
@@ -101,28 +106,32 @@ export const apiCreateUser = async (body: any) => {
 };
 
 // ✅ Login real contra backend externo
-export const apiLoginUser = async (body: { UserName: string; Password: string , Sistema: string }) => {
+export const apiLoginUser = async (body: {
+  UserName: string;
+  Password: string;
+  Sistema: string;
+}) => {
   try {
-    const response = await api.post("/loginUser",
-      body,
-      {
-        headers: { "Content-Type": "application/json" },
-        withCredentials: true,
-      }
-    );
+    const response = await api.post("/loginUser", body, {
+      headers: { "Content-Type": "application/json" },
+      withCredentials: true,
+    });
     // Guardar token en cookie
     if (response.data?.token) {
       document.cookie = `token=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
     }
     // Guardar usuario en localStorage
     if (response.data?.user) {
-      localStorage.setItem("user", JSON.stringify({
-        nombre: response.data.user.nombre,
-        email: response.data.user.email,
-        username: response.data.user.username,
-        id: response.data.user.id,
-        isRoot: response.data.user.isRoot,
-      }));
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          nombre: response.data.user.nombre,
+          email: response.data.user.email,
+          username: response.data.user.username,
+          id: response.data.user.id,
+          isRoot: response.data.user.isRoot,
+        }),
+      );
     }
     return response.data;
   } catch (error: any) {
@@ -142,7 +151,7 @@ export const apiLoginUser = async (body: { UserName: string; Password: string , 
 
 export type ValidarPermisoReq = {
   AplicacionNombre: string;
-  ObjetoKey: string;          // ej: "page.dashboard.usuarios.add"
+  ObjetoKey: string; // ej: "page.dashboard.usuarios.add"
   ObjetoTipo: "MENU" | "PAGE" | "FEATURE" | string;
   AccionKey:
     | "view"
@@ -163,13 +172,13 @@ export type ValidarPermisoResp = {
 
 export const apiValidarPermiso = async (
   payload: ValidarPermisoReq,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ): Promise<ValidarPermisoResp> => {
   try {
     const res = await api.post(
-      "/Permisos",            // ⬅️ endpoint solicitado
-      payload,                // ⬅️ { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
-      { signal: opts?.signal, withCredentials: true }
+      "/Permisos", // ⬅️ endpoint solicitado
+      payload, // ⬅️ { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
+      { signal: opts?.signal, withCredentials: true },
     );
 
     const permitido =
@@ -187,7 +196,9 @@ export const apiValidarPermiso = async (
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -219,20 +230,21 @@ export const apiValidarPermiso = async (
 // =====================
 export const apiUsuarios = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/usuarios",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/usuarios", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -261,20 +273,21 @@ export const apiUsuarios = async (
 // =====================
 export const apiAplicaciones = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/aplicaciones",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/aplicaciones", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -303,20 +316,21 @@ export const apiAplicaciones = async (
 // =====================
 export const apiRoles = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/roles",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/roles", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -345,20 +359,21 @@ export const apiRoles = async (
 // =====================
 export const apiObjetos = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/objetos",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/objetos", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -387,20 +402,21 @@ export const apiObjetos = async (
 // =====================
 export const apiEventos = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/eventos",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/eventos", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -429,20 +445,21 @@ export const apiEventos = async (
 // =====================
 export const apiPermisos = async (
   payload: any,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ) => {
   try {
-    const res = await api.post(
-      "/accesos",
-      payload,
-      { signal: opts?.signal, withCredentials: true }
-    );
+    const res = await api.post("/accesos", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
     return res.data;
   } catch (error: any) {
     const status = error?.response?.status;
 
     if (status === 401) {
-      try { clearSentryUser(); } catch {}
+      try {
+        clearSentryUser();
+      } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");

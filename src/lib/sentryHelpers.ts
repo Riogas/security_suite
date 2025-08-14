@@ -4,7 +4,7 @@ export const withApiLogging = async <T>(
   endpoint: string,
   apiCall: () => Promise<T>,
   method: string = "POST",
-  requestData?: any
+  requestData?: any,
 ): Promise<T> => {
   const startTime = Date.now();
   try {

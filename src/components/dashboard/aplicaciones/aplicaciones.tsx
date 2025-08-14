@@ -3,11 +3,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { apiAplicaciones } from "@/services/api";
 import { Pencil, Trash, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,7 +48,11 @@ export type PaginatedListProps<T = any> = {
   initialPageSize?: number;
 };
 
-export default function AplicacionesTable<T = any>({ columns: columnsProp, fetcher: fetcherProp, initialPageSize = 10 }: PaginatedListProps<T>) {
+export default function AplicacionesTable<T = any>({
+  columns: columnsProp,
+  fetcher: fetcherProp,
+  initialPageSize = 10,
+}: PaginatedListProps<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -44,7 +64,11 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
   const router = useRouter();
 
   const handleImport = (app: any) => {
-    console.log("Importar app:", app?.AplicacionId || app?.AplicacionNombre, app);
+    console.log(
+      "Importar app:",
+      app?.AplicacionId || app?.AplicacionNombre,
+      app,
+    );
     // TODO: implementar invocación a API de importación
   };
   const handleEdit = (app: any) => {
@@ -52,7 +76,11 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
     if (id) router.push(`/dashboard/aplicaciones/editar/${id}`);
   };
   const handleDelete = (app: any) => {
-    console.log("Eliminar app:", app?.AplicacionId || app?.AplicacionNombre, app);
+    console.log(
+      "Eliminar app:",
+      app?.AplicacionId || app?.AplicacionNombre,
+      app,
+    );
     // TODO: confirmar y llamar API de eliminación
   };
 
@@ -63,17 +91,33 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
   }, [search]);
 
   // Fetcher por defecto usando apiAplicaciones
-  const defaultFetcher = async ({ FiltroTexto, Pagesize, CurrentPage, Estado, sinMigrar, signal }: FetcherParams): Promise<FetcherResult<any>> => {
-    const res = await apiAplicaciones({
-      FiltroTexto,
-      Estado: Estado ?? "",
-      sinMigrar: !!sinMigrar,
-      Pagesize: String(Pagesize),
-      CurrentPage: String(CurrentPage),
-    }, { signal });
+  const defaultFetcher = async ({
+    FiltroTexto,
+    Pagesize,
+    CurrentPage,
+    Estado,
+    sinMigrar,
+    signal,
+  }: FetcherParams): Promise<FetcherResult<any>> => {
+    const res = await apiAplicaciones(
+      {
+        FiltroTexto,
+        Estado: Estado ?? "",
+        sinMigrar: !!sinMigrar,
+        Pagesize: String(Pagesize),
+        CurrentPage: String(CurrentPage),
+      },
+      { signal },
+    );
     // Respuesta esperada { MaxRegistros, sdtAplicaciones }
-    const items = res?.sdtAplicaciones || res?.SdtAplicaciones || res?.items || [];
-    const total = Number(res?.MaxRegistros ?? res?.maxRegistros ?? res?.total ?? (items?.length || 0));
+    const items =
+      res?.sdtAplicaciones || res?.SdtAplicaciones || res?.items || [];
+    const total = Number(
+      res?.MaxRegistros ??
+        res?.maxRegistros ??
+        res?.total ??
+        (items?.length || 0),
+    );
     return { items, total };
   };
 
@@ -89,7 +133,11 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
         const val = String(row.original?.AplicacionEstado ?? "").toUpperCase();
         const activo = val === "A" || val === "S" || val === "ACTIVO";
         return (
-          <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
+          <Badge
+            className={
+              activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"
+            }
+          >
             {activo ? "Activo" : "Inactivo"}
           </Badge>
         );
@@ -101,15 +149,27 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
       cell: ({ row }: { row: { original: any } }) => (
         <div className="space-x-2">
           {sinMigrar && (
-            <Button variant="secondary" size="sm" onClick={() => handleImport(row.original)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleImport(row.original)}
+            >
               <Download className="w-4 h-4" />
               <span className="ml-1">Importar</span>
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => handleEdit(row.original)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleEdit(row.original)}
+          >
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button variant="destructive" size="sm" onClick={() => handleDelete(row.original)}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(row.original)}
+          >
             <Trash className="w-4 h-4" />
           </Button>
         </div>
@@ -117,7 +177,8 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
     },
   ];
 
-  const columns = columnsProp && columnsProp.length > 0 ? columnsProp : defaultColumns;
+  const columns =
+    columnsProp && columnsProp.length > 0 ? columnsProp : defaultColumns;
   const fetcher = fetcherProp || defaultFetcher;
 
   // Carga de datos (server-side pagination)
@@ -168,17 +229,36 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
         <Input
           placeholder="Búsqueda..."
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPageIndex(0); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPageIndex(0);
+          }}
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-            <div className="flex items-center gap-2">
-            <Switch checked={sinMigrar} onCheckedChange={(v) => { setSinMigrar(v); setPageIndex(0); }} />
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={sinMigrar}
+              onCheckedChange={(v) => {
+                setSinMigrar(v);
+                setPageIndex(0);
+              }}
+            />
             <span>Sin importar</span>
           </div>
-          <Select value={estado} onValueChange={(v) => { setEstado(v); setPageIndex(0); }}>
+          <Select
+            value={estado}
+            onValueChange={(v) => {
+              setEstado(v);
+              setPageIndex(0);
+            }}
+          >
             <SelectTrigger>
-              {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+              {estado === "A"
+                ? "Activo"
+                : estado === "I"
+                  ? "Inactivo"
+                  : "Estado"}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="A">Activo</SelectItem>
@@ -186,7 +266,6 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
               <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
-          
         </div>
       </div>
 
@@ -197,7 +276,10 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -219,11 +301,21 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
         <div className="flex justify-between items-center mt-2 p-2">
           <div className="flex items-center gap-2">
             <span>Registros por página</span>
-            <Select value={String(pageSize)} onValueChange={v => { const ps = Number(v); setPageSize(ps); table.setPageSize(ps); setPageIndex(0); }}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => {
+                const ps = Number(v);
+                setPageSize(ps);
+                table.setPageSize(ps);
+                setPageIndex(0);
+              }}
+            >
               <SelectTrigger>{pageSize}</SelectTrigger>
               <SelectContent>
                 {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -232,16 +324,28 @@ export default function AplicacionesTable<T = any>({ columns: columnsProp, fetch
             Página {pageIndex + 1} de {table.getPageCount()}
           </span>
           <div className="flex items-center gap-2">
-            <Button onClick={() => table.setPageIndex(0)} disabled={pageIndex === 0}>
+            <Button
+              onClick={() => table.setPageIndex(0)}
+              disabled={pageIndex === 0}
+            >
               «
             </Button>
-            <Button onClick={() => table.previousPage()} disabled={pageIndex === 0}>
+            <Button
+              onClick={() => table.previousPage()}
+              disabled={pageIndex === 0}
+            >
               ‹
             </Button>
-            <Button onClick={() => table.nextPage()} disabled={pageIndex >= table.getPageCount() - 1}>
+            <Button
+              onClick={() => table.nextPage()}
+              disabled={pageIndex >= table.getPageCount() - 1}
+            >
               ›
             </Button>
-            <Button onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={pageIndex >= table.getPageCount() - 1}>
+            <Button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={pageIndex >= table.getPageCount() - 1}
+            >
               »
             </Button>
           </div>

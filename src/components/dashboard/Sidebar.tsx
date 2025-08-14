@@ -46,12 +46,14 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           .sort(
             (a, b) =>
               (typeof a.order === "number" ? a.order : 0) -
-              (typeof b.order === "number" ? b.order : 0)
+              (typeof b.order === "number" ? b.order : 0),
           )
           .map((it) => {
             const iconKey = (it.icon ?? "menu") as keyof typeof iconMap;
             return {
-              icon: iconMap[iconKey] ? iconKey : ("menu" as keyof typeof iconMap),
+              icon: iconMap[iconKey]
+                ? iconKey
+                : ("menu" as keyof typeof iconMap),
               key: String(it.key ?? it.label ?? it.path ?? crypto.randomUUID()),
               label: String(it.label ?? it.key ?? ""),
               order: typeof it.order === "number" ? it.order : 0,
