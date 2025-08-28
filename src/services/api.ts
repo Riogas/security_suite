@@ -68,12 +68,13 @@ export const apiLogin = async (
   );
 };
 
-// ✅ Menú real: siempre envía { AplicacionNombre: "SecuritySuite" }
+// ✅ Menú real: siempre envía { AplicacionId: "SecuritySuite" }
 export const apiMenu = async () => {
+  const App_ID = process.env.NEXT_PUBLIC_APLICACION_ID || 1; // Usar variable de entorno o valor por defecto
   try {
     const response = await api.post(
       "/Menu",
-      { AplicacionNombre: "SecuritySuite" },
+      { AplicacionId: App_ID },
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: true,
@@ -150,7 +151,7 @@ export const apiLoginUser = async (body: {
 // =====================
 
 export type ValidarPermisoReq = {
-  AplicacionNombre: string;
+  AplicacionId: string;
   ObjetoKey: string; // ej: "page.dashboard.usuarios.add"
   ObjetoTipo: "MENU" | "PAGE" | "FEATURE" | string;
   AccionKey:
@@ -177,7 +178,7 @@ export const apiValidarPermiso = async (
   try {
     const res = await api.post(
       "/Permisos", // ⬅️ endpoint solicitado
-      payload, // ⬅️ { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
+      payload, // ⬅️ { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey }
       { signal: opts?.signal, withCredentials: true },
     );
 
@@ -476,6 +477,139 @@ export const apiPermisos = async (
 
     if (status === 403) {
       return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: ABM de objetos (POST /abmObjetos)
+// Envía el payload con la estructura requerida por el backend
+// =====================
+export const apiAbmObjetos = async (
+  payload: any,
+  opts?: { signal?: AbortSignal },
+) => {
+  try {
+    const res = await api.post("/abmObjetos", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return error?.response?.data || { reason: "FORBIDDEN" };
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Listar objetos relacionados (POST /listarObjetos)
+// Body: { AplicacionId, Page=1, PageSize=20, Search?, Tipo?, Estado? }
+// Respuesta esperada: { sdtListaObjetos: Array<...> }
+// =====================
+export type ListarObjetosReq = {
+  AplicacionId: number | string;
+  Page?: number;
+  PageSize?: number;
+  Search?: string;
+  Tipo?: string;
+  Estado?: string;
+};
+
+export type ListarObjetosAccion = {
+  AccionCodigo: string;
+  AccionCreadoEn: string;
+  AccionDescripcion: string;
+  AccionIcon: string;
+  AccionId: number;
+  AccionKey: string;
+  AccionLabel: string;
+  AccionPath: string;
+  AccionRelacion: string;
+};
+
+export type ListarObjetosItem = {
+  Acciones: ListarObjetosAccion[];
+  AplicacionId: string;
+  ObjetoCreadoEn: string;
+  ObjetoEsPublico: string; // "S" | "N"
+  ObjetoEstado: string; // "A" | "I"
+  ObjetoId: number;
+  ObjetoKey: string;
+  ObjetoParentId: number;
+  ObjetoTipo: string; // "MENU" | "SUBMENU" | "PAGE" | "FEATURE"
+};
+
+export type ListarObjetosResp = {
+  sdtListaObjetos: ListarObjetosItem[];
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  [k: string]: unknown;
+};
+
+export const apiListarObjetos = async (
+  payload: ListarObjetosReq,
+  opts?: { signal?: AbortSignal },
+): Promise<ListarObjetosResp> => {
+  try {
+    const body = {
+      AplicacionId: payload.AplicacionId,
+    };
+
+    const res = await api.post("/listarObjetos", body, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+    return res.data as ListarObjetosResp;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as ListarObjetosResp;
     }
 
     throw error;
