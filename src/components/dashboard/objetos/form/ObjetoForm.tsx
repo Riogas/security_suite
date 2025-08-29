@@ -28,6 +28,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import IconPicker, { IconName } from "@/components/dashboard/iconpicker";
+
 
 // ✅ FUERA de ObjetoForm (ámbito de módulo)
 type SortableRowProps = {
@@ -711,21 +713,18 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                       placeholder="/ruta"
                                     />
                                   </TableCell>
-                                  <TableCell className="min-w-[160px]">
-                                    <Input
-                                      value={getRowEditValue(acc.uid, "accionicon", acc.accionicon)}
-                                      onChange={(e) => setRowEdit(acc.uid, { accionicon: e.target.value })}
-                                      onBlur={() => commitRowEdit(acc.uid, "accionicon", globalIdx)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          commitDraftIfFilled();
-                                        }
-                                      }}
-                                      placeholder="icon"
+                                  <TableCell className="min-w-[200px]">
+                                    <IconPicker
+                                        value={(getRowEditValue(acc.uid, "accionicon", acc.accionicon) || "") as IconName}
+                                        onChange={(icon) => {
+                                        setRowEdit(acc.uid, { accionicon: icon ?? "" });
+                                        // podés hacer commitRowEdit acá también si querés guardarlo directo
+                                        }}
+                                        placeholder="Elegir icono..."
+                                        className="w-[180px]"
                                     />
-                                  </TableCell>
+                                    </TableCell>
+
                                   <TableCell className="min-w-[220px]">
                                     <div className="relative">
                                       <Input
@@ -842,21 +841,15 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   placeholder="/ruta"
                                 />
                               </TableCell>
-                              <TableCell className="min-w-[160px]">
-                                <Input
-                                  value={accionDraft.accionicon}
-                                  onChange={(e) => setAccionDraft((p) => ({ ...p, accionicon: e.target.value }))
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      commitDraftIfFilled();
-                                    }
-                                  }}
-                                  placeholder="icon"
-                                />
-                              </TableCell>
+                              <TableCell className="min-w-[200px]">
+                            <IconPicker
+                                value={accionDraft.accionicon as IconName}
+                                onChange={(icon) => setAccionDraft((prev) => ({ ...prev, accionicon: icon ?? "" }))}
+                                placeholder="Elegir icono..."
+                                className="w-[180px]"
+                            />
+                            </TableCell>
+
                               <TableCell className="min-w-[220px]">
                                 <div className="relative">
                                   <Input
