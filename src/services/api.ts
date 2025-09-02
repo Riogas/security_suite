@@ -147,11 +147,12 @@ export const apiLoginUser = async (body: {
 // =====================
 // ✅ Validación de permisos (POST /Permisos)
 // Body requerido:
-// { AplicacionNombre, ObjetoKey, ObjetoTipo, AccionKey }
+// { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey, ObjetoPath? }
+// Nota: ObjetoPath se deriva de la URL actual si no se provee, quitando el prefijo /dashboard
 // =====================
 
 export type ValidarPermisoReq = {
-  AplicacionId: string;
+  AplicacionId: string | number;
   ObjetoKey: string; // ej: "page.dashboard.usuarios.add"
   ObjetoTipo: "MENU" | "PAGE" | "FEATURE" | string;
   AccionKey:
@@ -162,6 +163,7 @@ export type ValidarPermisoReq = {
     | "delete"
     | "export"
     | string;
+  ObjetoPath?: string; // ej: "/usuarios/editar/123" (sin "/dashboard")
 };
 
 export type ValidarPermisoResp = {
@@ -171,27 +173,45 @@ export type ValidarPermisoResp = {
   [k: string]: unknown;
 };
 
+function deriveObjetoPath(input?: string): string | undefined {
+  if (input && typeof input === "string") return input;
+  try {
+    if (typeof window !== "undefined") {
+      const full = window.location?.pathname || "";
+      if (!full) return undefined;
+      const prefix = "/dashboard";
+      return full.startsWith(prefix) ? full.slice(prefix.length) || "/" : full;
+    }
+  } catch {}
+  return undefined;
+}
+
 export const apiValidarPermiso = async (
   payload: ValidarPermisoReq,
   opts?: { signal?: AbortSignal },
 ): Promise<ValidarPermisoResp> => {
   try {
+    const body = {
+      ...payload,
+      ObjetoPath: deriveObjetoPath(payload.ObjetoPath),
+    } as Record<string, unknown>;
+
     const res = await api.post(
       "/Permisos", // ⬅️ endpoint solicitado
-      payload, // ⬅️ { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey }
+      body, // ⬅️ { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey, ObjetoPath }
       { signal: opts?.signal, withCredentials: true },
     );
 
     const permitido =
-      res.data?.permitido === true ||
-      res.data?.ok === true ||
-      res.data?.success === true;
+      (res.data as any)?.permitido === true ||
+      (res.data as any)?.ok === true ||
+      (res.data as any)?.success === true;
 
     return {
       permitido,
-      redirect: res.data?.redirect,
-      reason: res.data?.reason,
-      ...res.data,
+      redirect: (res.data as any)?.redirect,
+      reason: (res.data as any)?.reason,
+      ...(res.data as any),
     } as ValidarPermisoResp;
   } catch (error: any) {
     const status = error?.response?.status;
@@ -528,7 +548,7 @@ export const apiAbmObjetos = async (
 
 // =====================
 // ✅ Servicio: Listar objetos relacionados (POST /listarObjetos)
-// Body: { AplicacionId, Page=1, PageSize=20, Search?, Tipo?, Estado? }
+// Body: { AplicacionId, sinMenu=false, Page=1, PageSize=20, Search?, Tipo?, Estado? }
 // Respuesta esperada: { sdtListaObjetos: Array<...> }
 // =====================
 export type ListarObjetosReq = {
@@ -538,6 +558,7 @@ export type ListarObjetosReq = {
   Search?: string;
   Tipo?: string;
   Estado?: string;
+  sinMenu?: boolean; // ⬅️ nuevo: si true, el backend excluye objetos de tipo MENU
 };
 
 export type ListarObjetosAccion = {
@@ -579,6 +600,7 @@ export const apiListarObjetos = async (
   try {
     const body = {
       AplicacionId: payload.AplicacionId,
+      sinMenu: payload.sinMenu === true ? true : false,
     };
 
     const res = await api.post("/listarObjetos", body, {

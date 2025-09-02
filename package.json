@@ -66,6 +66,7 @@
     "numero-a-letras": "^1.0.6",
     "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
+    "react-day-picker": "^9.9.0",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
     "react-joyride": "3.0.0-7",

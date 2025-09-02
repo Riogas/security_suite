@@ -47,6 +47,13 @@ function getObjetoKey(pathname: string): string {
   return parts.length > 0 ? parts[parts.length - 1] : 'root';
 }
 
+// ejemplo: "/dashboard/funcionalidades/crear" → "/funcionalidades/crear"
+function getObjetoPath(pathname: string): string {
+  const prefix = '/dashboard';
+  const p = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname;
+  return p || '/';
+}
+
 // Genera un código estable por ruta: XXXX-XXXX (Edge-safe usando Web Crypto)
 async function routeCode(
   pathname: string,
@@ -101,6 +108,7 @@ async function apiCheckPermisoEdge(
       ObjetoTipo: 'PAGE',
       AccionKey: 'view',
       AccionCodigo: code, // XXXX-XXXX
+      ObjetoPath: getObjetoPath(pathname), // "/funcionalidades/crear"
     };
 
     console.log('[MW] → Checando permiso');

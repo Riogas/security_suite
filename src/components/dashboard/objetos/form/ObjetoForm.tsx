@@ -361,12 +361,17 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   }
 
   // Al cambiar la clave, autogenerar el código de la acción (en base a objetokey + accionkey)
+  // además autocompletar Etiqueta (primera letra mayúscula) y Ruta (/dashboard/<accionkey>)
   async function handleAccionKeyChange(idxGlobal: number, keyVal: string) {
+    const labelFromKey = keyVal ? keyVal.charAt(0).toUpperCase() + keyVal.slice(1) : "";
+    const pathFromKey = `/dashboard/${keyVal}`;
+
     if (idxGlobal >= form.acciones.length) {
-      setAccionDraft((prev) => ({ ...prev, accionkey: keyVal }));
+      setAccionDraft((prev) => ({ ...prev, accionkey: keyVal, accionlabel: labelFromKey, accionpath: pathFromKey }));
     } else {
-      upsertAccion(idxGlobal, { accionkey: keyVal });
+      upsertAccion(idxGlobal, { accionkey: keyVal, accionlabel: labelFromKey, accionpath: pathFromKey });
     }
+
     const trimmed = keyVal.trim();
     const objKey = (form.objetokey || "").trim();
     if (trimmed && objKey) {
