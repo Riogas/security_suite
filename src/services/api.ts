@@ -637,3 +637,139 @@ export const apiListarObjetos = async (
     throw error;
   }
 };
+
+// ✅ Servicio: ABM Funcionalidades (POST /abmFuncionalidades)
+// =====================
+export type AbmFuncionalidadesAccion = {
+  ObjetoId: number;
+  AccionId: number;
+};
+
+export type AbmFuncionalidadesReq = {
+  FuncionalidadId: number;
+  AplicacionId: number;
+  FuncionalidadNombre: string;
+  FuncionalidadEstado: string;
+  FuncionalidadFchIns: string;
+  FuncionalidadEsPublico: string;
+  FuncionalidadSoloRoot: string;
+  FuncionalidadFchDesde: string;
+  FuncionalidadFchHasta: string;
+  Accion: AbmFuncionalidadesAccion[];
+};
+
+export type AbmFuncionalidadesResp = {
+  success: boolean;
+  message?: string;
+  FuncionalidadId?: number;
+  [k: string]: unknown;
+};
+
+export const apiAbmFuncionalidades = async (
+  payload: AbmFuncionalidadesReq,
+  opts?: { signal?: AbortSignal },
+): Promise<AbmFuncionalidadesResp> => {
+  try {
+    const res = await api.post("/abmFuncionalidades", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      // Limpiar tokens en caso de unauthorized
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as AbmFuncionalidadesResp;
+    }
+
+    throw error;
+  }
+};
+
+// ✅ Servicio: Listar Funcionalidades (POST /listarFuncionalidades)
+// Body: { AplicacionId }
+// Respuesta esperada: { sdtFuncionalidades: Array<...> }
+// =====================
+export type ListarFuncionalidadesReq = {
+  AplicacionId: number;
+};
+
+export type ListarFuncionalidadesAccion = {
+  AccionId: number;
+  ObjetoId: number;
+};
+
+export type ListarFuncionalidadesItem = {
+  Accion: ListarFuncionalidadesAccion[];
+  AplicacionId: string;
+  FuncionalidadEsPublico: string; // "S" | "N"
+  FuncionalidadEstado: string; // "A" | "I"
+  FuncionalidadFchDesde: string;
+  FuncionalidadFchHasta: string;
+  FuncionalidadFchIns: string;
+  FuncionalidadId: number;
+  FuncionalidadNombre: string;
+  FuncionalidadSoloRoot: string; // "S" | "N"
+};
+
+export type ListarFuncionalidadesResp = {
+  sdtFuncionalidades: ListarFuncionalidadesItem[];
+  [k: string]: unknown;
+};
+
+export const apiListarFuncionalidades = async (
+  payload: ListarFuncionalidadesReq,
+  opts?: { signal?: AbortSignal },
+): Promise<ListarFuncionalidadesResp> => {
+  try {
+    const res = await api.post("/listarFuncionalidades", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      // Limpiar tokens en caso de unauthorized
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as ListarFuncionalidadesResp;
+    }
+
+    throw error;
+  }
+};

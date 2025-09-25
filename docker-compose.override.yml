@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: security-users
     ports:
-      - "3000:3000"
+      - "4001:3000"
     volumes:
       - .:/app
       - /app/node_modules

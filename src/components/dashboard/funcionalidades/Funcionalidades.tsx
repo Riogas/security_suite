@@ -24,8 +24,8 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiObjetos } from "@/services/api";
-import { Pencil, Trash, Download } from "lucide-react";
+import { apiListarFuncionalidades, type ListarFuncionalidadesItem } from "@/services/api";
+import { Pencil, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function FuncionalidadesTable() {
@@ -48,47 +48,35 @@ export default function FuncionalidadesTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (opts: {
-    FiltroTexto: string;
-    Estado: string;
-    sinMigrar: boolean;
-    ObjetoEsPublico: "S" | "N";
-    ObjetoTipo: string;
-    Pagesize: number;
-    CurrentPage: number;
-    signal?: AbortSignal;
-  }) => {
-    const res = await apiObjetos(
-      {
-        FiltroTexto: opts.FiltroTexto,
-        Estado: opts.Estado,
-        sinMigrar: opts.sinMigrar,
-        ObjetoEsPublico: opts.ObjetoEsPublico,
-        ObjetoTipo: opts.ObjetoTipo,
-        Pagesize: String(opts.Pagesize),
-        CurrentPage: String(opts.CurrentPage),
-      },
-      { signal: opts.signal },
+  const fetcher = async (aplicacionId: number = 3, signal?: AbortSignal) => {
+    const res = await apiListarFuncionalidades(
+      { AplicacionId: aplicacionId },
+      { signal }
     );
-    const items = res?.sdtObjetos || res?.SdtObjetos || res?.items || [];
-    const total = Number(
-      res?.MaxRegistros ??
-        res?.maxRegistros ??
-        res?.total ??
-        (items?.length || 0),
-    );
-    // Normalizar para funcionalidades
-    const normalized = (items as any[]).map((o: any) => ({
-      ...o,
-      FuncionalidadNombre: o?.ObjetoNombre ?? o?.ObjetoLabel ?? o?.ObjetoKey ?? "",
-      ObjetoEstado: o?.ObjetoEstado ?? o?.Estado ?? "",
-      CantidadObjetos:
-        o?.CantidadObjetos ??
-        o?.ObjetosCantidad ??
-        o?.ObjetosCount ??
-        (Array.isArray(o?.Objetos) ? o.Objetos.length : Array.isArray(o?.Acciones) ? o.Aciones.length : 0),
+    
+    const items = res?.sdtFuncionalidades || [];
+    
+    // Filtrar por búsqueda si existe
+    const filteredItems = items.filter((item: ListarFuncionalidadesItem) => {
+      const matchesSearch = !debouncedSearch || 
+        item.FuncionalidadNombre.toLowerCase().includes(debouncedSearch.toLowerCase());
+      
+      const matchesEstado = estado === "todos" || 
+        item.FuncionalidadEstado === estado;
+        
+      const matchesPublico = !esPublico || 
+        item.FuncionalidadEsPublico === "S";
+        
+      return matchesSearch && matchesEstado && matchesPublico;
+    });
+
+    // Agregar conteo de objetos/acciones
+    const normalized = filteredItems.map((item: ListarFuncionalidadesItem) => ({
+      ...item,
+      CantidadObjetos: item.Accion?.length || 0,
     }));
-    return { items: normalized, total };
+
+    return { items: normalized, total: normalized.length };
   };
 
   // load
@@ -96,41 +84,37 @@ export default function FuncionalidadesTable() {
     const ac = new AbortController();
     (async () => {
       try {
-        const { items, total } = await fetcher({
-          FiltroTexto: debouncedSearch,
-          Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          sinMigrar,
-          ObjetoEsPublico: esPublico ? "S" : "N",
-          ObjetoTipo: tipo,
-          Pagesize: pageSize,
-          CurrentPage: pageIndex + 1,
-          signal: ac.signal,
-        });
-        setRows(items);
-        setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
+        const { items, total } = await fetcher(3, ac.signal); // AplicacionId = 3 (GOYA)
+        
+        // Aplicar paginación manual ya que la API no la soporta
+        const startIndex = pageIndex * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedItems = items.slice(startIndex, endIndex);
+        
+        setRows(paginatedItems);
+        setTotalPages(Math.max(1, Math.ceil(total / pageSize)) || 1);
       } catch (e: any) {
         if (e?.name !== "AbortError")
           console.error("Error cargando funcionalidades:", e);
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, sinMigrar, esPublico, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, esPublico, pageIndex, pageSize]);
 
   const columns: any[] = [
     {
       id: "Funcionalidad",
       header: "Funcionalidad",
-      cell: ({ row }: { row: { original: any } }) => {
-        const o = row.original || {};
-        return o?.FuncionalidadNombre ?? "";
+      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
+        return row.original?.FuncionalidadNombre ?? "";
       },
     },
     {
-      accessorKey: "ObjetoEstado",
+      id: "Estado",
       header: "Estado",
-      cell: ({ row }: { row: { original: any } }) => {
-        const val = String(row.original?.ObjetoEstado ?? "").toUpperCase();
-        const activo = val === "A" || val === "S" || val === "ACTIVO";
+      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
+        const val = row.original?.FuncionalidadEstado;
+        const activo = val === "A";
         return (
           <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
             {activo ? "Activo" : "Inactivo"}
@@ -140,31 +124,21 @@ export default function FuncionalidadesTable() {
     },
     {
       id: "CantObjetos",
-      header: "Cant. Objetos",
-      cell: ({ row }: { row: { original: any } }) => {
-        const c = Number(row.original?.CantidadObjetos ?? 0);
+      header: "Cant. Acciones",
+      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
+        const c = row.original?.Accion?.length ?? 0;
         return <span className="tabular-nums font-medium">{c}</span>;
       },
     },
     {
       accessorKey: "acciones",
       header: "Acciones",
-      cell: ({ row }: { row: { original: any } }) => (
+      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => (
         <div className="space-x-2">
-          {sinMigrar && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => console.log("Importar funcionalidad", row.original)}
-            >
-              <Download className="w-4 h-4" />
-              <span className="ml-1">Importar</span>
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/dashboard/objetos/editar/${row.original?.ObjetoId || row.original?.id || ""}`)}
+            onClick={() => router.push(`/dashboard/funcionalidades/editar/${row.original?.FuncionalidadId}`)}
           >
             <Pencil className="w-4 h-4" />
           </Button>

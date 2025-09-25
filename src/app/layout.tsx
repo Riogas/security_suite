@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner"; // 👈 importante
 import LogRocketInit from "@/components/LogRocketInit";
+import { LoadingProvider } from "@/lib/LoadingProvider";
+import { LoadingInitializer } from "@/components/LoadingInitializer";
+import { LoadingDebugger } from "@/components/LoadingDebugger";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,9 +51,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <LogRocketInit />
-        {children}
-        <Toaster richColors /> {/* 👈 Nuevo Toaster de sonner */}
+        <LoadingProvider>
+          <LoadingInitializer />
+          <LoadingDebugger />
+          <LogRocketInit />
+          {children}
+          <Toaster richColors /> {/* 👈 Nuevo Toaster de sonner */}
+        </LoadingProvider>
       </body>
     </html>
   );

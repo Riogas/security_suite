@@ -5,6 +5,7 @@ import { toast } from "sonner";
 const api = axios.create({
   baseURL: "/api", // usamos el proxy declarado en next.config.js
   withCredentials: true, // se enviarán cookies si tu backend las requiere
+  timeout: 10000, // 10 segundos de timeout
   headers: {
     "Content-Type": "application/json",
   },
@@ -67,5 +68,32 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Interceptor para manejar errores de respuesta
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.code === 'ECONNRESET' || error.code === 'ECONNABORTED') {
+      console.error('Error de conexión con el backend:', error.message);
+      toast.error('Error de conexión con el servidor. Verifique que el backend esté ejecutándose.');
+    } else if (error.response?.status === 401) {
+      // Token inválido o expirado
+      document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      toast.error("Sesión expirada. Redirigiendo al login...");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1200);
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Importar e inicializar el interceptor de loading
+import { setupLoadingInterceptors } from "./loadingInterceptor";
+
+// Configurar interceptores de loading para la instancia principal
+setupLoadingInterceptors(api);
 
 export { api, overpassApi };

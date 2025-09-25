@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { apiListarObjetos, apiAbmFuncionalidades, type ListarObjetosItem, type AbmFuncionalidadesReq } from "@/services/api";
+import { useApiCall } from "@/hooks/useApiCall";
+import { usePageTransition } from "@/hooks/usePageTransition";
+import { ButtonLoading } from "@/components/ui/loading";
 
 // Opciones de aplicaciones
 const APP_OPTIONS = [
@@ -192,8 +195,26 @@ export default function FuncionalidadForm({
   // Sensores para el drag and drop
   const sensors = useSensors(useSensor(PointerSensor));
 
-  // Estados para el guardado
-  const [saving, setSaving] = useState(false);
+  // Hooks para API calls
+  const { navigateWithLoading } = usePageTransition();
+  
+  // API call para guardar funcionalidad
+  const {
+    execute: saveFuncionalidad,
+    isLoading: isSaving,
+  } = useApiCall(apiAbmFuncionalidades, {
+    loadingText: mode === 'edit' ? "Actualizando funcionalidad..." : "Guardando funcionalidad...",
+    showGlobalLoading: true,
+  });
+
+  // API call para cargar objetos
+  const {
+    execute: loadObjetos,
+    isLoading: isLoadingObjetos,
+  } = useApiCall(apiListarObjetos, {
+    loadingText: "Cargando objetos...",
+    showGlobalLoading: false, // Loading local
+  });
 
   // Handlers
   const handleSubmit = async (e: React.FormEvent) => {

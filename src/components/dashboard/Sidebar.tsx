@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { apiMenu } from "@/services/api"; // ← usamos tu función real
 import { iconMap } from "./iconMap";
 import { useRouter } from "next/navigation";
+import { useAppLoading } from "@/hooks/useAppLoading";
 
 interface Props {
   collapsed: boolean;
@@ -89,6 +90,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const router = useRouter();
+  const loadingApp = useAppLoading();
 
   useEffect(() => {
     let mounted = true;
@@ -164,7 +166,10 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
         key={item.key}
         variant="ghost"
         className={`justify-start gap-2 w-full ${depth ? "pl-8" : ""} ${item.style ?? ""}`}
-        onClick={() => router.push(item.path || "/")}
+        onClick={() => {
+          loadingApp.showNavigating();
+          router.push(item.path || "/");
+        }}
         title={item.label}
       >
         <Icon className="w-4 h-4" />

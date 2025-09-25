@@ -1,121 +1,103 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Save, Key, RotateCcw } from "lucide-react";
+import { apiUsuarios } from "@/services/api";
 
 interface UsuarioFormProps {
   mode: "create" | "edit";
   userId?: string;
 }
 
-interface UsuarioData {
-  id: string;
-  userName: string;
-  password: string;
-  email: string;
-  nombre: string;
-  apellido: string;
-  estado: string;
-  fchIns: string;
-  fchBaja: string;
-  fchUltLog: string;
-  externo: boolean;
-  userExterno: string;
-  tipoUsuario: string;
-  modPerm: boolean;
-  cambioPass: boolean;
-  cantFail: number;
-  fchUltBloqueo: string;
-  telefono: string;
-  creadoPor: string;
-  fchUltPerm: string;
-  observacion: string;
-  observacion2: string;
-}
-
 export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState<UsuarioData>({
-    id: "",
-    userName: "",
-    password: "",
-    email: "",
-    nombre: "",
-    apellido: "",
-    estado: "A",
-    fchIns: new Date().toISOString().split("T")[0],
-    fchBaja: "",
-    fchUltLog: "",
-    externo: false,
-    userExterno: "",
-    tipoUsuario: "L",
-    modPerm: false,
-    cambioPass: false,
-    cantFail: 0,
-    fchUltBloqueo: "",
-    telefono: "",
-    creadoPor: "",
-    fchUltPerm: "",
-    observacion: "",
-    observacion2: "",
+  const [formData, setFormData] = useState({
+    UserExtendedUserName: "",
+    UserExtendedPassword: "",
+    UserExtendedEmail: "",
+    UserExtendedNombre: "",
+    UserExtendedApellido: "",
+    UserExtendedEstado: "S",
+    UserExtendedTelefono: "",
+    UserExtendedTipoUser: "L",
+    UserExtendedExterno: "N",
+    UserExtendedUserExterno: "",
+    UserExtendedRoot: "N",
+    UserExtendedFechaIngreso: "",
+    UserExtendedFechaBaja: "",
+    UserExtendedFechaUltLogin: "",
+    UserExtendedIntentFall: "",
+    UserExtendedFecHoraUltBloq: "",
+    UserExtendedDesdeSistema: "N",
   });
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
-  // Mock: Cargar datos del usuario si es modo edición
   useEffect(() => {
     if (mode === "edit" && userId) {
-      // Aquí harías la llamada a la API para obtener los datos del usuario
-      // Por ahora usamos datos mock
-      const mockUserData: UsuarioData = {
-        id: "1",
-        userName: "jgomez",
-        password: "********",
-        email: "julio.gomez@ejemplo.com",
-        nombre: "Julio",
-        apellido: "Gómez",
-        estado: "A",
-        fchIns: "2024-01-15",
-        fchBaja: "",
-        fchUltLog: "2025-07-20 10:23",
-        externo: false,
-        userExterno: "",
-        tipoUsuario: "G",
-        modPerm: true,
-        cambioPass: false,
-        cantFail: 0,
-        fchUltBloqueo: "",
-        telefono: "+598 99 123 456",
-        creadoPor: "admin",
-        fchUltPerm: "2025-07-20",
-        observacion: "Usuario administrador principal",
-        observacion2: "Acceso completo al sistema",
+      const loadUserData = async () => {
+        try {
+          setLoading(true);
+          const response = await apiUsuarios({
+            FiltroTexto: "",
+            Estado: "",
+            sinMigrar: false,
+            Pagesize: "1000",
+            CurrentPage: "1",
+          });
+          
+          const users = response?.SdtUsuarios || [];
+          const user = users.find((u: any) => u.UserExtendedId === userId);
+          
+          if (user) {
+            setFormData({
+              UserExtendedUserName: user.UserExtendedUserName || "",
+              UserExtendedPassword: "********", // No mostrar la contraseña real
+              UserExtendedEmail: user.UserExtendedEmail || "",
+              UserExtendedNombre: user.UserExtendedNombre || "",
+              UserExtendedApellido: user.UserExtendedApellido || "",
+              UserExtendedEstado: user.UserExtendedEstado || "S",
+              UserExtendedTelefono: user.UserExtendedTelefono || "",
+              UserExtendedTipoUser: user.UserExtendedTipoUser || "L",
+              UserExtendedExterno: user.UserExtendedExterno || "N",
+              UserExtendedUserExterno: user.UserExtendedUserExterno || "",
+              UserExtendedRoot: user.UserExtendedRoot || "N",
+              UserExtendedFechaIngreso: user.UserExtendedFechaIngreso || "",
+              UserExtendedFechaBaja: user.UserExtendedFechaBaja || "",
+              UserExtendedFechaUltLogin: user.UserExtendedFechaUltLogin || "",
+              UserExtendedIntentFall: user.UserExtendedIntentFall || "",
+              UserExtendedFecHoraUltBloq: user.UserExtendedFecHoraUltBloq || "",
+              UserExtendedDesdeSistema: user.UserExtendedDesdeSistema || "N",
+            });
+          } else {
+            toast.error("Usuario no encontrado");
+            router.push("/dashboard/usuarios");
+          }
+        } catch (error) {
+          console.error("Error cargando usuario:", error);
+          toast.error("Error al cargar los datos del usuario");
+        } finally {
+          setLoading(false);
+        }
       };
-      setFormData(mockUserData);
+      
+      loadUserData();
     }
-  }, [mode, userId]);
+  }, [mode, userId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Aquí harías la llamada a la API
       if (mode === "create") {
         console.log("Creando usuario:", formData);
         toast.success("Usuario creado exitosamente");
@@ -123,8 +105,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         console.log("Actualizando usuario:", formData);
         toast.success("Usuario actualizado exitosamente");
       }
-
-      // Redirigir de vuelta a la lista
       router.push("/dashboard/usuarios");
     } catch (error) {
       toast.error("Error al guardar el usuario");
@@ -133,15 +113,24 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     }
   };
 
-  const handleInputChange = (
-    field: keyof UsuarioData,
-    value: string | boolean | number,
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+  const handlePasswordReset = () => {
+    const newPassword = formData.UserExtendedUserName;
+    setFormData(prev => ({ ...prev, UserExtendedPassword: newPassword }));
+    setShowPasswordReset(true);
+    toast.success(`Contraseña establecida como: ${newPassword}`);
   };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (loading && mode === "edit") {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -149,30 +138,42 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         <Button
           variant="outline"
           onClick={() => router.push("/dashboard/usuarios")}
+          className="flex items-center gap-2"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4" />
           Volver
         </Button>
-        <div className="flex gap-4">
+        
+        <div className="flex gap-2">
+          {mode === "edit" && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePasswordReset}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Resetear Contraseña
+            </Button>
+          )}
           <Button
-            type="button"
             variant="outline"
             onClick={() => router.push("/dashboard/usuarios")}
           >
             Cancelar
           </Button>
-          <Button type="submit" form="usuario-form" disabled={loading}>
-            <Save className="w-4 h-4 mr-2" />
-            {loading
-              ? "Guardando..."
-              : mode === "create"
-                ? "Crear Usuario"
-                : "Actualizar Usuario"}
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {loading ? "Guardando..." : mode === "edit" ? "Actualizar Usuario" : "Crear Usuario"}
           </Button>
         </div>
       </div>
 
-      <form id="usuario-form" onSubmit={handleSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Información Básica */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Información Básica</h3>
@@ -181,56 +182,22 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="userName">Usuario *</Label>
               <Input
                 id="userName"
-                value={formData.userName}
-                onChange={(e) => handleInputChange("userName", e.target.value)}
-                placeholder="Ingrese el nombre de usuario"
+                value={formData.UserExtendedUserName}
+                onChange={(e) => handleInputChange("UserExtendedUserName", e.target.value)}
+                placeholder="Nombre de usuario"
                 required
                 disabled={mode === "edit"}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña *</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) =>
-                    handleInputChange("password", e.target.value)
-                  }
-                  placeholder={
-                    mode === "edit"
-                      ? "Dejar vacío para mantener actual"
-                      : "Ingrese la contraseña"
-                  }
-                  required={mode === "create"}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                placeholder="Ingrese el email"
-                required
+                value={formData.UserExtendedEmail}
+                onChange={(e) => handleInputChange("UserExtendedEmail", e.target.value)}
+                placeholder="correo@ejemplo.com"
               />
             </div>
 
@@ -238,21 +205,20 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="nombre">Nombre *</Label>
               <Input
                 id="nombre"
-                value={formData.nombre}
-                onChange={(e) => handleInputChange("nombre", e.target.value)}
-                placeholder="Ingrese el nombre"
+                value={formData.UserExtendedNombre}
+                onChange={(e) => handleInputChange("UserExtendedNombre", e.target.value)}
+                placeholder="Nombre"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="apellido">Apellido *</Label>
+              <Label htmlFor="apellido">Apellido</Label>
               <Input
                 id="apellido"
-                value={formData.apellido}
-                onChange={(e) => handleInputChange("apellido", e.target.value)}
-                placeholder="Ingrese el apellido"
-                required
+                value={formData.UserExtendedApellido}
+                onChange={(e) => handleInputChange("UserExtendedApellido", e.target.value)}
+                placeholder="Apellido"
               />
             </div>
 
@@ -260,9 +226,67 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="telefono">Teléfono</Label>
               <Input
                 id="telefono"
-                value={formData.telefono}
-                onChange={(e) => handleInputChange("telefono", e.target.value)}
-                placeholder="Ej: +598 99 123 456"
+                value={formData.UserExtendedTelefono}
+                onChange={(e) => handleInputChange("UserExtendedTelefono", e.target.value)}
+                placeholder="+598 99 123 456"
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Contraseña y Seguridad */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Contraseña y Seguridad</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.UserExtendedPassword}
+                  onChange={(e) => handleInputChange("UserExtendedPassword", e.target.value)}
+                  placeholder={mode === "edit" ? "********" : "Contraseña"}
+                  disabled={mode === "edit" && !showPasswordReset}
+                />
+                {mode === "edit" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePasswordReset}
+                    className="shrink-0"
+                  >
+                    <Key className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              {mode === "edit" && (
+                <p className="text-xs text-muted-foreground">
+                  Haz clic en el icono para establecer la contraseña como el nombre de usuario
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="intentosFallidos">Intentos Fallidos</Label>
+              <Input
+                id="intentosFallidos"
+                value={formData.UserExtendedIntentFall}
+                onChange={(e) => handleInputChange("UserExtendedIntentFall", e.target.value)}
+                placeholder="0"
+                type="number"
+                disabled={mode === "create"}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fechaUltBloqueo">Fecha Último Bloqueo</Label>
+              <Input
+                id="fechaUltBloqueo"
+                value={formData.UserExtendedFecHoraUltBloq}
+                onChange={(e) => handleInputChange("UserExtendedFecHoraUltBloq", e.target.value)}
+                type="datetime-local"
+                disabled={mode === "create"}
               />
             </div>
           </div>
@@ -270,22 +294,20 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
         {/* Configuración del Usuario */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            Configuración del Usuario
-          </h3>
+          <h3 className="text-lg font-semibold mb-4">Configuración del Usuario</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
               <Select
-                value={formData.estado}
-                onValueChange={(value) => handleInputChange("estado", value)}
+                value={formData.UserExtendedEstado}
+                onValueChange={(value) => handleInputChange("UserExtendedEstado", value)}
               >
                 <SelectTrigger>
-                  {formData.estado === "A" ? "Activo" : "Inactivo"}
+                  <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="A">Activo</SelectItem>
-                  <SelectItem value="I">Inactivo</SelectItem>
+                  <SelectItem value="S">Activo</SelectItem>
+                  <SelectItem value="N">Inactivo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -293,13 +315,11 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
             <div className="space-y-2">
               <Label htmlFor="tipoUsuario">Tipo de Usuario</Label>
               <Select
-                value={formData.tipoUsuario}
-                onValueChange={(value) =>
-                  handleInputChange("tipoUsuario", value)
-                }
+                value={formData.UserExtendedTipoUser}
+                onValueChange={(value) => handleInputChange("UserExtendedTipoUser", value)}
               >
                 <SelectTrigger>
-                  {formData.tipoUsuario === "G" ? "Global" : "Local"}
+                  <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="G">Global</SelectItem>
@@ -309,176 +329,102 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
             </div>
 
             <div className="space-y-3">
-              <Label>Utiliza externo</Label>
+              <Label>Usuario Root</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.externo}
+                  checked={formData.UserExtendedRoot === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange("externo", checked)
+                    handleInputChange("UserExtendedRoot", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.externo ? "Habilitado" : "Deshabilitado"}
+                  {formData.UserExtendedRoot === "S" ? "Sí" : "No"}
                 </span>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label>Puede Modificar Permisos</Label>
+              <Label>Usuario Externo</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.modPerm}
+                  checked={formData.UserExtendedExterno === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange("modPerm", checked)
+                    handleInputChange("UserExtendedExterno", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.modPerm ? "Permitido" : "No permitido"}
+                  {formData.UserExtendedExterno === "S" ? "Habilitado" : "Deshabilitado"}
                 </span>
               </div>
             </div>
 
             <div className="space-y-3">
-              <Label>Forzar Cambio de Contraseña</Label>
+              <Label>Desde Sistema</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.cambioPass}
+                  checked={formData.UserExtendedDesdeSistema === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange("cambioPass", checked)
+                    handleInputChange("UserExtendedDesdeSistema", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.cambioPass ? "Sí" : "No"}
+                  {formData.UserExtendedDesdeSistema === "S" ? "Sí" : "No"}
                 </span>
               </div>
             </div>
 
-            {formData.externo && (
+            {formData.UserExtendedExterno === "S" && (
               <div className="space-y-2">
-                <Label htmlFor="userExterno">Usuario externo</Label>
+                <Label htmlFor="userExterno">Usuario Externo</Label>
                 <Input
                   id="userExterno"
-                  value={formData.userExterno}
-                  onChange={(e) =>
-                    handleInputChange("userExterno", e.target.value)
-                  }
-                  placeholder="Usuario para externo"
+                  value={formData.UserExtendedUserExterno}
+                  onChange={(e) => handleInputChange("UserExtendedUserExterno", e.target.value)}
+                  placeholder="Usuario para autenticación externa"
                 />
               </div>
             )}
           </div>
         </Card>
 
-        {/* Observaciones */}
+        {/* Fechas e Historial */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Observaciones</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="observacion">Observación Principal</Label>
-              <Input
-                id="observacion"
-                value={formData.observacion}
-                onChange={(e) =>
-                  handleInputChange("observacion", e.target.value)
-                }
-                placeholder="Observaciones del usuario"
-                maxLength={120}
-              />
-              <p className="text-xs text-muted-foreground">
-                {formData.observacion.length}/120 caracteres
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observacion2">Observación Extendida</Label>
-              <Input
-                id="observacion2"
-                value={formData.observacion2}
-                onChange={(e) =>
-                  handleInputChange("observacion2", e.target.value)
-                }
-                placeholder="Observaciones adicionales"
-                maxLength={120}
-              />
-              <p className="text-xs text-muted-foreground">
-                {formData.observacion2.length}/120 caracteres
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Fechas y Auditoría */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            Información de Auditoría
-          </h3>
+          <h3 className="text-lg font-semibold mb-4">Fechas e Historial</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="cantFail">Intentos Fallidos</Label>
+              <Label htmlFor="fechaIngreso">Fecha de Ingreso</Label>
               <Input
-                id="cantFail"
-                type="number"
-                value={formData.cantFail}
-                disabled
-                placeholder="0"
-                className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                id="fechaIngreso"
+                value={formData.UserExtendedFechaIngreso}
+                onChange={(e) => handleInputChange("UserExtendedFechaIngreso", e.target.value)}
+                type="date"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fchIns">Fecha de Creación</Label>
+              <Label htmlFor="fechaBaja">Fecha de Baja</Label>
               <Input
-                id="fchIns"
+                id="fechaBaja"
+                value={formData.UserExtendedFechaBaja}
+                onChange={(e) => handleInputChange("UserExtendedFechaBaja", e.target.value)}
+                type="date"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fechaUltLogin">Fecha Último Login</Label>
+              <Input
+                id="fechaUltLogin"
+                value={formData.UserExtendedFechaUltLogin}
+                onChange={(e) => handleInputChange("UserExtendedFechaUltLogin", e.target.value)}
                 type="datetime-local"
-                value={formData.fchIns}
-                disabled
+                disabled={mode === "create"}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fchBaja">Fecha de Baja</Label>
-              <Input
-                id="fchBaja"
-                type="datetime-local"
-                value={formData.fchBaja}
-                disabled
-                placeholder="No dado de baja"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fchUltLog">Último Login</Label>
-              <Input
-                id="fchUltLog"
-                value={formData.fchUltLog}
-                disabled
-                placeholder="Nunca"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fchUltBloqueo">Último Bloqueo</Label>
-              <Input
-                id="fchUltBloqueo"
-                value={formData.fchUltBloqueo}
-                disabled
-                placeholder="Nunca bloqueado"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="creadoPor">Creado Por</Label>
-              <Input id="creadoPor" value={formData.creadoPor} disabled />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fchUltPerm">Último Permiso</Label>
-              <Input
-                id="fchUltPerm"
-                value={formData.fchUltPerm}
-                disabled
-                placeholder="Sin permisos asignados"
-              />
+              {mode === "create" && (
+                <p className="text-xs text-muted-foreground">
+                  Se establecerá automáticamente en el primer login
+                </p>
+              )}
             </div>
           </div>
         </Card>
