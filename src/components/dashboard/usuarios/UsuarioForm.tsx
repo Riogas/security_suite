@@ -9,8 +9,9 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Key, RotateCcw } from "lucide-react";
+import { ArrowLeft, Save, Key, RotateCcw, Users } from "lucide-react";
 import { apiUsuarios } from "@/services/api";
+import AsignarRolesModal from "./AsignarRolesModal";
 
 interface UsuarioFormProps {
   mode: "create" | "edit";
@@ -40,11 +41,13 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     UserExtendedDesdeSistema: "N",
   });
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
 
   useEffect(() => {
     if (mode === "edit" && userId) {
       const loadUserData = async () => {
         try {
+          console.log('Cargando datos de usuario - activando loading');
           setLoading(true);
           const response = await apiUsuarios({
             FiltroTexto: "",
@@ -55,7 +58,11 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           });
           
           const users = response?.SdtUsuarios || [];
-          const user = users.find((u: any) => u.UserExtendedId === userId);
+          console.log('Usuarios cargados:', users.length);
+          console.log('Buscando usuario con ID:', userId, 'tipo:', typeof userId);
+          console.log('Primeros usuarios para comparar IDs:', users.slice(0, 3).map((u: any) => ({ id: u.UserExtendedId, tipo: typeof u.UserExtendedId })));
+          const user = users.find((u: any) => u.UserExtendedId === userId || u.UserExtendedId === parseInt(userId || '0'));
+          console.log('Usuario encontrado:', user);
           
           if (user) {
             setFormData({
@@ -77,6 +84,10 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               UserExtendedFecHoraUltBloq: user.UserExtendedFecHoraUltBloq || "",
               UserExtendedDesdeSistema: user.UserExtendedDesdeSistema || "N",
             });
+            console.log('FormData establecido:', {
+              UserExtendedEstado: user.UserExtendedEstado,
+              formDataEstado: user.UserExtendedEstado || "S"
+            });
           } else {
             toast.error("Usuario no encontrado");
             router.push("/dashboard/usuarios");
@@ -85,6 +96,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           console.error("Error cargando usuario:", error);
           toast.error("Error al cargar los datos del usuario");
         } finally {
+          console.log('Carga de usuario completada - desactivando loading');
           setLoading(false);
         }
       };
@@ -95,6 +107,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('HandleSubmit llamado - activando loading');
     setLoading(true);
 
     try {
@@ -109,6 +122,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     } catch (error) {
       toast.error("Error al guardar el usuario");
     } finally {
+      console.log('HandleSubmit completado - desactivando loading');
       setLoading(false);
     }
   };
@@ -146,15 +160,26 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         
         <div className="flex gap-2">
           {mode === "edit" && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handlePasswordReset}
-              className="flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Resetear Contraseña
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowRolesModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                Asignar Roles
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePasswordReset}
+                className="flex items-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Resetear Contraseña
+              </Button>
+            </>
           )}
           <Button
             variant="outline"
@@ -429,6 +454,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           </div>
         </Card>
       </form>
+
+      {/* Modal de Asignación de Roles */}
+      <AsignarRolesModal
+        isOpen={showRolesModal}
+        onClose={() => setShowRolesModal(false)}
+        userId={userId || ""}
+        userName={formData.UserExtendedUserName || "Usuario"}
+      />
     </div>
   );
 }

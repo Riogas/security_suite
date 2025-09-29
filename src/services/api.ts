@@ -899,3 +899,173 @@ export const apiImportarUsuario = async (
     throw error;
   }
 };
+
+// =====================
+// ✅ Servicio: Asignar roles a usuario (POST /setRol)
+// Body: { UserId: number, sdtAsignacionRoles: [{ RolId, UsuarioRolFchDesde, UsuarioRolFchHasta }] }
+// =====================
+export type AsignacionRol = {
+  RolId: number;
+  UsuarioRolFchDesde: string; // ISO date string
+  UsuarioRolFchHasta: string; // ISO date string
+};
+
+export type SetRolReq = {
+  UserId: number;
+  sdtAsignacionRoles: AsignacionRol[];
+};
+
+export type SetRolResp = {
+  success: boolean;
+  message?: string;
+  [k: string]: unknown;
+};
+
+export const apiSetRol = async (
+  payload: SetRolReq,
+  opts?: { signal?: AbortSignal },
+): Promise<SetRolResp> => {
+  try {
+    const res = await api.post("/setRol", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as SetRolResp;
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Obtener roles asignados al usuario (POST /getRoles)
+// Body: {} (vacío)
+// Respuesta: Array de roles asignados al usuario actual
+// =====================
+export type RolAsignado = {
+  RolId: number;
+  RolNombre: string;
+  RolDescripcion: string;
+  RolEstado: string;
+  RolNivel: number;
+  RolFchIns: string;
+  AplicacionId: number;
+  RolCreadoEn: string;
+  AplicacionNombre: string;
+  esRoot: string;
+};
+
+export const apiGetRoles = async (
+  opts?: { signal?: AbortSignal },
+): Promise<RolAsignado[]> => {
+  try {
+    const res = await api.post("/getRoles", {}, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data || [];
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return [];
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Obtener roles asignados a un usuario específico (POST /getRolUsuario)
+// Body: { UserId: number }
+// Respuesta: Array de roles asignados al usuario especificado
+// =====================
+export type GetRolUsuarioReq = {
+  UserId: number;
+};
+
+export const apiGetRolUsuario = async (
+  req: GetRolUsuarioReq,
+  opts?: { signal?: AbortSignal },
+): Promise<RolAsignado[]> => {
+  try {
+    const res = await api.post("/getRolUsuario", req, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data || [];
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return [];
+    }
+
+    throw error;
+  }
+};

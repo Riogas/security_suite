@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4001",
+    "dev": "next dev -p 4005",
     "build": "next build",
-    "start": "next start -p 4001",
+    "start": "next start -p 4005",
     "lint": "next lint",
     "dev_docker": "docker compose -f docker-compose.yml -f docker-compose.override.yml up --build"
   },
