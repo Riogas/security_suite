@@ -13,9 +13,11 @@ services:
       NODE_ENV: "production"
       NEXT_TELEMETRY_DISABLED: "1"
 
-      # 🟢 Variables de runtime para tu frontend
+      # 🟢 Variables de runtime para tu frontend (sincronizadas con .env)
+      NEXT_PUBLIC_APLICACION_ID: "1"
       NEXT_PUBLIC_MENU_API_URL: "/api/Menu"
       NEXT_PUBLIC_PERMISOS_API_URL: "/api/Permisos"
+      PERMISOS_API_URL: "http://192.168.1.72:8082/servicios/SecuritySuite/Permisos"
 
       # (Opcional) si usás Sentry por env:
       # SENTRY_DSN: "https://<tu-dsn>"

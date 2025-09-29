@@ -13,4 +13,4 @@ RUN pnpm install
 # No copiamos el código todavía, porque lo montaremos como volumen
 EXPOSE 3000
 
-CMD ["pnpm", "dev"]
+CMD ["pnpm", "dev", "-p", "3000"]

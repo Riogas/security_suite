@@ -773,3 +773,129 @@ export const apiListarFuncionalidades = async (
     throw error;
   }
 };
+
+// ✅ Servicio: ABM Roles (POST /abmRoles)
+// =====================
+export type AbmRolesFuncionalidad = {
+  FuncionalidadId: number;
+  RolFuncionalidadFchIns: string;
+};
+
+export type AbmRolesReq = {
+  RolId: number;
+  AplicacionId: number;
+  RolNombre: string;
+  RolDescripcion: string;
+  RolEstado: string;
+  RolNivel: number;
+  RolFchIns: string;
+  RolCreadoEn: string;
+  Funcionalidad: AbmRolesFuncionalidad[];
+};
+
+export type AbmRolesResp = {
+  success: boolean;
+  message?: string;
+  RolId?: number;
+  [k: string]: unknown;
+};
+
+export const apiAbmRoles = async (
+  payload: AbmRolesReq,
+  opts?: { signal?: AbortSignal },
+): Promise<AbmRolesResp> => {
+  try {
+    const res = await api.post("/abmRoles", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      // Limpiar tokens en caso de unauthorized
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        }
+      } catch (cleanupError) {
+        console.warn("Error during token cleanup:", cleanupError);
+      }
+      
+      // Redirigir al login
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as AbmRolesResp;
+    }
+
+    throw error;
+  }
+};
+
+// ✅ Servicio: Importar Usuario (POST /importarUsuario)
+// =====================
+export type ImportarUsuarioReq = {
+  UserExtendedId: number;
+  AplicacionId?: number;
+};
+
+export type ImportarUsuarioResp = {
+  success: boolean;
+  message?: string;
+  UsuarioId?: number;
+  [k: string]: unknown;
+};
+
+export const apiImportarUsuario = async (
+  payload: ImportarUsuarioReq,
+  opts?: { signal?: AbortSignal },
+): Promise<ImportarUsuarioResp> => {
+  try {
+    const res = await api.post("/importarUsuario", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      // Limpiar tokens en caso de unauthorized
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        }
+      } catch (cleanupError) {
+        console.warn("Error during token cleanup:", cleanupError);
+      }
+      
+      // Redirigir al login
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as ImportarUsuarioResp;
+    }
+
+    throw error;
+  }
+};

@@ -13,15 +13,13 @@ export const useAppLoading = () => {
     hideLoading, 
     isLoading, 
     setAutoLoading, 
-    isAutoLoading,
-    forceHide 
+    isAutoLoading
   } = useLoading();
   
   return {
     // Control básico
     show: showLoading,
     hide: hideLoading,
-    forceHide, // Para emergencias
     isVisible: isLoading,
     
     // Control de auto-loading

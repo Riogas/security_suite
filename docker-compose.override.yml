@@ -9,7 +9,15 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next/cache
     environment:
       NODE_ENV: development
+      # 🟢 Variables sincronizadas con .env y producción
+      NEXT_PUBLIC_APLICACION_ID: "1"
       NEXT_PUBLIC_MENU_API_URL: "/api/Menu"
       NEXT_PUBLIC_PERMISOS_API_URL: "/api/Permisos"
+      PERMISOS_API_URL: "http://192.168.1.72:8082/servicios/SecuritySuite/Permisos"
+      # Optimizaciones para desarrollo
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Mejora performance en Docker
+      WATCHPACK_POLLING: "true"

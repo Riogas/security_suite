@@ -9,8 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { apiUsuarios } from "@/services/api";
-import { Pencil, Trash, Download, Mail, Phone, Calendar } from "lucide-react";
+import { apiUsuarios, apiImportarUsuario } from "@/services/api";
+import { Pencil, Trash, Download, Mail, Phone, Calendar, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function UsuariosTable() {
@@ -22,6 +22,8 @@ export default function UsuariosTable() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+  const [importingUsers, setImportingUsers] = useState<Set<number>>(new Set());
+  const [importedUsers, setImportedUsers] = useState<Set<number>>(new Set());
   const router = useRouter();
 
   // debounce
@@ -87,6 +89,55 @@ export default function UsuariosTable() {
       return (words[0][0] + words[1][0]).toUpperCase();
     }
     return nombre.substring(0, 1).toUpperCase() || "U";
+  };
+
+  // Función para importar un usuario del sistema externo
+  const handleImportUser = async (user: any) => {
+    const userId = user?.UserExtendedId;
+    if (!userId) {
+      console.error("ID de usuario no válido");
+      return;
+    }
+
+    try {
+      setImportingUsers(prev => new Set(prev).add(userId));
+      
+      const response = await apiImportarUsuario({
+        UserExtendedId: userId,
+        AplicacionId: 2, // Security Suite por defecto
+      });
+
+      if (response.success) {
+        console.log(`Usuario ${user?.UserExtendedNombre} importado exitosamente`);
+        setImportedUsers(prev => new Set(prev).add(userId));
+        
+        // Opcional: Actualizar la lista de usuarios
+        // Podrías recargar los datos o actualizar el estado local
+      } else {
+        console.error("Error al importar usuario:", response.message);
+      }
+    } catch (error) {
+      console.error("Error en la importación:", error);
+    } finally {
+      setImportingUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    }
+  };
+
+  // Función para determinar si un usuario debe mostrar el botón de importar
+  const shouldShowImportButton = (user: any) => {
+    const userId = user?.UserExtendedId;
+    // Solo mostrar el botón si:
+    // 1. Está activado el filtro "Sin importar" 
+    // 2. El usuario no ha sido importado previamente
+    // 3. El usuario tiene los campos necesarios
+    return sinMigrar && 
+           userId && 
+           !importedUsers.has(userId) &&
+           user?.UserExtendedNombre; // Verificar que tiene datos básicos
   };
 
   return (
@@ -177,9 +228,26 @@ export default function UsuariosTable() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">
-                    ID: {row?.UserExtendedId || "-"}
-                  </Badge>
+                  {(() => {
+                    const esUsuarioExterno = row?.sinMigrar;
+                    const tieneId = row?.UserExtendedId;
+                    
+                    if (esUsuarioExterno) {
+                      // Usuario externo que necesita ser importado - no tiene ID local
+                      return (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Sin asignar
+                        </Badge>
+                      );
+                    } else {
+                      // Usuario que existe en el sistema local - mostrar ID
+                      return (
+                        <Badge variant="secondary">
+                          ID: {tieneId || "-"}
+                        </Badge>
+                      );
+                    }
+                  })()}
                 </TableCell>
                 <TableCell>
                   {row?.UserExtendedTelefono ? (
@@ -202,32 +270,54 @@ export default function UsuariosTable() {
                 </TableCell>
                 <TableCell>
                   <div className="space-x-2">
-                    {sinMigrar && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => console.log("Importar usuario", row)}
-                      >
-                        <Download className="w-4 h-4" />
-                        <span className="ml-1">Importar</span>
-                      </Button>
+                    {shouldShowImportButton(row) ? (
+                      // Usuario externo - solo mostrar importar
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleImportUser(row)}
+                          disabled={importingUsers.has(row?.UserExtendedId)}
+                        >
+                          {importingUsers.has(row?.UserExtendedId) ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span className="ml-1">Importando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4" />
+                              <span className="ml-1">Importar</span>
+                            </>
+                          )}
+                        </Button>
+                        {importedUsers.has(row?.UserExtendedId) && (
+                          <Badge variant="default" className="bg-green-600 text-white">
+                            ✓ Importado
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      // Usuario local - mostrar editar y eliminar
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            router.push(`/dashboard/usuarios/editar/${row?.UserExtendedId || ""}`)
+                          }
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => console.log("Eliminar usuario", row)}
+                        >
+                          <Trash className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(`/dashboard/usuarios/editar/${row?.UserExtendedId || ""}`)
-                      }
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => console.log("Eliminar usuario", row)}
-                    >
-                      <Trash className="w-4 h-4" />
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

@@ -11,7 +11,6 @@ interface LoadingContextType {
   loadingText: string;
   setAutoLoading: (enabled: boolean) => void;
   isAutoLoading: boolean;
-  forceHide: () => void; // Nueva función para emergencias
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -81,15 +80,6 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({ children }) =>
 
   const setAutoLoading = (enabled: boolean) => {
     setIsAutoLoading(enabled);
-  };
-
-  const forceHide = () => {
-    // Función de emergencia para forzar que se oculte el loading
-    if (loadingTimeout) clearTimeout(loadingTimeout);
-    if (forceHideTimeout) clearTimeout(forceHideTimeout);
-    setIsLoading(false);
-    setLoadingTimeout(null);
-    setForceHideTimeout(null);
   };
 
   // Auto-loading en cambios de ruta
@@ -196,7 +186,6 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({ children }) =>
     loadingText,
     setAutoLoading,
     isAutoLoading,
-    forceHide,
   };
 
   return (

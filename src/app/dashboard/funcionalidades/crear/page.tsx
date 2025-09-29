@@ -1,12 +1,12 @@
 "use client";
 
-import FuncionalidadForm, { FuncionalidadData } from "@/components/dashboard/funcionalidades/FuncionalidadForm";
+import FuncionalidadForm from "@/components/dashboard/funcionalidades/FuncionalidadForm";
 
 export default function CrearFuncionalidadPage() {
-  const handleSubmit = (data: FuncionalidadData) => {
+  const handleSubmit = (data: any) => {
     console.log("submit crear funcionalidad", data);
   };
   return (
-    <FuncionalidadForm mode="create" onSubmit={handleSubmit} onCancel={() => history.back()} />
+    <FuncionalidadForm mode="create" onSave={handleSubmit} onCancel={() => history.back()} />
   );
 }
