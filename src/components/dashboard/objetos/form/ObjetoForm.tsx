@@ -327,7 +327,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     const hasKey = !!draft.accionkey && draft.accionkey.trim() !== "";
     const hasDesc = !!draft.acciondescripcion && draft.acciondescripcion.trim() !== "";
     if (hasKey && hasDesc) {
-      let newUid = genUid();
+      const newUid = genUid();
       let nextPageIndex = pageIndex;
       setForm((prev) => {
         const newAction = {

@@ -771,7 +771,7 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                         <Search className="h-12 w-12 text-gray-300 mb-3" />
                         <p className="text-lg font-medium mb-2">No se encontraron elementos</p>
                         <p className="text-sm text-center">
-                          Buscando: <strong>"{searchSelected}"</strong>
+                          Buscando: <strong>&quot;{searchSelected}&quot;</strong>
                         </p>
                       </div>
                     ) : (

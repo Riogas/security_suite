@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 import { es } from "date-fns/locale"
 
@@ -71,11 +70,6 @@ function Calendar({
         day_hidden: "invisible",
 
         ...classNames,
-      }}
-      // si tu versión no soporta IconLeft/IconRight, quita este bloque
-      components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-        IconRight: () => <ChevronRight className="h-4 w-4" />,
       }}
       {...props}
     />

@@ -800,6 +800,10 @@ export type AbmRolesResp = {
   [k: string]: unknown;
 };
 
+/* Duplicate apiObtenerRol removed to fix redeclaration error */
+
+
+
 export const apiAbmRoles = async (
   payload: AbmRolesReq,
   opts?: { signal?: AbortSignal },
@@ -837,6 +841,73 @@ export const apiAbmRoles = async (
 
     if (status === 403) {
       return (error?.response?.data || { reason: "FORBIDDEN" }) as AbmRolesResp;
+    }
+
+    throw error;
+  }
+};
+
+// =====================
+// ✅ Servicio: Obtener datos de un rol específico (POST /obtenerRol)
+// Body: { RolId: number }
+// Respuesta: { sdtRol: RolData }
+// =====================
+export type ObtenerRolReq = {
+  RolId: number;
+};
+
+export type RolFuncionalidad = {
+  FuncionalidadId: number;
+  RolFuncionalidadFchIns: string;
+};
+
+export type ObtenerRolResp = {
+  AplicacionId: string;
+  Funcionalidad: RolFuncionalidad[];
+  RolCreadoEn: string;
+  RolDescripcion: string;
+  RolEstado: string;
+  RolFchIns: string;
+  RolId: string;
+  RolNivel: string;
+  RolNombre: string;
+};
+
+export const apiObtenerRol = async (
+  payload: ObtenerRolReq,
+  opts?: { signal?: AbortSignal },
+): Promise<ObtenerRolResp> => {
+  try {
+    const res = await api.post("/obtenerRol", payload, {
+      signal: opts?.signal,
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    });
+
+    return res.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      try {
+        clearSentryUser();
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+        }
+        if (typeof document !== "undefined") {
+          document.cookie = "token=; path=/; max-age=0";
+        }
+      } catch {}
+      const e = new Error("UNAUTHORIZED");
+      (e as any).status = 401;
+      throw e;
+    }
+
+    if (status === 403) {
+      return (error?.response?.data || { reason: "FORBIDDEN" }) as ObtenerRolResp;
     }
 
     throw error;
@@ -916,6 +987,27 @@ export type SetRolReq = {
 };
 
 export type SetRolResp = {
+  success: boolean;
+  message?: string;
+  [k: string]: unknown;
+};
+
+// Tipos para Atributos de Usuario
+export interface UserPreference {
+  UserPreferenceId: number;
+  UserExtendedId: number;
+  UserPreferenceAtributo: string;
+  UserPreferenceValor: string;
+}
+
+export type GetAtributosResp = UserPreference[];
+
+export type ABMAtributosReq = {
+  sdtAtributos: UserPreference[];
+  UserId: number;
+};
+
+export type ABMAtributosResp = {
   success: boolean;
   message?: string;
   [k: string]: unknown;
@@ -1068,4 +1160,104 @@ export const apiGetRolUsuario = async (
 
     throw error;
   }
+};
+// =====================
+// âœ… Servicio: Obtener atributos del usuario (POST /getAtributos)
+// Body: {} (vacÃ­o)
+// Respuesta: Array de atributos del usuario actual
+// =====================
+export const apiGetAtributos = async (
+  opts?: { signal?: AbortSignal },
+): Promise<GetAtributosResp> => {
+  return withApiLogging(
+    "/getAtributos",
+    async () => {
+      try {
+        const res = await api.post("/getAtributos", {}, {
+          signal: opts?.signal,
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        });
+
+        return res.data;
+      } catch (error: any) {
+        const status = error?.response?.status;
+
+        if (status === 401) {
+          try {
+            clearSentryUser();
+          } catch {}
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("user");
+              localStorage.removeItem("token");
+            }
+            if (typeof document !== "undefined") {
+              document.cookie = "token=; path=/; max-age=0";
+            }
+          } catch {}
+          const e = new Error("UNAUTHORIZED");
+          (e as any).status = 401;
+          throw e;
+        }
+
+        if (status === 403) {
+          return [];
+        }
+
+        throw error;
+      }
+    },
+  );
+};
+
+// =====================
+// âœ… Servicio: Guardar/Editar atributos del usuario (POST /ABMAtributos)
+// Body: Array de UserPreference
+// Respuesta: ConfirmaciÃ³n de Ã©xito
+// =====================
+export const apiABMAtributos = async (
+  payload: ABMAtributosReq,
+  opts?: { signal?: AbortSignal },
+): Promise<ABMAtributosResp> => {
+  return withApiLogging(
+    "/ABMAtributos",
+    async () => {
+      try {
+        const res = await api.post("/ABMAtributos", payload, {
+          signal: opts?.signal,
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        });
+
+        return res.data;
+      } catch (error: any) {
+        const status = error?.response?.status;
+
+        if (status === 401) {
+          try {
+            clearSentryUser();
+          } catch {}
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("user");
+              localStorage.removeItem("token");
+            }
+            if (typeof document !== "undefined") {
+              document.cookie = "token=; path=/; max-age=0";
+            }
+          } catch {}
+          const e = new Error("UNAUTHORIZED");
+          (e as any).status = 401;
+          throw e;
+        }
+
+        if (status === 403) {
+          return { success: false, message: "FORBIDDEN" };
+        }
+
+        throw error;
+      }
+    },
+  );
 };

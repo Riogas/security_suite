@@ -39,6 +39,7 @@ export type RolFormState = {
 
 export type RoleFormProps = {
   initialData?: Partial<RolFormState>;
+  initialFuncionalidades?: FuncionalidadItem[];
   onSubmit?: (data: RolFormState) => void | Promise<void>;
 };
 
@@ -47,7 +48,7 @@ const APP_OPTIONS = [
   { value: "3", label: "GOYA" },
 ] as const;
 
-export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
+export default function RoleForm({ initialData, initialFuncionalidades, onSubmit }: RoleFormProps) {
   const router = useRouter();
 
   const initialApp = APP_OPTIONS[0];
@@ -74,7 +75,7 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
 
   // Estados para drag and drop de funcionalidades
   const [funcionalidadesDisponibles, setFuncionalidadesDisponibles] = useState<FuncionalidadItem[]>([]);
-  const [funcionalidadesAsignadas, setFuncionalidadesAsignadas] = useState<FuncionalidadItem[]>([]);
+  const [funcionalidadesAsignadas, setFuncionalidadesAsignadas] = useState<FuncionalidadItem[]>(initialFuncionalidades || []);
   const [activeDragItem, setActiveDragItem] = useState<FuncionalidadItem | null>(null);
   const [isLoadingFuncionalidades, setIsLoadingFuncionalidades] = useState(true);
 
@@ -96,10 +97,14 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
             accionesCount: func.Accion?.length || 0,
           }));
           
-          setFuncionalidadesDisponibles(funcionalidades);
+          // Filtrar las funcionalidades que ya están asignadas
+          const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
+          const funcionalidadesFiltradas = funcionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
+          
+          setFuncionalidadesDisponibles(funcionalidadesFiltradas);
         } else {
           // Usar datos mock como fallback
-          setFuncionalidadesDisponibles([
+          const mockFuncionalidades = [
             {
               id: "1",
               nombre: "Gestión de Usuarios",
@@ -135,12 +140,18 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
               objetosCount: 4,
               accionesCount: 12
             }
-          ]);
+          ];
+          
+          // Filtrar las funcionalidades que ya están asignadas
+          const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
+          const funcionalidadesFiltradas = mockFuncionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
+          
+          setFuncionalidadesDisponibles(funcionalidadesFiltradas);
         }
       } catch (error) {
         console.error("Error al cargar funcionalidades:", error);
         // En caso de error, usar datos mock como fallback
-        setFuncionalidadesDisponibles([
+        const mockFuncionalidades = [
           {
             id: "1",
             nombre: "Gestión de Usuarios",
@@ -176,7 +187,13 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
             objetosCount: 4,
             accionesCount: 12
           }
-        ]);
+        ];
+        
+        // Filtrar las funcionalidades que ya están asignadas
+        const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
+        const funcionalidadesFiltradas = mockFuncionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
+        
+        setFuncionalidadesDisponibles(funcionalidadesFiltradas);
       } finally {
         setIsLoadingFuncionalidades(false);
       }
@@ -264,23 +281,61 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
     const { active, over } = event;
     setActiveDragItem(null);
 
-    if (!over) return;
+    console.log('=== DRAG END ===');
+    console.log('Active ID:', active.id);
+    console.log('Over ID:', over?.id);
+
+    if (!over) {
+      console.log('No over target, returning');
+      return;
+    }
 
     const activeId = active.id as string;
     const overId = over.id as string;
+
+    console.log('Active ID (string):', activeId);
+    console.log('Over ID (string):', overId);
 
     // Buscar el item en ambas listas
     const sourceFromDisponibles = funcionalidadesDisponibles.find((item) => item.id === activeId);
     const sourceFromAsignadas = funcionalidadesAsignadas.find((item) => item.id === activeId);
 
+    console.log('Source from disponibles:', sourceFromDisponibles);
+    console.log('Source from asignadas:', sourceFromAsignadas);
+
+    // Determinar en qué zona se soltó el elemento
+    // Si se soltó sobre el contenedor droppable directamente
     if (overId === "disponibles-droppable" && sourceFromAsignadas) {
-      // Mover de asignadas a disponibles
+      console.log('Moving from asignadas to disponibles (container drop)');
       setFuncionalidadesAsignadas((prev) => prev.filter((item) => item.id !== activeId));
       setFuncionalidadesDisponibles((prev) => [...prev, sourceFromAsignadas]);
     } else if (overId === "asignadas-droppable" && sourceFromDisponibles) {
-      // Mover de disponibles a asignadas
+      console.log('Moving from disponibles to asignadas (container drop)');
       setFuncionalidadesDisponibles((prev) => prev.filter((item) => item.id !== activeId));
       setFuncionalidadesAsignadas((prev) => [...prev, sourceFromDisponibles]);
+    } 
+    // Si se soltó sobre una funcionalidad específica, determinar a qué zona pertenece
+    else {
+      const targetInAsignadas = funcionalidadesAsignadas.find((item) => item.id === overId);
+      const targetInDisponibles = funcionalidadesDisponibles.find((item) => item.id === overId);
+
+      if (targetInAsignadas && sourceFromDisponibles) {
+        console.log('Moving from disponibles to asignadas (element drop)');
+        setFuncionalidadesDisponibles((prev) => prev.filter((item) => item.id !== activeId));
+        setFuncionalidadesAsignadas((prev) => [...prev, sourceFromDisponibles]);
+      } else if (targetInDisponibles && sourceFromAsignadas) {
+        console.log('Moving from asignadas to disponibles (element drop)');
+        setFuncionalidadesAsignadas((prev) => prev.filter((item) => item.id !== activeId));
+        setFuncionalidadesDisponibles((prev) => [...prev, sourceFromAsignadas]);
+      } else {
+        console.log('No matching condition:', { 
+          overId, 
+          hasSourceFromAsignadas: !!sourceFromAsignadas, 
+          hasSourceFromDisponibles: !!sourceFromDisponibles,
+          targetInAsignadas: !!targetInAsignadas,
+          targetInDisponibles: !!targetInDisponibles
+        });
+      }
     }
   };
 
@@ -356,7 +411,10 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
     });
 
     return (
-      <Card className={`h-[400px] ${isOver ? 'ring-2 ring-blue-500 bg-blue-50/5' : ''}`}>
+      <Card 
+        ref={setNodeRef}
+        className={`h-[400px] ${isOver ? 'ring-2 ring-blue-500 bg-blue-50/5' : ''}`}
+      >
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             {icon}
@@ -367,10 +425,7 @@ export default function RoleForm({ initialData, onSubmit }: RoleFormProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div
-            ref={setNodeRef}
-            className="space-y-2 h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600"
-          >
+          <div className="space-y-2 h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
             <SortableContext items={items} strategy={verticalListSortingStrategy}>
               {items.map((item) => (
                 <FuncionalidadCard key={item.id} funcionalidad={item} />

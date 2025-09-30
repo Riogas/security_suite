@@ -29,7 +29,7 @@ export function PaginationControls({
     const showPages = 5; // Número de páginas a mostrar
     
     let start = Math.max(1, currentPage - Math.floor(showPages / 2));
-    let end = Math.min(totalPages, start + showPages - 1);
+    const end = Math.min(totalPages, start + showPages - 1);
     
     // Ajustar el inicio si no hay suficientes páginas al final
     if (end - start + 1 < showPages) {

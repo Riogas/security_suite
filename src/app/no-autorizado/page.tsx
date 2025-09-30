@@ -1,6 +1,7 @@
 // src/app/no-autorizado/page.tsx
 import { LockKeyhole } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { headers, cookies } from "next/headers";
 import CopyClipboard from "./CopyClipboard";
 import CurrentDateTime from "./CurrentDateTime";
@@ -85,9 +86,9 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
         )}
 
         <div className="flex w-full gap-3">
-          <a href="/" className="flex-1 px-5 py-2 rounded-lg bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition text-center">
+          <Link href="/" className="flex-1 px-5 py-2 rounded-lg bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition text-center">
             Volver al inicio
-          </a>
+          </Link>
           <a href={mailto} className="flex-1 px-5 py-2 rounded-lg bg-[#374151] text-white font-semibold hover:bg-[#4b5563] transition text-center">
             Solicitar acceso
           </a>

@@ -9,9 +9,10 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Key, RotateCcw, Users } from "lucide-react";
+import { ArrowLeft, Save, Key, RotateCcw, Users, Settings } from "lucide-react";
 import { apiUsuarios } from "@/services/api";
 import AsignarRolesModal from "./AsignarRolesModal";
+import AtributosModal from "./AtributosModal";
 
 interface UsuarioFormProps {
   mode: "create" | "edit";
@@ -42,6 +43,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   });
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
+  const [showAtributosModal, setShowAtributosModal] = useState(false);
 
   useEffect(() => {
     if (mode === "edit" && userId) {
@@ -169,6 +171,15 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               >
                 <Users className="w-4 h-4" />
                 Asignar Roles
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAtributosModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Atributos
               </Button>
               <Button
                 type="button"
@@ -459,7 +470,15 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
       <AsignarRolesModal
         isOpen={showRolesModal}
         onClose={() => setShowRolesModal(false)}
-        userId={userId || ""}
+        userId={parseInt(userId || "0")}
+        userName={formData.UserExtendedUserName || "Usuario"}
+      />
+
+      {/* Modal de Atributos */}
+      <AtributosModal
+        isOpen={showAtributosModal}
+        onClose={() => setShowAtributosModal(false)}
+        userId={parseInt(userId || "0")}
         userName={formData.UserExtendedUserName || "Usuario"}
       />
     </div>

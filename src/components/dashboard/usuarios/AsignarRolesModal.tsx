@@ -37,7 +37,7 @@ interface Rol {
 interface AsignarRolesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userId: string;
+  userId: number;
   userName: string;
 }
 
@@ -121,7 +121,7 @@ export default function AsignarRolesModal({
       // Obtener roles ya asignados al usuario específico
       let rolesAsignadosData = [];
       try {
-        const userIdNumber = parseInt(userId);
+        const userIdNumber = userId;
         console.log('UserId convertido a número:', userIdNumber);
         
         if (!isNaN(userIdNumber)) {
@@ -136,9 +136,10 @@ export default function AsignarRolesModal({
             rolesAsignadosData = rolesAsignadosResponse;
           } else if (rolesAsignadosResponse && typeof rolesAsignadosResponse === 'object') {
             // Si es un objeto, verificar si tiene una propiedad con array de roles
-            rolesAsignadosData = rolesAsignadosResponse.roles || 
-                               rolesAsignadosResponse.sdtRoles || 
-                               rolesAsignadosResponse.SdtRoles || 
+            const response = rolesAsignadosResponse as any;
+            rolesAsignadosData = response.roles || 
+                               response.sdtRoles || 
+                               response.SdtRoles || 
                                [];
           } else {
             rolesAsignadosData = [];
@@ -268,7 +269,7 @@ export default function AsignarRolesModal({
       console.log("userId:", userId);
       
       // Convertir userId a número
-      const userIdNumber = parseInt(userId);
+      const userIdNumber = userId;
       if (isNaN(userIdNumber)) {
         toast.error("Error: ID de usuario inválido");
         return;
