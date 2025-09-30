@@ -1,17 +1,46 @@
 "use client";
 
-import { apiAbmObjetos, apiListarObjetos, type ListarObjetosItem } from "@/services/api";
+import {
+  apiAbmObjetos,
+  apiListarObjetos,
+  type ListarObjetosItem,
+} from "@/services/api";
 import { useEffect, useMemo, useState, memo, useRef } from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { RefreshCw, Link2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DndContext,
   closestCenter,
@@ -30,7 +59,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import IconPicker, { IconName } from "@/components/dashboard/iconpicker";
 
-
 // ✅ FUERA de ObjetoForm (ámbito de módulo)
 type SortableRowProps = {
   id: string;
@@ -43,8 +71,14 @@ export const SortableRow = memo(function SortableRow({
   disabled,
   children,
 }: SortableRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -74,7 +108,10 @@ export const SortableRow = memo(function SortableRow({
 
 // Generador de códigos estable basado en Web Crypto (Base32 tipo XXXX-XXXX)
 const ROUTE_SALT = "OBJ-ACCION-V1";
-async function routeCode(pathname: string, salt: string = ROUTE_SALT): Promise<string> {
+async function routeCode(
+  pathname: string,
+  salt: string = ROUTE_SALT,
+): Promise<string> {
   const enc = new TextEncoder().encode(`${salt}|${pathname}`);
   const digest = await crypto.subtle.digest("SHA-256", enc);
   const bytes = new Uint8Array(digest);
@@ -132,7 +169,9 @@ export type Accion = {
 function genUid() {
   // Stable random id in client
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (typeof crypto !== "undefined" && (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2));
+  return typeof crypto !== "undefined" && (crypto as any).randomUUID
+    ? (crypto as any).randomUUID()
+    : Math.random().toString(36).slice(2);
 }
 
 export type ObjetoFormState = {
@@ -177,7 +216,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     ...(initialData ?? {}),
     objetocreadoen:
       initialData?.objetocreadoen ??
-      (APP_OPTIONS.find((a) => a.value === (initialData?.aplicacionid ?? initialApp.value))?.label ?? initialApp.label),
+      APP_OPTIONS.find(
+        (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
+      )?.label ??
+      initialApp.label,
     acciones: (initialData?.acciones ?? []).map((a, idx) => ({
       uid: (a as any).uid ?? genUid(),
       accionid: a.accionid ?? "",
@@ -185,7 +227,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       acciondescripcion: a.acciondescripcion ?? "",
       accioncreadoen:
         a.accioncreadoen ??
-        (APP_OPTIONS.find((x) => x.value === (initialData?.aplicacionid ?? initialApp.value))?.label ?? initialApp.label),
+        APP_OPTIONS.find(
+          (x) => x.value === (initialData?.aplicacionid ?? initialApp.value),
+        )?.label ??
+        initialApp.label,
       accioncodigo: a.accioncodigo ?? "",
       accionlabel: (a as any).accionlabel ?? "",
       accionpath: (a as any).accionpath ?? "",
@@ -201,7 +246,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       ...initialData,
       objetocreadoen:
         initialData.objetocreadoen ??
-        (APP_OPTIONS.find((a) => a.value === (initialData.aplicacionid ?? prev.aplicacionid))?.label ?? prev.objetocreadoen),
+        APP_OPTIONS.find(
+          (a) => a.value === (initialData.aplicacionid ?? prev.aplicacionid),
+        )?.label ??
+        prev.objetocreadoen,
       acciones: (initialData.acciones ?? []).map((a) => ({
         uid: (a as any).uid ?? genUid(),
         accionid: a.accionid ?? "",
@@ -209,7 +257,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
         acciondescripcion: a.acciondescripcion ?? "",
         accioncreadoen:
           a.accioncreadoen ??
-          (APP_OPTIONS.find((x) => x.value === (initialData.aplicacionid ?? prev.aplicacionid))?.label ?? prev.objetocreadoen),
+          APP_OPTIONS.find(
+            (x) => x.value === (initialData.aplicacionid ?? prev.aplicacionid),
+          )?.label ??
+          prev.objetocreadoen,
         accioncodigo: a.accioncodigo ?? "",
         accionlabel: (a as any).accionlabel ?? "",
         accionpath: (a as any).accionpath ?? "",
@@ -220,15 +271,20 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(initialData)]);
 
-  const setField = <K extends keyof ObjetoFormState>(key: K, value: ObjetoFormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const setField = <K extends keyof ObjetoFormState>(
+    key: K,
+    value: ObjetoFormState[K],
+  ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const tipoEsMenu = form.objetotipo === "MENU";
 
   // Acciones tabla dinámica con paginación
   const [pageIndex, setPageIndex] = useState(0);
   const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil((form.acciones.length + 1) / pageSize)); // +1 fila libre
+  const totalPages = Math.max(
+    1,
+    Math.ceil((form.acciones.length + 1) / pageSize),
+  ); // +1 fila libre
   const [submitting, setSubmitting] = useState(false);
   const [relationOpen, setRelationOpen] = useState(false);
   const [relationRow, setRelationRow] = useState<number | null>(null);
@@ -243,13 +299,18 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   const [relationTotal, setRelationTotal] = useState(0);
   const [relationLoading, setRelationLoading] = useState(false);
   // Labels a mostrar en la columna de relación (mostrar ObjetoKey, guardar ObjetoId)
-  const [relationLabels, setRelationLabels] = useState<Record<string, string>>({});
+  const [relationLabels, setRelationLabels] = useState<Record<string, string>>(
+    {},
+  );
   const [accionDraft, setAccionDraft] = useState<Accion>(() => ({
     uid: "free-row",
     accionid: "",
     accionkey: "",
     acciondescripcion: "",
-    accioncreadoen: APP_OPTIONS.find((a) => a.value === (initialData?.aplicacionid ?? initialApp.value))?.label ?? initialApp.label,
+    accioncreadoen:
+      APP_OPTIONS.find(
+        (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
+      )?.label ?? initialApp.label,
     accioncodigo: "",
     accionlabel: "",
     accionpath: "",
@@ -260,13 +321,24 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   // Buffer local para campos opcionales por fila (evita perder foco al tipear)
   const [rowEdits, setRowEdits] = useState<Record<string, Partial<Accion>>>({});
   function setRowEdit(uid: string, patch: Partial<Accion>) {
-    setRowEdits((prev) => ({ ...prev, [uid]: { ...(prev[uid] || {}), ...patch } }));
+    setRowEdits((prev) => ({
+      ...prev,
+      [uid]: { ...(prev[uid] || {}), ...patch },
+    }));
   }
-  function getRowEditValue<T extends keyof Accion>(uid: string, key: T, fallback: Accion[T]) {
+  function getRowEditValue<T extends keyof Accion>(
+    uid: string,
+    key: T,
+    fallback: Accion[T],
+  ) {
     const v = rowEdits[uid]?.[key];
     return (v as Accion[T]) ?? fallback;
   }
-  function commitRowEdit<T extends keyof Accion>(uid: string, key: T, idxGlobal: number) {
+  function commitRowEdit<T extends keyof Accion>(
+    uid: string,
+    key: T,
+    idxGlobal: number,
+  ) {
     const v = rowEdits[uid]?.[key];
     if (typeof v === "undefined") return;
     upsertAccion(idxGlobal, { [key]: v } as Partial<Accion>);
@@ -274,7 +346,8 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       const copy = { ...prev } as Record<string, Partial<Accion>>;
       const obj = { ...(copy[uid] || {}) } as Partial<Accion>;
       delete (obj as any)[key];
-      if (Object.keys(obj).length) copy[uid] = obj; else delete copy[uid];
+      if (Object.keys(obj).length) copy[uid] = obj;
+      else delete copy[uid];
       return copy;
     });
   }
@@ -282,7 +355,9 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   // DnD sensors
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    }),
   );
 
   const accionesPaginadas = useMemo(() => {
@@ -325,7 +400,8 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   function commitDraftIfFilled() {
     const draft = accionDraft;
     const hasKey = !!draft.accionkey && draft.accionkey.trim() !== "";
-    const hasDesc = !!draft.acciondescripcion && draft.acciondescripcion.trim() !== "";
+    const hasDesc =
+      !!draft.acciondescripcion && draft.acciondescripcion.trim() !== "";
     if (hasKey && hasDesc) {
       const newUid = genUid();
       let nextPageIndex = pageIndex;
@@ -333,7 +409,9 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
         const newAction = {
           ...draft,
           uid: newUid,
-          accioncreadoen: APP_OPTIONS.find((a) => a.value === prev.aplicacionid)?.label ?? prev.objetocreadoen,
+          accioncreadoen:
+            APP_OPTIONS.find((a) => a.value === prev.aplicacionid)?.label ??
+            prev.objetocreadoen,
         } as Accion;
         const acciones = [...prev.acciones, newAction];
         // Página donde cae la nueva fila (según índice en la lista existente)
@@ -350,7 +428,9 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
         accionkey: "",
         acciondescripcion: "",
         accioncreadoen:
-          APP_OPTIONS.find((a) => a.value === (initialData?.aplicacionid ?? initialApp.value))?.label ?? initialApp.label,
+          APP_OPTIONS.find(
+            (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
+          )?.label ?? initialApp.label,
         accioncodigo: "",
         accionlabel: "",
         accionpath: "",
@@ -363,13 +443,24 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   // Al cambiar la clave, autogenerar el código de la acción (en base a objetokey + accionkey)
   // además autocompletar Etiqueta (primera letra mayúscula) y Ruta (/dashboard/<accionkey>)
   async function handleAccionKeyChange(idxGlobal: number, keyVal: string) {
-    const labelFromKey = keyVal ? keyVal.charAt(0).toUpperCase() + keyVal.slice(1) : "";
+    const labelFromKey = keyVal
+      ? keyVal.charAt(0).toUpperCase() + keyVal.slice(1)
+      : "";
     const pathFromKey = `/dashboard/${keyVal}`;
 
     if (idxGlobal >= form.acciones.length) {
-      setAccionDraft((prev) => ({ ...prev, accionkey: keyVal, accionlabel: labelFromKey, accionpath: pathFromKey }));
+      setAccionDraft((prev) => ({
+        ...prev,
+        accionkey: keyVal,
+        accionlabel: labelFromKey,
+        accionpath: pathFromKey,
+      }));
     } else {
-      upsertAccion(idxGlobal, { accionkey: keyVal, accionlabel: labelFromKey, accionpath: pathFromKey });
+      upsertAccion(idxGlobal, {
+        accionkey: keyVal,
+        accionlabel: labelFromKey,
+        accionpath: pathFromKey,
+      });
     }
 
     const trimmed = keyVal.trim();
@@ -400,13 +491,15 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     const key = (acc.accionkey || "").trim();
     const objKey = (form.objetokey || "").trim();
     if (!key || !objKey) {
-      if (idxGlobal >= form.acciones.length) setAccionDraft((prev) => ({ ...prev, accioncodigo: "" }));
+      if (idxGlobal >= form.acciones.length)
+        setAccionDraft((prev) => ({ ...prev, accioncodigo: "" }));
       else upsertAccion(idxGlobal, { accioncodigo: "" });
       return;
     }
     try {
       const code = await generateActionCode(objKey, key);
-      if (idxGlobal >= form.acciones.length) setAccionDraft((prev) => ({ ...prev, accioncodigo: code }));
+      if (idxGlobal >= form.acciones.length)
+        setAccionDraft((prev) => ({ ...prev, accioncodigo: code }));
       else upsertAccion(idxGlobal, { accioncodigo: code });
     } catch (e) {
       console.error("No se pudo regenerar el código de acción:", e);
@@ -420,10 +513,15 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     setSubmitting(true);
     try {
       // Normalizar creadoen con la app elegida
-      const creadoEn = APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label ?? form.objetocreadoen;
+      const creadoEn =
+        APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label ??
+        form.objetocreadoen;
 
       // Fusionar cambios en buffer (rowEdits) a las acciones antes de armar el payload
-      const accionesMerged = form.acciones.map((a) => ({ ...a, ...(rowEdits[a.uid] || {}) }));
+      const accionesMerged = form.acciones.map((a) => ({
+        ...a,
+        ...(rowEdits[a.uid] || {}),
+      }));
 
       // Asegurar códigos de acciones si faltan
       const accionesPayload = await Promise.all(
@@ -433,7 +531,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
           AccionDescripcion: a.acciondescripcion,
           AccionCreadoEn: creadoEn,
           AccionCodigo:
-            a.accioncodigo || (a.accionkey && form.objetokey ? await generateActionCode(form.objetokey, a.accionkey) : ""),
+            a.accioncodigo ||
+            (a.accionkey && form.objetokey
+              ? await generateActionCode(form.objetokey, a.accionkey)
+              : ""),
           AccionRelacion: Number(a.accionrelacion) || 0,
           AccionLabel: a.accionlabel || "",
           AccionIcon: a.accionicon || "",
@@ -458,8 +559,14 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       toast.success("Objeto guardado correctamente", { id: toastId });
     } catch (err) {
       console.error("Error guardando objeto:", err);
-      const message = (err as any)?.response?.data?.message || (err as any)?.message || "Ocurrió un error inesperado";
-      toast.error("No se pudo guardar el objeto", { id: toastId, description: message });
+      const message =
+        (err as any)?.response?.data?.message ||
+        (err as any)?.message ||
+        "Ocurrió un error inesperado";
+      toast.error("No se pudo guardar el objeto", {
+        id: toastId,
+        description: message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -497,7 +604,9 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       // Usar rAF para asegurar que el nodo esté en el DOM tras el render
       requestAnimationFrame(() => {
         etiquetaFocusRef.current?.focus();
-        try { etiquetaFocusRef.current?.select?.(); } catch {}
+        try {
+          etiquetaFocusRef.current?.select?.();
+        } catch {}
       });
       // Limpiar bandera
       setPendingFocusUid(null);
@@ -505,13 +614,18 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   }, [pendingFocusUid, pageIndex, form.acciones.length]);
 
   return (
-    <form onSubmit={handleSubmit} className="container mx-auto max-w-screen-2xl p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="container mx-auto max-w-screen-2xl p-4"
+    >
       {/* Hidden */}
       <input type="hidden" name="objetoid" value={form.objetoid} />
 
       <Card>
         <CardHeader>
-          <CardTitle>{form.objetoid ? "Editar objeto" : "Crear objeto"}</CardTitle>
+          <CardTitle>
+            {form.objetoid ? "Editar objeto" : "Crear objeto"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Campos del objeto */}
@@ -522,19 +636,29 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
               <Select
                 value={form.aplicacionid}
                 onValueChange={(v) => {
-                  const app = APP_OPTIONS.find((a) => a.value === v) ?? APP_OPTIONS[0];
+                  const app =
+                    APP_OPTIONS.find((a) => a.value === v) ?? APP_OPTIONS[0];
                   setForm((prev) => ({
                     ...prev,
                     aplicacionid: v,
                     objetocreadoen: app.label,
-                    acciones: prev.acciones.map((x) => ({ ...x, accioncreadoen: app.label })),
+                    acciones: prev.acciones.map((x) => ({
+                      ...x,
+                      accioncreadoen: app.label,
+                    })),
                   }));
-                  setAccionDraft((prev) => ({ ...prev, accioncreadoen: app.label }));
+                  setAccionDraft((prev) => ({
+                    ...prev,
+                    accioncreadoen: app.label,
+                  }));
                 }}
               >
                 <SelectTrigger id="aplicacionid">
                   <SelectValue placeholder="Aplicación">
-                    {APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label}
+                    {
+                      APP_OPTIONS.find((a) => a.value === form.aplicacionid)
+                        ?.label
+                    }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -555,14 +679,18 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 onValueChange={(v: TipoCode) => setField("objetotipo", v)}
               >
                 <SelectTrigger id="objetotipo">
-                  <SelectValue placeholder="Tipo">{form.objetotipo}</SelectValue>
+                  <SelectValue placeholder="Tipo">
+                    {form.objetotipo}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {(["MENU", "SUBMENU", "PAGE", "FEATURE"] as TipoCode[]).map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
+                  {(["MENU", "SUBMENU", "PAGE", "FEATURE"] as TipoCode[]).map(
+                    (t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ),
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -629,7 +757,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={onDragEnd}
+                  >
                     {(() => {
                       const start = pageIndex * pageSize;
                       const end = start + pageSize;
@@ -638,7 +770,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                       const pageIds = existingPage.map((a) => a.uid);
                       return (
                         <>
-                          <SortableContext items={pageIds} strategy={verticalListSortingStrategy}>
+                          <SortableContext
+                            items={pageIds}
+                            strategy={verticalListSortingStrategy}
+                          >
                             {existingPage.map((acc, idx) => {
                               const globalIdx = start + idx;
                               return (
@@ -646,7 +781,12 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   <TableCell className="min-w-[180px]">
                                     <Input
                                       value={acc.accionkey}
-                                      onChange={(e) => handleAccionKeyChange(globalIdx, e.target.value)}
+                                      onChange={(e) =>
+                                        handleAccionKeyChange(
+                                          globalIdx,
+                                          e.target.value,
+                                        )
+                                      }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           e.preventDefault();
@@ -660,7 +800,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   <TableCell className="min-w-[220px]">
                                     <Input
                                       value={acc.acciondescripcion}
-                                      onChange={(e) => upsertAccion(globalIdx, { acciondescripcion: e.target.value })}
+                                      onChange={(e) =>
+                                        upsertAccion(globalIdx, {
+                                          acciondescripcion: e.target.value,
+                                        })
+                                      }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           e.preventDefault();
@@ -674,13 +818,21 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   {/* Código - 3ra columna */}
                                   <TableCell className="min-w-[240px]">
                                     <div className="relative">
-                                      <Input value={acc.accioncodigo} readOnly disabled placeholder="Auto" title="Se autogenera (objeto + clave)" />
+                                      <Input
+                                        value={acc.accioncodigo}
+                                        readOnly
+                                        disabled
+                                        placeholder="Auto"
+                                        title="Se autogenera (objeto + clave)"
+                                      />
                                       <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
                                         className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
-                                        onClick={() => regenerateAccionCode(globalIdx)}
+                                        onClick={() =>
+                                          regenerateAccionCode(globalIdx)
+                                        }
                                         title="Regenerar código"
                                       >
                                         <RefreshCw className="w-4 h-4" />
@@ -689,10 +841,28 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   </TableCell>
                                   <TableCell className="min-w-[200px]">
                                     <Input
-                                      ref={acc.uid === pendingFocusUid ? etiquetaFocusRef : undefined}
-                                      value={getRowEditValue(acc.uid, "accionlabel", acc.accionlabel)}
-                                      onChange={(e) => setRowEdit(acc.uid, { accionlabel: e.target.value })}
-                                      onBlur={() => commitRowEdit(acc.uid, "accionlabel", globalIdx)}
+                                      ref={
+                                        acc.uid === pendingFocusUid
+                                          ? etiquetaFocusRef
+                                          : undefined
+                                      }
+                                      value={getRowEditValue(
+                                        acc.uid,
+                                        "accionlabel",
+                                        acc.accionlabel,
+                                      )}
+                                      onChange={(e) =>
+                                        setRowEdit(acc.uid, {
+                                          accionlabel: e.target.value,
+                                        })
+                                      }
+                                      onBlur={() =>
+                                        commitRowEdit(
+                                          acc.uid,
+                                          "accionlabel",
+                                          globalIdx,
+                                        )
+                                      }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           e.preventDefault();
@@ -705,9 +875,23 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   </TableCell>
                                   <TableCell className="min-w-[200px]">
                                     <Input
-                                      value={getRowEditValue(acc.uid, "accionpath", acc.accionpath)}
-                                      onChange={(e) => setRowEdit(acc.uid, { accionpath: e.target.value })}
-                                      onBlur={() => commitRowEdit(acc.uid, "accionpath", globalIdx)}
+                                      value={getRowEditValue(
+                                        acc.uid,
+                                        "accionpath",
+                                        acc.accionpath,
+                                      )}
+                                      onChange={(e) =>
+                                        setRowEdit(acc.uid, {
+                                          accionpath: e.target.value,
+                                        })
+                                      }
+                                      onBlur={() =>
+                                        commitRowEdit(
+                                          acc.uid,
+                                          "accionpath",
+                                          globalIdx,
+                                        )
+                                      }
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           e.preventDefault();
@@ -720,23 +904,38 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                   </TableCell>
                                   <TableCell className="min-w-[200px]">
                                     <IconPicker
-                                        value={(getRowEditValue(acc.uid, "accionicon", acc.accionicon) || "") as IconName}
-                                        onChange={(icon) => {
-                                        setRowEdit(acc.uid, { accionicon: icon ?? "" });
+                                      value={
+                                        (getRowEditValue(
+                                          acc.uid,
+                                          "accionicon",
+                                          acc.accionicon,
+                                        ) || "") as IconName
+                                      }
+                                      onChange={(icon) => {
+                                        setRowEdit(acc.uid, {
+                                          accionicon: icon ?? "",
+                                        });
                                         // podés hacer commitRowEdit acá también si querés guardarlo directo
-                                        }}
-                                        placeholder="Elegir icono..."
-                                        className="w-[180px]"
+                                      }}
+                                      placeholder="Elegir icono..."
+                                      className="w-[180px]"
                                     />
-                                    </TableCell>
+                                  </TableCell>
 
                                   <TableCell className="min-w-[220px]">
                                     <div className="relative">
                                       <Input
-                                        value={relationLabels[acc.uid] ?? acc.accionrelacion}
+                                        value={
+                                          relationLabels[acc.uid] ??
+                                          acc.accionrelacion
+                                        }
                                         readOnly
                                         placeholder="Sin relación"
-                                        title={acc.accionrelacion ? `ID: ${acc.accionrelacion}` : "Seleccionar relación"}
+                                        title={
+                                          acc.accionrelacion
+                                            ? `ID: ${acc.accionrelacion}`
+                                            : "Seleccionar relación"
+                                        }
                                         onKeyDown={(e) => {
                                           if (e.key === "Enter") {
                                             e.preventDefault();
@@ -773,7 +972,12 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                               <TableCell className="min-w-[180px]">
                                 <Input
                                   value={accionDraft.accionkey}
-                                  onChange={(e) => handleAccionKeyChange(form.acciones.length, e.target.value)}
+                                  onChange={(e) =>
+                                    handleAccionKeyChange(
+                                      form.acciones.length,
+                                      e.target.value,
+                                    )
+                                  }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       e.preventDefault();
@@ -788,7 +992,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                               <TableCell className="min-w-[220px]">
                                 <Input
                                   value={accionDraft.acciondescripcion}
-                                  onChange={(e) => upsertAccion(form.acciones.length, { acciondescripcion: e.target.value })}
+                                  onChange={(e) =>
+                                    upsertAccion(form.acciones.length, {
+                                      acciondescripcion: e.target.value,
+                                    })
+                                  }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       e.preventDefault();
@@ -802,13 +1010,21 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                               {/* Código - 3ra columna */}
                               <TableCell className="min-w-[240px]">
                                 <div className="relative">
-                                  <Input value={accionDraft.accioncodigo} readOnly disabled placeholder="Auto" title="Se autogenera (objeto + clave)" />
+                                  <Input
+                                    value={accionDraft.accioncodigo}
+                                    readOnly
+                                    disabled
+                                    placeholder="Auto"
+                                    title="Se autogenera (objeto + clave)"
+                                  />
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2"
-                                    onClick={() => regenerateAccionCode(form.acciones.length)}
+                                    onClick={() =>
+                                      regenerateAccionCode(form.acciones.length)
+                                    }
                                     title="Regenerar código"
                                   >
                                     <RefreshCw className="w-4 h-4" />
@@ -819,7 +1035,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                               <TableCell className="min-w-[200px]">
                                 <Input
                                   value={accionDraft.accionlabel}
-                                  onChange={(e) => setAccionDraft((p) => ({ ...p, accionlabel: e.target.value }))
+                                  onChange={(e) =>
+                                    setAccionDraft((p) => ({
+                                      ...p,
+                                      accionlabel: e.target.value,
+                                    }))
                                   }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -834,7 +1054,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                               <TableCell className="min-w-[200px]">
                                 <Input
                                   value={accionDraft.accionpath}
-                                  onChange={(e) => setAccionDraft((p) => ({ ...p, accionpath: e.target.value }))
+                                  onChange={(e) =>
+                                    setAccionDraft((p) => ({
+                                      ...p,
+                                      accionpath: e.target.value,
+                                    }))
                                   }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -847,18 +1071,28 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                 />
                               </TableCell>
                               <TableCell className="min-w-[200px]">
-                            <IconPicker
-                                value={accionDraft.accionicon as IconName}
-                                onChange={(icon) => setAccionDraft((prev) => ({ ...prev, accionicon: icon ?? "" }))}
-                                placeholder="Elegir icono..."
-                                className="w-[180px]"
-                            />
-                            </TableCell>
+                                <IconPicker
+                                  value={accionDraft.accionicon as IconName}
+                                  onChange={(icon) =>
+                                    setAccionDraft((prev) => ({
+                                      ...prev,
+                                      accionicon: icon ?? "",
+                                    }))
+                                  }
+                                  placeholder="Elegir icono..."
+                                  className="w-[180px]"
+                                />
+                              </TableCell>
 
                               <TableCell className="min-w-[220px]">
                                 <div className="relative">
                                   <Input
-                                    value={accionDraft.accionrelacion ? (relationLabels["free-row"] ?? accionDraft.accionrelacion) : ""}
+                                    value={
+                                      accionDraft.accionrelacion
+                                        ? (relationLabels["free-row"] ??
+                                          accionDraft.accionrelacion)
+                                        : ""
+                                    }
                                     readOnly
                                     placeholder="Sin relación"
                                     onKeyDown={(e) => {
@@ -890,171 +1124,248 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                       );
                     })()}
                   </DndContext>
-               </TableBody>
-             </Table>
-           </div>
+                </TableBody>
+              </Table>
+            </div>
 
-           {/* Modal de relación de acción */}
-           <Dialog open={relationOpen} onOpenChange={(open) => {
-             setRelationOpen(open);
-             if (!open) {
-               setRelationSearch("");
-               setRelationItems([]);
-               setRelationTotal(0);
-             }
-           }}>
-             <DialogContent className="max-w-3xl">
-               <DialogHeader>
-                 <DialogTitle>Seleccionar objeto relacionado</DialogTitle>
-               </DialogHeader>
-               <div className="space-y-3">
-                 <div className="flex gap-2">
-                   <Input
-                     placeholder="Buscar por clave..."
-                     value={relationSearch}
-                     onChange={(e) => setRelationSearch(e.target.value)}
-                     onKeyDown={(e) => {
-                       if (e.key === "Enter") {
-                         e.preventDefault();
-                         loadRelationItems(1);
-                       }
-                     }}
-                   />
-                   <Button type="button" onClick={() => loadRelationItems(1)} disabled={relationLoading}>
-                     Buscar
-                   </Button>
-                 </div>
-                 <div className="border rounded-md overflow-x-auto">
-                   <Table>
-                     <TableHeader>
-                       <TableRow>
-                         <TableHead>ObjetoKey</TableHead>
-                         <TableHead>ObjetoTipo</TableHead>
-                         <TableHead>Estado</TableHead>
-                         <TableHead></TableHead>
-                       </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                       {relationItems.length === 0 ? (
-                         <TableRow>
-                           <TableCell colSpan={4} className="text-center text-muted-foreground">
-                             {relationLoading ? "Cargando..." : "Sin resultados"}
-                           </TableCell>
-                         </TableRow>
-                       ) : (
-                         relationItems.map((item) => (
-                           <TableRow key={item.ObjetoId}>
-                             <TableCell className="font-mono">{item.ObjetoKey}</TableCell>
-                             <TableCell>{item.ObjetoTipo}</TableCell>
-                             <TableCell>{item.ObjetoEstado}</TableCell>
-                             <TableCell className="text-right">
-                               <Button
-                                 type="button"
-                                 size="sm"
-                                 onClick={() => {
-                                   if (relationRow !== null) {
-                                     const uid = form.acciones[relationRow]?.uid;
-                                     upsertAccion(relationRow, { accionrelacion: String(item.ObjetoId) });
-                                     if (uid) {
-                                       setRelationLabels((prev) => ({ ...prev, [uid]: item.ObjetoKey }));
-                                     } else {
-                                       // Fila libre
-                                       setRelationLabels((prev) => ({ ...prev, ["free-row"]: item.ObjetoKey }));
-                                     }
-                                   }
-                                   setRelationOpen(false);
-                                 }}
-                               >
-                                 Seleccionar
-                               </Button>
-                             </TableCell>
-                           </TableRow>
-                         ))
-                       )}
-                     </TableBody>
-                   </Table>
-                 </div>
-                 <div className="flex items-center justify-between pt-2">
-                   <span>
-                     Página {relationPage} de {Math.max(1, Math.ceil(((relationTotal || 0) || relationItems.length) / relationPageSize))}
-                   </span>
-                   <div className="flex gap-2">
-                     <Button type="button" variant="outline" onClick={() => loadRelationItems(1)} disabled={relationPage === 1 || relationLoading}>
-                       «
-                     </Button>
-                     <Button type="button" variant="outline" onClick={() => loadRelationItems(Math.max(1, relationPage - 1))} disabled={relationPage === 1 || relationLoading}>
-                       ‹
-                     </Button>
-                     <Button type="button" variant="outline" onClick={() => loadRelationItems(relationPage + 1)} disabled={relationLoading}>
-                       ›
-                     </Button>
-                   </div>
-                 </div>
-                 <div className="flex justify-end gap-2">
-                   <Button
-                     type="button"
-                     variant="outline"
-                     onClick={() => {
-                       if (relationRow !== null) {
-                         const uid = form.acciones[relationRow]?.uid;
-                         upsertAccion(relationRow, { accionrelacion: "" });
-                         if (uid) setRelationLabels((prev) => {
-                           const copy = { ...prev };
-                           delete copy[uid];
-                           return copy;
-                         });
-                         else setRelationLabels((prev) => {
-                           const copy = { ...prev };
-                           delete copy["free-row"];
-                           return copy;
-                         });
-                       }
-                       setRelationOpen(false);
-                     }}
-                   >
-                     Limpiar relación
-                   </Button>
-                   <Button type="button" onClick={() => setRelationOpen(false)}>Cerrar</Button>
-                 </div>
-               </div>
-               <DialogFooter />
-             </DialogContent>
-           </Dialog>
+            {/* Modal de relación de acción */}
+            <Dialog
+              open={relationOpen}
+              onOpenChange={(open) => {
+                setRelationOpen(open);
+                if (!open) {
+                  setRelationSearch("");
+                  setRelationItems([]);
+                  setRelationTotal(0);
+                }
+              }}
+            >
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Seleccionar objeto relacionado</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Buscar por clave..."
+                      value={relationSearch}
+                      onChange={(e) => setRelationSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          loadRelationItems(1);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => loadRelationItems(1)}
+                      disabled={relationLoading}
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                  <div className="border rounded-md overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ObjetoKey</TableHead>
+                          <TableHead>ObjetoTipo</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {relationItems.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="text-center text-muted-foreground"
+                            >
+                              {relationLoading
+                                ? "Cargando..."
+                                : "Sin resultados"}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          relationItems.map((item) => (
+                            <TableRow key={item.ObjetoId}>
+                              <TableCell className="font-mono">
+                                {item.ObjetoKey}
+                              </TableCell>
+                              <TableCell>{item.ObjetoTipo}</TableCell>
+                              <TableCell>{item.ObjetoEstado}</TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (relationRow !== null) {
+                                      const uid =
+                                        form.acciones[relationRow]?.uid;
+                                      upsertAccion(relationRow, {
+                                        accionrelacion: String(item.ObjetoId),
+                                      });
+                                      if (uid) {
+                                        setRelationLabels((prev) => ({
+                                          ...prev,
+                                          [uid]: item.ObjetoKey,
+                                        }));
+                                      } else {
+                                        // Fila libre
+                                        setRelationLabels((prev) => ({
+                                          ...prev,
+                                          ["free-row"]: item.ObjetoKey,
+                                        }));
+                                      }
+                                    }
+                                    setRelationOpen(false);
+                                  }}
+                                >
+                                  Seleccionar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <span>
+                      Página {relationPage} de{" "}
+                      {Math.max(
+                        1,
+                        Math.ceil(
+                          (relationTotal || 0 || relationItems.length) /
+                            relationPageSize,
+                        ),
+                      )}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => loadRelationItems(1)}
+                        disabled={relationPage === 1 || relationLoading}
+                      >
+                        «
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          loadRelationItems(Math.max(1, relationPage - 1))
+                        }
+                        disabled={relationPage === 1 || relationLoading}
+                      >
+                        ‹
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => loadRelationItems(relationPage + 1)}
+                        disabled={relationLoading}
+                      >
+                        ›
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (relationRow !== null) {
+                          const uid = form.acciones[relationRow]?.uid;
+                          upsertAccion(relationRow, { accionrelacion: "" });
+                          if (uid)
+                            setRelationLabels((prev) => {
+                              const copy = { ...prev };
+                              delete copy[uid];
+                              return copy;
+                            });
+                          else
+                            setRelationLabels((prev) => {
+                              const copy = { ...prev };
+                              delete copy["free-row"];
+                              return copy;
+                            });
+                        }
+                        setRelationOpen(false);
+                      }}
+                    >
+                      Limpiar relación
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setRelationOpen(false)}
+                    >
+                      Cerrar
+                    </Button>
+                  </div>
+                </div>
+                <DialogFooter />
+              </DialogContent>
+            </Dialog>
 
-           {/* Paginación acciones */}
-           <div className="flex items-center justify-between pt-2">
-             <span>
-               Página {pageIndex + 1} de {totalPages}
-             </span>
-             <div className="flex gap-2">
-               <Button type="button" variant="outline" onClick={() => setPageIndex(0)} disabled={pageIndex === 0}>
-                 «
-               </Button>
-               <Button type="button" variant="outline" onClick={() => setPageIndex((p) => Math.max(0, p - 1))} disabled={pageIndex === 0}>
-                 ‹
-               </Button>
-               <Button
-                 type="button"
-                 variant="outline"
-                 onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
-                 disabled={pageIndex >= totalPages - 1}
-               >
-                 ›
-               </Button>
-               <Button type="button" variant="outline" onClick={() => setPageIndex(totalPages - 1)} disabled={pageIndex >= totalPages - 1}>
-                 »
-               </Button>
-             </div>
-           </div>
-         </div>
-       </CardContent>
-       <CardFooter className="justify-end gap-2">
-         <Button type="button" variant="outline" onClick={() => history.back()}>
-           Cancelar
-         </Button>
-         <Button type="submit" disabled={submitting}>{submitting ? "Guardando..." : "Confirmar"}</Button>
-       </CardFooter>
-     </Card>
+            {/* Paginación acciones */}
+            <div className="flex items-center justify-between pt-2">
+              <span>
+                Página {pageIndex + 1} de {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPageIndex(0)}
+                  disabled={pageIndex === 0}
+                >
+                  «
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                  disabled={pageIndex === 0}
+                >
+                  ‹
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setPageIndex((p) => Math.min(totalPages - 1, p + 1))
+                  }
+                  disabled={pageIndex >= totalPages - 1}
+                >
+                  ›
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPageIndex(totalPages - 1)}
+                  disabled={pageIndex >= totalPages - 1}
+                >
+                  »
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => history.back()}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Guardando..." : "Confirmar"}
+          </Button>
+        </CardFooter>
+      </Card>
     </form>
   );
 }

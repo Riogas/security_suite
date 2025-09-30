@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +55,11 @@ interface FuncionalidadConfigProps {
   totalActionsCount: number;
 }
 
-export function FuncionalidadHeader({ mode, showDetails, onToggleDetails }: FuncionalidadHeaderProps) {
+export function FuncionalidadHeader({
+  mode,
+  showDetails,
+  onToggleDetails,
+}: FuncionalidadHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div>
@@ -67,7 +77,11 @@ export function FuncionalidadHeader({ mode, showDetails, onToggleDetails }: Func
           onClick={onToggleDetails}
           className="gap-2"
         >
-          {showDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showDetails ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
           {showDetails ? "Ocultar detalles" : "Mostrar detalles"}
         </Button>
         <Button
@@ -145,10 +159,10 @@ export function FuncionalidadConfig({
               <Label htmlFor="nombre" className="text-sm font-medium">
                 Nombre *
               </Label>
-              <Input 
-                id="nombre" 
-                value={nombre} 
-                onChange={(e) => onNombreChange(e.target.value)} 
+              <Input
+                id="nombre"
+                value={nombre}
+                onChange={(e) => onNombreChange(e.target.value)}
                 placeholder="Nombre de la funcionalidad"
                 className="h-9"
               />
@@ -158,8 +172,13 @@ export function FuncionalidadConfig({
           {/* Fila 2: Estado, Switches y Vigencia */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <div className="md:col-span-2 space-y-1.5">
-              <Label htmlFor="estado" className="text-sm font-medium">Estado</Label>
-              <Select value={estado} onValueChange={(v: EstadoCode) => onEstadoChange(v)}>
+              <Label htmlFor="estado" className="text-sm font-medium">
+                Estado
+              </Label>
+              <Select
+                value={estado}
+                onValueChange={(v: EstadoCode) => onEstadoChange(v)}
+              >
                 <SelectTrigger id="estado" className="h-9">
                   <SelectValue placeholder="Estado" />
                 </SelectTrigger>
@@ -181,25 +200,31 @@ export function FuncionalidadConfig({
             </div>
 
             <div className="md:col-span-2.5 flex items-center gap-2 h-9">
-              <Switch 
-                id="publico" 
-                checked={esPublico} 
+              <Switch
+                id="publico"
+                checked={esPublico}
                 onCheckedChange={onEsPublicoChange}
                 className="data-[state=checked]:bg-blue-600"
               />
-              <Label htmlFor="publico" className="text-sm cursor-pointer whitespace-nowrap">
+              <Label
+                htmlFor="publico"
+                className="text-sm cursor-pointer whitespace-nowrap"
+              >
                 Es Público
               </Label>
             </div>
 
             <div className="md:col-span-2.5 flex items-center gap-2 h-9">
-              <Switch 
-                id="soloRoot" 
-                checked={soloRoot} 
+              <Switch
+                id="soloRoot"
+                checked={soloRoot}
                 onCheckedChange={onSoloRootChange}
                 className="data-[state=checked]:bg-orange-600"
               />
-              <Label htmlFor="soloRoot" className="text-sm cursor-pointer whitespace-nowrap">
+              <Label
+                htmlFor="soloRoot"
+                className="text-sm cursor-pointer whitespace-nowrap"
+              >
                 Solo Root
               </Label>
             </div>
@@ -209,7 +234,11 @@ export function FuncionalidadConfig({
               <div className="relative">
                 <Input
                   readOnly
-                  value={rango.from && rango.to ? `${format(rango.from, "dd/MM/yyyy")} — ${format(rango.to, "dd/MM/yyyy")}` : "Sin restricción de fechas"}
+                  value={
+                    rango.from && rango.to
+                      ? `${format(rango.from, "dd/MM/yyyy")} — ${format(rango.to, "dd/MM/yyyy")}`
+                      : "Sin restricción de fechas"
+                  }
                   onClick={() => setMostrarCalendario((v: boolean) => !v)}
                   className="h-9 cursor-pointer"
                   placeholder="Seleccionar rango de fechas"
@@ -242,8 +271,22 @@ export function FuncionalidadConfig({
                       }}
                     />
                     <div className="flex justify-end gap-2 p-2">
-                      <Button size="sm" variant="outline" onClick={() => { onRangoChange({}); setMostrarCalendario(false); }}>Limpiar</Button>
-                      <Button size="sm" onClick={() => setMostrarCalendario(false)}>OK</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          onRangoChange({});
+                          setMostrarCalendario(false);
+                        }}
+                      >
+                        Limpiar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setMostrarCalendario(false)}
+                      >
+                        OK
+                      </Button>
                     </div>
                   </div>
                 )}

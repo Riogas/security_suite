@@ -33,7 +33,6 @@ export default function CrearAtributoPanel({
   setNuevoCampo,
   onCrearAtributo,
 }: CrearAtributoPanelProps) {
-  
   // Agregar nuevo campo a la colección actual
   const agregarCampo = () => {
     if (!nuevoCampo.id.trim() || !nuevoCampo.valor.trim()) {
@@ -42,7 +41,7 @@ export default function CrearAtributoPanel({
     }
 
     // Verificar que el ID no exista ya
-    if (camposActuales.some(campo => campo.id === nuevoCampo.id.trim())) {
+    if (camposActuales.some((campo) => campo.id === nuevoCampo.id.trim())) {
       toast.error("Ya existe un campo con ese ID");
       return;
     }
@@ -52,17 +51,17 @@ export default function CrearAtributoPanel({
       valor: nuevoCampo.valor.trim(),
     };
 
-    setCamposActuales(prev => [...prev, nuevoCampoItem]);
+    setCamposActuales((prev) => [...prev, nuevoCampoItem]);
     setNuevoCampo({ id: "", valor: "" });
   };
 
   // Eliminar campo de la colección actual
   const eliminarCampo = (idCampo: string) => {
-    setCamposActuales(prev => prev.filter(campo => campo.id !== idCampo));
+    setCamposActuales((prev) => prev.filter((campo) => campo.id !== idCampo));
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       agregarCampo();
     }
   };
@@ -95,13 +94,15 @@ export default function CrearAtributoPanel({
           {/* Agregar Campos ID-Valor */}
           <div className="space-y-4">
             <Label className="text-base font-medium">Campos ID-Valor</Label>
-            
+
             <div className="flex gap-6">
               <div className="flex-1 min-w-0">
                 <Input
                   placeholder="ID del campo"
                   value={nuevoCampo.id}
-                  onChange={(e) => setNuevoCampo(prev => ({ ...prev, id: e.target.value }))}
+                  onChange={(e) =>
+                    setNuevoCampo((prev) => ({ ...prev, id: e.target.value }))
+                  }
                   onKeyPress={handleKeyPress}
                   className="w-full h-12 text-base"
                 />
@@ -110,7 +111,12 @@ export default function CrearAtributoPanel({
                 <Input
                   placeholder="Valor del campo"
                   value={nuevoCampo.valor}
-                  onChange={(e) => setNuevoCampo(prev => ({ ...prev, valor: e.target.value }))}
+                  onChange={(e) =>
+                    setNuevoCampo((prev) => ({
+                      ...prev,
+                      valor: e.target.value,
+                    }))
+                  }
                   onKeyPress={handleKeyPress}
                   className="w-full h-12 text-base"
                 />
@@ -139,7 +145,9 @@ export default function CrearAtributoPanel({
                     <div className="flex items-center gap-3">
                       <Hash className="w-4 h-4 text-muted-foreground" />
                       <span className="font-medium text-sm">{campo.id}:</span>
-                      <span className="text-sm text-muted-foreground">{campo.valor}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {campo.valor}
+                      </span>
                     </div>
                     <Button
                       variant="ghost"
@@ -159,7 +167,9 @@ export default function CrearAtributoPanel({
           <Button
             type="button"
             onClick={onCrearAtributo}
-            disabled={!descripcionAtributo.trim() || camposActuales.length === 0}
+            disabled={
+              !descripcionAtributo.trim() || camposActuales.length === 0
+            }
             className="w-full h-12 text-base"
             size="lg"
           >

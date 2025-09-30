@@ -2,18 +2,49 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, closestCenter } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Users, Shield, Lock, Save } from "lucide-react";
-import { apiAbmRoles, apiListarFuncionalidades, AbmRolesReq } from "@/services/api";
+import {
+  apiAbmRoles,
+  apiListarFuncionalidades,
+  AbmRolesReq,
+} from "@/services/api";
 
 export type EstadoCode = "A" | "I";
 
@@ -48,7 +79,11 @@ const APP_OPTIONS = [
   { value: "3", label: "GOYA" },
 ] as const;
 
-export default function RoleForm({ initialData, initialFuncionalidades, onSubmit }: RoleFormProps) {
+export default function RoleForm({
+  initialData,
+  initialFuncionalidades,
+  onSubmit,
+}: RoleFormProps) {
   const router = useRouter();
 
   const initialApp = APP_OPTIONS[0];
@@ -65,19 +100,31 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
   };
 
   const computeCreatedEn = (aplicacionid?: string, rolcreadoen?: string) =>
-    rolcreadoen ?? (APP_OPTIONS.find((a) => a.value === (aplicacionid ?? initialApp.value))?.label ?? initialApp.label);
+    rolcreadoen ??
+    APP_OPTIONS.find((a) => a.value === (aplicacionid ?? initialApp.value))
+      ?.label ??
+    initialApp.label;
 
   const [form, setForm] = useState<RolFormState>(() => ({
     ...defaults,
     ...(initialData ?? {}),
-    rolcreadoen: computeCreatedEn(initialData?.aplicacionid, initialData?.rolcreadoen),
+    rolcreadoen: computeCreatedEn(
+      initialData?.aplicacionid,
+      initialData?.rolcreadoen,
+    ),
   }));
 
   // Estados para drag and drop de funcionalidades
-  const [funcionalidadesDisponibles, setFuncionalidadesDisponibles] = useState<FuncionalidadItem[]>([]);
-  const [funcionalidadesAsignadas, setFuncionalidadesAsignadas] = useState<FuncionalidadItem[]>(initialFuncionalidades || []);
-  const [activeDragItem, setActiveDragItem] = useState<FuncionalidadItem | null>(null);
-  const [isLoadingFuncionalidades, setIsLoadingFuncionalidades] = useState(true);
+  const [funcionalidadesDisponibles, setFuncionalidadesDisponibles] = useState<
+    FuncionalidadItem[]
+  >([]);
+  const [funcionalidadesAsignadas, setFuncionalidadesAsignadas] = useState<
+    FuncionalidadItem[]
+  >(initialFuncionalidades || []);
+  const [activeDragItem, setActiveDragItem] =
+    useState<FuncionalidadItem | null>(null);
+  const [isLoadingFuncionalidades, setIsLoadingFuncionalidades] =
+    useState(true);
 
   // Cargar funcionalidades desde la API
   useEffect(() => {
@@ -88,19 +135,27 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
           AplicacionId: parseInt(form.aplicacionid) || 2,
         });
 
-        if (response.sdtFuncionalidades && Array.isArray(response.sdtFuncionalidades)) {
-          const funcionalidades: FuncionalidadItem[] = response.sdtFuncionalidades.map((func) => ({
-            id: func.FuncionalidadId.toString(),
-            nombre: func.FuncionalidadNombre,
-            descripcion: "", // La API no tiene descripción disponible
-            objetosCount: func.Accion?.length || 0,
-            accionesCount: func.Accion?.length || 0,
-          }));
-          
+        if (
+          response.sdtFuncionalidades &&
+          Array.isArray(response.sdtFuncionalidades)
+        ) {
+          const funcionalidades: FuncionalidadItem[] =
+            response.sdtFuncionalidades.map((func) => ({
+              id: func.FuncionalidadId.toString(),
+              nombre: func.FuncionalidadNombre,
+              descripcion: "", // La API no tiene descripción disponible
+              objetosCount: func.Accion?.length || 0,
+              accionesCount: func.Accion?.length || 0,
+            }));
+
           // Filtrar las funcionalidades que ya están asignadas
-          const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
-          const funcionalidadesFiltradas = funcionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
-          
+          const funcionalidadesAsignadasIds = new Set(
+            (initialFuncionalidades || []).map((f) => f.id),
+          );
+          const funcionalidadesFiltradas = funcionalidades.filter(
+            (func) => !funcionalidadesAsignadasIds.has(func.id),
+          );
+
           setFuncionalidadesDisponibles(funcionalidadesFiltradas);
         } else {
           // Usar datos mock como fallback
@@ -110,42 +165,46 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
               nombre: "Gestión de Usuarios",
               descripcion: "Administración completa de usuarios del sistema",
               objetosCount: 8,
-              accionesCount: 24
+              accionesCount: 24,
             },
             {
-              id: "2", 
+              id: "2",
               nombre: "Control de Acceso",
               descripcion: "Configuración de permisos y roles",
               objetosCount: 5,
-              accionesCount: 15
+              accionesCount: 15,
             },
             {
               id: "3",
               nombre: "Auditoría y Logs",
               descripcion: "Monitoreo y seguimiento de actividades",
               objetosCount: 3,
-              accionesCount: 9
+              accionesCount: 9,
             },
             {
               id: "4",
               nombre: "Configuración Sistema",
               descripcion: "Parámetros generales del sistema",
               objetosCount: 6,
-              accionesCount: 18
+              accionesCount: 18,
             },
             {
               id: "5",
-              nombre: "Reportes de Seguridad", 
+              nombre: "Reportes de Seguridad",
               descripcion: "Generación de informes y estadísticas",
               objetosCount: 4,
-              accionesCount: 12
-            }
+              accionesCount: 12,
+            },
           ];
-          
+
           // Filtrar las funcionalidades que ya están asignadas
-          const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
-          const funcionalidadesFiltradas = mockFuncionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
-          
+          const funcionalidadesAsignadasIds = new Set(
+            (initialFuncionalidades || []).map((f) => f.id),
+          );
+          const funcionalidadesFiltradas = mockFuncionalidades.filter(
+            (func) => !funcionalidadesAsignadasIds.has(func.id),
+          );
+
           setFuncionalidadesDisponibles(funcionalidadesFiltradas);
         }
       } catch (error) {
@@ -157,42 +216,46 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
             nombre: "Gestión de Usuarios",
             descripcion: "Administración completa de usuarios del sistema",
             objetosCount: 8,
-            accionesCount: 24
+            accionesCount: 24,
           },
           {
-            id: "2", 
+            id: "2",
             nombre: "Control de Acceso",
             descripcion: "Configuración de permisos y roles",
             objetosCount: 5,
-            accionesCount: 15
+            accionesCount: 15,
           },
           {
             id: "3",
             nombre: "Auditoría y Logs",
             descripcion: "Monitoreo y seguimiento de actividades",
             objetosCount: 3,
-            accionesCount: 9
+            accionesCount: 9,
           },
           {
             id: "4",
             nombre: "Configuración Sistema",
             descripcion: "Parámetros generales del sistema",
             objetosCount: 6,
-            accionesCount: 18
+            accionesCount: 18,
           },
           {
             id: "5",
-            nombre: "Reportes de Seguridad", 
+            nombre: "Reportes de Seguridad",
             descripcion: "Generación de informes y estadísticas",
             objetosCount: 4,
-            accionesCount: 12
-          }
+            accionesCount: 12,
+          },
         ];
-        
+
         // Filtrar las funcionalidades que ya están asignadas
-        const funcionalidadesAsignadasIds = new Set((initialFuncionalidades || []).map(f => f.id));
-        const funcionalidadesFiltradas = mockFuncionalidades.filter(func => !funcionalidadesAsignadasIds.has(func.id));
-        
+        const funcionalidadesAsignadasIds = new Set(
+          (initialFuncionalidades || []).map((f) => f.id),
+        );
+        const funcionalidadesFiltradas = mockFuncionalidades.filter(
+          (func) => !funcionalidadesAsignadasIds.has(func.id),
+        );
+
         setFuncionalidadesDisponibles(funcionalidadesFiltradas);
       } finally {
         setIsLoadingFuncionalidades(false);
@@ -208,7 +271,7 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
       activationConstraint: {
         distance: 3,
       },
-    })
+    }),
   );
 
   useEffect(() => {
@@ -216,17 +279,23 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
       setForm({
         ...defaults,
         ...initialData,
-        rolcreadoen: computeCreatedEn(initialData.aplicacionid, initialData.rolcreadoen),
+        rolcreadoen: computeCreatedEn(
+          initialData.aplicacionid,
+          initialData.rolcreadoen,
+        ),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(initialData)]);
 
-  const estadoLabel = useMemo(() => (form.rolestado === "A" ? "Activo" : "Inactivo"), [form.rolestado]);
+  const estadoLabel = useMemo(
+    () => (form.rolestado === "A" ? "Activo" : "Inactivo"),
+    [form.rolestado],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       // Construir el payload para la API
       const payload: AbmRolesReq = {
@@ -238,16 +307,16 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
         RolNivel: form.rolnivel,
         RolFchIns: form.rolfchins,
         RolCreadoEn: form.rolcreadoen,
-        Funcionalidad: funcionalidadesAsignadas.map(func => ({
+        Funcionalidad: funcionalidadesAsignadas.map((func) => ({
           FuncionalidadId: parseInt(func.id),
-          RolFuncionalidadFchIns: new Date().toISOString()
-        }))
+          RolFuncionalidadFchIns: new Date().toISOString(),
+        })),
       };
 
       console.log("Enviando datos del rol:", payload);
-      
+
       const response = await apiAbmRoles(payload);
-      
+
       if (response.success) {
         console.log("Rol guardado exitosamente:", response);
         // Opcional: mostrar mensaje de éxito y redirigir
@@ -256,7 +325,6 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
         console.error("Error al guardar el rol:", response.message);
         // Aquí podrías mostrar un toast de error
       }
-      
     } catch (error) {
       console.error("Error en handleSubmit:", error);
       // Aquí podrías mostrar un toast de error
@@ -265,15 +333,18 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
 
   const handleCancel = () => router.back();
 
-  const setField = <K extends keyof RolFormState>(key: K, value: RolFormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const setField = <K extends keyof RolFormState>(
+    key: K,
+    value: RolFormState[K],
+  ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   // Funciones para drag and drop
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const funcionalidad = [...funcionalidadesDisponibles, ...funcionalidadesAsignadas].find(
-      (item) => item.id === active.id
-    );
+    const funcionalidad = [
+      ...funcionalidadesDisponibles,
+      ...funcionalidadesAsignadas,
+    ].find((item) => item.id === active.id);
     setActiveDragItem(funcionalidad || null);
   };
 
@@ -281,66 +352,86 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
     const { active, over } = event;
     setActiveDragItem(null);
 
-    console.log('=== DRAG END ===');
-    console.log('Active ID:', active.id);
-    console.log('Over ID:', over?.id);
+    console.log("=== DRAG END ===");
+    console.log("Active ID:", active.id);
+    console.log("Over ID:", over?.id);
 
     if (!over) {
-      console.log('No over target, returning');
+      console.log("No over target, returning");
       return;
     }
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    console.log('Active ID (string):', activeId);
-    console.log('Over ID (string):', overId);
+    console.log("Active ID (string):", activeId);
+    console.log("Over ID (string):", overId);
 
     // Buscar el item en ambas listas
-    const sourceFromDisponibles = funcionalidadesDisponibles.find((item) => item.id === activeId);
-    const sourceFromAsignadas = funcionalidadesAsignadas.find((item) => item.id === activeId);
+    const sourceFromDisponibles = funcionalidadesDisponibles.find(
+      (item) => item.id === activeId,
+    );
+    const sourceFromAsignadas = funcionalidadesAsignadas.find(
+      (item) => item.id === activeId,
+    );
 
-    console.log('Source from disponibles:', sourceFromDisponibles);
-    console.log('Source from asignadas:', sourceFromAsignadas);
+    console.log("Source from disponibles:", sourceFromDisponibles);
+    console.log("Source from asignadas:", sourceFromAsignadas);
 
     // Determinar en qué zona se soltó el elemento
     // Si se soltó sobre el contenedor droppable directamente
     if (overId === "disponibles-droppable" && sourceFromAsignadas) {
-      console.log('Moving from asignadas to disponibles (container drop)');
-      setFuncionalidadesAsignadas((prev) => prev.filter((item) => item.id !== activeId));
+      console.log("Moving from asignadas to disponibles (container drop)");
+      setFuncionalidadesAsignadas((prev) =>
+        prev.filter((item) => item.id !== activeId),
+      );
       setFuncionalidadesDisponibles((prev) => [...prev, sourceFromAsignadas]);
     } else if (overId === "asignadas-droppable" && sourceFromDisponibles) {
-      console.log('Moving from disponibles to asignadas (container drop)');
-      setFuncionalidadesDisponibles((prev) => prev.filter((item) => item.id !== activeId));
+      console.log("Moving from disponibles to asignadas (container drop)");
+      setFuncionalidadesDisponibles((prev) =>
+        prev.filter((item) => item.id !== activeId),
+      );
       setFuncionalidadesAsignadas((prev) => [...prev, sourceFromDisponibles]);
-    } 
+    }
     // Si se soltó sobre una funcionalidad específica, determinar a qué zona pertenece
     else {
-      const targetInAsignadas = funcionalidadesAsignadas.find((item) => item.id === overId);
-      const targetInDisponibles = funcionalidadesDisponibles.find((item) => item.id === overId);
+      const targetInAsignadas = funcionalidadesAsignadas.find(
+        (item) => item.id === overId,
+      );
+      const targetInDisponibles = funcionalidadesDisponibles.find(
+        (item) => item.id === overId,
+      );
 
       if (targetInAsignadas && sourceFromDisponibles) {
-        console.log('Moving from disponibles to asignadas (element drop)');
-        setFuncionalidadesDisponibles((prev) => prev.filter((item) => item.id !== activeId));
+        console.log("Moving from disponibles to asignadas (element drop)");
+        setFuncionalidadesDisponibles((prev) =>
+          prev.filter((item) => item.id !== activeId),
+        );
         setFuncionalidadesAsignadas((prev) => [...prev, sourceFromDisponibles]);
       } else if (targetInDisponibles && sourceFromAsignadas) {
-        console.log('Moving from asignadas to disponibles (element drop)');
-        setFuncionalidadesAsignadas((prev) => prev.filter((item) => item.id !== activeId));
+        console.log("Moving from asignadas to disponibles (element drop)");
+        setFuncionalidadesAsignadas((prev) =>
+          prev.filter((item) => item.id !== activeId),
+        );
         setFuncionalidadesDisponibles((prev) => [...prev, sourceFromAsignadas]);
       } else {
-        console.log('No matching condition:', { 
-          overId, 
-          hasSourceFromAsignadas: !!sourceFromAsignadas, 
+        console.log("No matching condition:", {
+          overId,
+          hasSourceFromAsignadas: !!sourceFromAsignadas,
           hasSourceFromDisponibles: !!sourceFromDisponibles,
           targetInAsignadas: !!targetInAsignadas,
-          targetInDisponibles: !!targetInDisponibles
+          targetInDisponibles: !!targetInDisponibles,
         });
       }
     }
   };
 
   // Componente para cada funcionalidad draggable
-  const FuncionalidadCard = ({ funcionalidad }: { funcionalidad: FuncionalidadItem }) => {
+  const FuncionalidadCard = ({
+    funcionalidad,
+  }: {
+    funcionalidad: FuncionalidadItem;
+  }) => {
     const {
       attributes,
       listeners,
@@ -364,7 +455,7 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
         style={style}
         className={`bg-card border rounded-lg p-3 cursor-grab active:cursor-grabbing
                    hover:shadow-md transition-all duration-200
-                   ${isDragging ? 'shadow-lg scale-105' : ''}`}
+                   ${isDragging ? "shadow-lg scale-105" : ""}`}
         {...attributes}
         {...listeners}
       >
@@ -373,7 +464,9 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Shield className="h-4 w-4 text-blue-500 flex-shrink-0" />
-              <h4 className="font-medium text-sm truncate">{funcionalidad.nombre}</h4>
+              <h4 className="font-medium text-sm truncate">
+                {funcionalidad.nombre}
+              </h4>
             </div>
             <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
               {funcionalidad.descripcion}
@@ -395,12 +488,12 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
   };
 
   // Componente droppable para las listas
-  const DroppableContainer = ({ 
-    id, 
-    title, 
-    items, 
-    icon 
-  }: { 
+  const DroppableContainer = ({
+    id,
+    title,
+    items,
+    icon,
+  }: {
     id: string;
     title: string;
     items: FuncionalidadItem[];
@@ -411,9 +504,9 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
     });
 
     return (
-      <Card 
+      <Card
         ref={setNodeRef}
-        className={`h-[400px] ${isOver ? 'ring-2 ring-blue-500 bg-blue-50/5' : ''}`}
+        className={`h-[400px] ${isOver ? "ring-2 ring-blue-500 bg-blue-50/5" : ""}`}
       >
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -426,7 +519,10 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2 h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-            <SortableContext items={items} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              items={items}
+              strategy={verticalListSortingStrategy}
+            >
               {items.map((item) => (
                 <FuncionalidadCard key={item.id} funcionalidad={item} />
               ))}
@@ -436,8 +532,8 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
                 <div className="text-center">
                   <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">
-                    {id === "disponibles-droppable" 
-                      ? "No hay funcionalidades disponibles" 
+                    {id === "disponibles-droppable"
+                      ? "No hay funcionalidades disponibles"
                       : "Arrastra funcionalidades aquí"}
                   </p>
                 </div>
@@ -496,7 +592,9 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
                   onValueChange={(v: EstadoCode) => setField("rolestado", v)}
                 >
                   <SelectTrigger id="rolestado">
-                    <SelectValue placeholder="Estado">{estadoLabel}</SelectValue>
+                    <SelectValue placeholder="Estado">
+                      {estadoLabel}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="A">Activo</SelectItem>
@@ -524,7 +622,8 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
                 <Select
                   value={form.aplicacionid}
                   onValueChange={(v) => {
-                    const app = APP_OPTIONS.find((a) => a.value === v) ?? initialApp;
+                    const app =
+                      APP_OPTIONS.find((a) => a.value === v) ?? initialApp;
                     setForm((prev) => ({
                       ...prev,
                       aplicacionid: v,
@@ -534,7 +633,10 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
                 >
                   <SelectTrigger id="aplicacionid">
                     <SelectValue placeholder="Aplicación">
-                      {APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label}
+                      {
+                        APP_OPTIONS.find((a) => a.value === form.aplicacionid)
+                          ?.label
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -603,7 +705,9 @@ export default function RoleForm({ initialData, initialFuncionalidades, onSubmit
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Shield className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                    <h4 className="font-medium text-sm truncate">{activeDragItem.nombre}</h4>
+                    <h4 className="font-medium text-sm truncate">
+                      {activeDragItem.nombre}
+                    </h4>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                     {activeDragItem.descripcion}

@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { apiGetAtributos, apiABMAtributos, UserPreference } from "@/services/api";
+import {
+  apiGetAtributos,
+  apiABMAtributos,
+  UserPreference,
+} from "@/services/api";
 
 interface CampoValor {
   id: string;
@@ -26,60 +30,80 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
   // Generar JSON a partir de los campos
   const generarJsonValor = (campos: CampoValor[]): string => {
-    const obj = campos.reduce((acc, campo) => {
-      if (campo.id && campo.valor) {
-        acc[campo.id] = campo.valor;
-      }
-      return acc;
-    }, {} as Record<string, string>);
-    
+    const obj = campos.reduce(
+      (acc, campo) => {
+        if (campo.id && campo.valor) {
+          acc[campo.id] = campo.valor;
+        }
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
     return JSON.stringify(obj, null, 2);
   };
 
   // Cargar atributos existentes del usuario
   const cargarAtributos = async () => {
     if (!isOpen) return;
-    
+
     setLoading(true);
     try {
       const atributosExistentes = await apiGetAtributos();
-      
+
       if (atributosExistentes.length > 0) {
         // Convertir UserPreference[] a Atributo[]
         // Agrupar por UserPreferenceAtributo (descripción)
-        const atributosAgrupados = atributosExistentes.reduce((acc, pref) => {
-          const key = pref.UserPreferenceAtributo;
-          if (!acc[key]) {
-            acc[key] = {
-              id: pref.UserPreferenceId.toString(),
-              descripcion: pref.UserPreferenceAtributo,
-              campos: [],
-              valor: "",
-            };
-          }
-          
-          // Parsear el valor JSON si es posible
-          try {
-            const valorParseado = JSON.parse(pref.UserPreferenceValor);
-            if (typeof valorParseado === 'object' && valorParseado !== null) {
-              acc[key].campos = Object.entries(valorParseado).map(([id, valor]) => ({
-                id,
-                valor: String(valor),
-              }));
-              acc[key].valor = JSON.stringify(valorParseado, null, 2);
-            } else {
-              // Si no es un objeto JSON válido, tratar como campo simple
-              acc[key].campos = [{ id: 'valor', valor: pref.UserPreferenceValor }];
-              acc[key].valor = JSON.stringify({ valor: pref.UserPreferenceValor }, null, 2);
+        const atributosAgrupados = atributosExistentes.reduce(
+          (acc, pref) => {
+            const key = pref.UserPreferenceAtributo;
+            if (!acc[key]) {
+              acc[key] = {
+                id: pref.UserPreferenceId.toString(),
+                descripcion: pref.UserPreferenceAtributo,
+                campos: [],
+                valor: "",
+              };
             }
-          } catch {
-            // Si no se puede parsear como JSON, tratar como texto simple
-            acc[key].campos = [{ id: 'valor', valor: pref.UserPreferenceValor }];
-            acc[key].valor = JSON.stringify({ valor: pref.UserPreferenceValor }, null, 2);
-          }
-          
-          return acc;
-        }, {} as Record<string, Atributo>);
+
+            // Parsear el valor JSON si es posible
+            try {
+              const valorParseado = JSON.parse(pref.UserPreferenceValor);
+              if (typeof valorParseado === "object" && valorParseado !== null) {
+                acc[key].campos = Object.entries(valorParseado).map(
+                  ([id, valor]) => ({
+                    id,
+                    valor: String(valor),
+                  }),
+                );
+                acc[key].valor = JSON.stringify(valorParseado, null, 2);
+              } else {
+                // Si no es un objeto JSON válido, tratar como campo simple
+                acc[key].campos = [
+                  { id: "valor", valor: pref.UserPreferenceValor },
+                ];
+                acc[key].valor = JSON.stringify(
+                  { valor: pref.UserPreferenceValor },
+                  null,
+                  2,
+                );
+              }
+            } catch {
+              // Si no se puede parsear como JSON, tratar como texto simple
+              acc[key].campos = [
+                { id: "valor", valor: pref.UserPreferenceValor },
+              ];
+              acc[key].valor = JSON.stringify(
+                { valor: pref.UserPreferenceValor },
+                null,
+                2,
+              );
+            }
+
+            return acc;
+          },
+          {} as Record<string, Atributo>,
+        );
 
         setAtributos(Object.values(atributosAgrupados));
       }
@@ -110,19 +134,19 @@ export function useAtributos(userId: number, isOpen: boolean) {
       valor: generarJsonValor(camposActuales),
     };
 
-    setAtributos(prev => [...prev, nuevoAtributo]);
-    
+    setAtributos((prev) => [...prev, nuevoAtributo]);
+
     // Limpiar formulario
     setDescripcionAtributo("");
     setCamposActuales([]);
     setNuevoCampo({ id: "", valor: "" });
-    
+
     toast.success(`Atributo "${nuevoAtributo.descripcion}" creado`);
   };
 
   // Eliminar atributo
   const eliminarAtributo = (id: string) => {
-    setAtributos(prev => prev.filter(attr => attr.id !== id));
+    setAtributos((prev) => prev.filter((attr) => attr.id !== id));
     toast.success("Atributo eliminado");
   };
 
@@ -130,31 +154,32 @@ export function useAtributos(userId: number, isOpen: boolean) {
   const guardarAtributos = async () => {
     try {
       setSaving(true);
-      
+
       console.log("Guardando atributos para usuario:", userId);
       console.log("Atributos:", atributos);
-      
+
       // Convertir atributos a formato UserPreference[]
-      const userPreferences: UserPreference[] = atributos.map((atributo, index) => ({
-        UserPreferenceId: parseInt(atributo.id) || 0, // Si es un nuevo atributo, usar 0
-        UserExtendedId: userId,
-        UserPreferenceAtributo: atributo.descripcion,
-        UserPreferenceValor: atributo.valor,
-      }));
-      
+      const userPreferences: UserPreference[] = atributos.map(
+        (atributo, index) => ({
+          UserPreferenceId: parseInt(atributo.id) || 0, // Si es un nuevo atributo, usar 0
+          UserExtendedId: userId,
+          UserPreferenceAtributo: atributo.descripcion,
+          UserPreferenceValor: atributo.valor,
+        }),
+      );
+
       // Crear el payload con el nuevo formato
       const payload = {
         sdtAtributos: userPreferences,
-        UserId: userId
+        UserId: userId,
       };
-      
+
       console.log("Payload para API:", payload);
-      
+
       await apiABMAtributos(payload);
-      
+
       toast.success("Atributos guardados correctamente");
       return true;
-      
     } catch (error) {
       console.error("Error guardando atributos:", error);
       toast.error("Error al guardar atributos");
@@ -188,7 +213,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
     setNuevoCampo,
     saving,
     loading,
-    
+
     // Funciones
     crearAtributo,
     eliminarAtributo,

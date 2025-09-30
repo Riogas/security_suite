@@ -3,14 +3,38 @@
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { apiUsuarios, apiImportarUsuario } from "@/services/api";
-import { Pencil, Trash, Download, Mail, Phone, Calendar, Loader2 } from "lucide-react";
+import {
+  Pencil,
+  Trash,
+  Download,
+  Mail,
+  Phone,
+  Calendar,
+  Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function UsuariosTable() {
@@ -76,7 +100,8 @@ export default function UsuariosTable() {
         setRows(items);
         setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
       } catch (e: any) {
-        if (e?.name !== "AbortError") console.error("Error cargando usuarios:", e);
+        if (e?.name !== "AbortError")
+          console.error("Error cargando usuarios:", e);
       }
     })();
     return () => ac.abort();
@@ -84,7 +109,10 @@ export default function UsuariosTable() {
 
   const getInitials = (nombre: string) => {
     if (!nombre || nombre.trim() === "" || nombre === "undefined") return "U";
-    const words = nombre.trim().split(" ").filter(word => word.length > 0);
+    const words = nombre
+      .trim()
+      .split(" ")
+      .filter((word) => word.length > 0);
     if (words.length >= 2) {
       return (words[0][0] + words[1][0]).toUpperCase();
     }
@@ -100,17 +128,19 @@ export default function UsuariosTable() {
     }
 
     try {
-      setImportingUsers(prev => new Set(prev).add(userId));
-      
+      setImportingUsers((prev) => new Set(prev).add(userId));
+
       const response = await apiImportarUsuario({
         UserExtendedId: userId,
         AplicacionId: 2, // Security Suite por defecto
       });
 
       if (response.success) {
-        console.log(`Usuario ${user?.UserExtendedNombre} importado exitosamente`);
-        setImportedUsers(prev => new Set(prev).add(userId));
-        
+        console.log(
+          `Usuario ${user?.UserExtendedNombre} importado exitosamente`,
+        );
+        setImportedUsers((prev) => new Set(prev).add(userId));
+
         // Opcional: Actualizar la lista de usuarios
         // Podrías recargar los datos o actualizar el estado local
       } else {
@@ -119,7 +149,7 @@ export default function UsuariosTable() {
     } catch (error) {
       console.error("Error en la importación:", error);
     } finally {
-      setImportingUsers(prev => {
+      setImportingUsers((prev) => {
         const newSet = new Set(prev);
         newSet.delete(userId);
         return newSet;
@@ -131,13 +161,15 @@ export default function UsuariosTable() {
   const shouldShowImportButton = (user: any) => {
     const userId = user?.UserExtendedId;
     // Solo mostrar el botón si:
-    // 1. Está activado el filtro "Sin importar" 
+    // 1. Está activado el filtro "Sin importar"
     // 2. El usuario no ha sido importado previamente
     // 3. El usuario tiene los campos necesarios
-    return sinMigrar && 
-           userId && 
-           !importedUsers.has(userId) &&
-           user?.UserExtendedNombre; // Verificar que tiene datos básicos
+    return (
+      sinMigrar &&
+      userId &&
+      !importedUsers.has(userId) &&
+      user?.UserExtendedNombre
+    ); // Verificar que tiene datos básicos
   };
 
   return (
@@ -209,7 +241,9 @@ export default function UsuariosTable() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-medium">{row?.UserExtendedNombre || "Sin nombre"}</div>
+                      <div className="font-medium">
+                        {row?.UserExtendedNombre || "Sin nombre"}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         @{row?.UserExtendedUserName || "sin-usuario"}
                       </div>
@@ -231,20 +265,21 @@ export default function UsuariosTable() {
                   {(() => {
                     const esUsuarioExterno = row?.sinMigrar;
                     const tieneId = row?.UserExtendedId;
-                    
+
                     if (esUsuarioExterno) {
                       // Usuario externo que necesita ser importado - no tiene ID local
                       return (
-                        <Badge variant="outline" className="text-muted-foreground">
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground"
+                        >
                           Sin asignar
                         </Badge>
                       );
                     } else {
                       // Usuario que existe en el sistema local - mostrar ID
                       return (
-                        <Badge variant="secondary">
-                          ID: {tieneId || "-"}
-                        </Badge>
+                        <Badge variant="secondary">ID: {tieneId || "-"}</Badge>
                       );
                     }
                   })()}
@@ -255,14 +290,22 @@ export default function UsuariosTable() {
                       <Phone className="w-3 h-3 mr-1" />
                       {row?.UserExtendedTelefono}
                     </div>
-                  ) : "-"}
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell>
                   {(() => {
                     const estado = row?.UserExtendedEstado;
                     const activo = estado === "S" || estado === "A";
                     return (
-                      <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
+                      <Badge
+                        className={
+                          activo
+                            ? "bg-green-900 text-green-200"
+                            : "bg-red-900 text-red-200"
+                        }
+                      >
                         {activo ? "Activo" : "Inactivo"}
                       </Badge>
                     );
@@ -292,7 +335,10 @@ export default function UsuariosTable() {
                           )}
                         </Button>
                         {importedUsers.has(row?.UserExtendedId) && (
-                          <Badge variant="default" className="bg-green-600 text-white">
+                          <Badge
+                            variant="default"
+                            className="bg-green-600 text-white"
+                          >
                             ✓ Importado
                           </Badge>
                         )}
@@ -304,7 +350,9 @@ export default function UsuariosTable() {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            router.push(`/dashboard/usuarios/editar/${row?.UserExtendedId || ""}`)
+                            router.push(
+                              `/dashboard/usuarios/editar/${row?.UserExtendedId || ""}`,
+                            )
                           }
                         >
                           <Pencil className="w-4 h-4" />
@@ -350,10 +398,7 @@ export default function UsuariosTable() {
             Página {pageIndex + 1} de {Math.max(1, totalPages)}
           </span>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setPageIndex(0)}
-              disabled={pageIndex === 0}
-            >
+            <Button onClick={() => setPageIndex(0)} disabled={pageIndex === 0}>
               «
             </Button>
             <Button
@@ -363,7 +408,9 @@ export default function UsuariosTable() {
               ‹
             </Button>
             <Button
-              onClick={() => setPageIndex(Math.min(totalPages - 1, pageIndex + 1))}
+              onClick={() =>
+                setPageIndex(Math.min(totalPages - 1, pageIndex + 1))
+              }
               disabled={pageIndex >= totalPages - 1}
             >
               ›

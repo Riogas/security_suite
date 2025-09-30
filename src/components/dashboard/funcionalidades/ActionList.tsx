@@ -20,10 +20,11 @@ interface ActionListProps {
 }
 
 export function DraggableAction({ action, searchTerm }: DraggableActionProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: action.id,
-    data: action,
-  });
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: action.id,
+      data: action,
+    });
 
   const style = transform
     ? {
@@ -34,7 +35,7 @@ export function DraggableAction({ action, searchTerm }: DraggableActionProps) {
 
   const highlightText = (text: string, search: string) => {
     if (!search) return text;
-    const regex = new RegExp(`(${search})`, 'gi');
+    const regex = new RegExp(`(${search})`, "gi");
     const parts = text.split(regex);
     return parts.map((part, index) =>
       regex.test(part) ? (
@@ -43,7 +44,7 @@ export function DraggableAction({ action, searchTerm }: DraggableActionProps) {
         </mark>
       ) : (
         part
-      )
+      ),
     );
   };
 
@@ -53,9 +54,9 @@ export function DraggableAction({ action, searchTerm }: DraggableActionProps) {
       style={style}
       className={`
         group flex items-center gap-3 p-3 rounded-lg border-2 
-        ${isDragging ? 'border-blue-400 bg-blue-50/50' : 'border-border hover:border-blue-300'}
+        ${isDragging ? "border-blue-400 bg-blue-50/50" : "border-border hover:border-blue-300"}
         transition-all duration-200 cursor-grab active:cursor-grabbing
-        ${isDragging ? 'shadow-lg z-50' : 'hover:shadow-md'}
+        ${isDragging ? "shadow-lg z-50" : "hover:shadow-md"}
       `}
       {...listeners}
       {...attributes}
@@ -81,10 +82,15 @@ export function DraggableAction({ action, searchTerm }: DraggableActionProps) {
   );
 }
 
-export function ActionList({ acciones, searchTerm, onSearchChange }: ActionListProps) {
-  const filteredActions = acciones.filter((action) =>
-    action.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    action.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+export function ActionList({
+  acciones,
+  searchTerm,
+  onSearchChange,
+}: ActionListProps) {
+  const filteredActions = acciones.filter(
+    (action) =>
+      action.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.codigo.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -116,7 +122,9 @@ export function ActionList({ acciones, searchTerm, onSearchChange }: ActionListP
             <div className="text-center py-8">
               <Zap className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-muted-foreground">
-                {searchTerm ? "No se encontraron acciones" : "No hay acciones disponibles"}
+                {searchTerm
+                  ? "No se encontraron acciones"
+                  : "No hay acciones disponibles"}
               </p>
             </div>
           ) : (

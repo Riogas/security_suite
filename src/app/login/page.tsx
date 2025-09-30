@@ -61,9 +61,8 @@ export default function LoginPage() {
       setLoading(true);
       setLockState("locked");
 
-      
       const APP_ID = Number(
-        process.env.NEXT_PUBLIC_APLICACION_ID ?? process.env.APLICACION_ID ?? 0
+        process.env.NEXT_PUBLIC_APLICACION_ID ?? process.env.APLICACION_ID ?? 0,
       );
 
       const response = await apiLoginUser({

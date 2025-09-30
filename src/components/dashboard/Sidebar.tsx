@@ -63,8 +63,12 @@ function normalizeTree(items: ApiMenuItem[] | undefined): NormalizedMenuItem[] {
   const arr = Array.isArray(items) ? items : [];
   const norm = arr.map<NormalizedMenuItem>((it, idx) => {
     const children = normalizeTree(it.children);
-    const type = String(it.type || (children.length ? "SUBMENU" : "PAGE")).toUpperCase() as NormalizedMenuItem["type"];
-    const style = (it.style ?? (it as any)?.accionstyle ?? "").toString().trim() || undefined;
+    const type = String(
+      it.type || (children.length ? "SUBMENU" : "PAGE"),
+    ).toUpperCase() as NormalizedMenuItem["type"];
+    const style =
+      (it.style ?? (it as any)?.accionstyle ?? "").toString().trim() ||
+      undefined;
     return {
       icon: asIconKey(it.icon),
       key:
@@ -72,7 +76,10 @@ function normalizeTree(items: ApiMenuItem[] | undefined): NormalizedMenuItem[] {
         (it.path && String(it.path)) ||
         `${type}-${idx}`,
       label: normalizeLabel(it),
-      order: typeof it.order === "number" ? it.order : parseInt(String(it.order ?? 0), 10) || 0,
+      order:
+        typeof it.order === "number"
+          ? it.order
+          : parseInt(String(it.order ?? 0), 10) || 0,
       path: String(it.path ?? "#"),
       type,
       children,
@@ -149,11 +156,18 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
             {!collapsed && (
               <span className="flex-1 text-left truncate">{item.label}</span>
             )}
-            {!collapsed && (isOpen ? (<ChevronDown className="w-4 h-4" />) : (<ChevronRight className="w-4 h-4" />))}
+            {!collapsed &&
+              (isOpen ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              ))}
           </Button>
           {isOpen && (
             <div className="flex flex-col">
-              {item.children.sort((a,b)=>a.order-b.order).map((child) => renderItem(child, depth + 1))}
+              {item.children
+                .sort((a, b) => a.order - b.order)
+                .map((child) => renderItem(child, depth + 1))}
             </div>
           )}
         </div>

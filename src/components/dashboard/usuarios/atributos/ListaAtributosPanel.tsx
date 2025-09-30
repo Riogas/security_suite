@@ -29,7 +29,6 @@ export default function ListaAtributosPanel({
   loading,
   onEliminarAtributo,
 }: ListaAtributosPanelProps) {
-  
   if (loading) {
     return (
       <div className="w-[52%] space-y-6">
@@ -74,16 +73,23 @@ export default function ListaAtributosPanel({
               <div className="text-center">
                 <Settings className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No hay atributos creados</p>
-                <p className="text-xs">Crea tu primer atributo en el panel izquierdo</p>
+                <p className="text-xs">
+                  Crea tu primer atributo en el panel izquierdo
+                </p>
               </div>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {atributos.map((atributo) => (
-                <div key={atributo.id} className="border rounded-lg p-4 space-y-3">
+                <div
+                  key={atributo.id}
+                  className="border rounded-lg p-4 space-y-3"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium text-base mb-1">{atributo.descripcion}</h4>
+                      <h4 className="font-medium text-base mb-1">
+                        {atributo.descripcion}
+                      </h4>
                       <p className="text-sm text-muted-foreground">
                         {atributo.campos.length} campos configurados
                       </p>
@@ -105,10 +111,15 @@ export default function ListaAtributosPanel({
                     </p>
                     <div className="grid grid-cols-1 gap-1">
                       {atributo.campos.map((campo, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-xs">
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 text-xs"
+                        >
                           <Hash className="w-3 h-3 text-muted-foreground" />
                           <span className="font-medium">{campo.id}:</span>
-                          <span className="text-muted-foreground truncate">{campo.valor}</span>
+                          <span className="text-muted-foreground truncate">
+                            {campo.valor}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -120,7 +131,9 @@ export default function ListaAtributosPanel({
                       Valor JSON:
                     </p>
                     <div className="bg-muted p-3 rounded text-xs font-mono max-h-32 overflow-y-auto">
-                      <pre className="whitespace-pre-wrap">{atributo.valor}</pre>
+                      <pre className="whitespace-pre-wrap">
+                        {atributo.valor}
+                      </pre>
                     </div>
                   </div>
                 </div>

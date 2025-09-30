@@ -13,7 +13,10 @@ export default function ObjetosPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Administración de Objetos</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.push("/dashboard/menu")}>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/menu")}
+          >
             Administrar Menú
           </Button>
           <Button onClick={() => router.push("/dashboard/objetos/crear")}>

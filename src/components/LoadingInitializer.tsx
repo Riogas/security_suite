@@ -14,20 +14,30 @@ export const LoadingInitializer: React.FC = () => {
     // Interceptar clicks en botones y elementos que pueden navegar
     const handleClick = (event: Event) => {
       const target = event.target as HTMLElement;
-      const button = target.closest('button') as HTMLButtonElement;
-      
+      const button = target.closest("button") as HTMLButtonElement;
+
       if (button) {
         // Detectar si el botón podría navegar
-        const buttonText = button.textContent?.toLowerCase() || '';
+        const buttonText = button.textContent?.toLowerCase() || "";
         const hasNavigationKeywords = [
-          'nueva', 'crear', 'editar', 'ver', 'abrir', 'ir a',
-          'roles', 'usuarios', 'funcionalidades', 'permisos', 
-          'objetos', 'aplicaciones', 'dashboard'
-        ].some(keyword => buttonText.includes(keyword));
-        
+          "nueva",
+          "crear",
+          "editar",
+          "ver",
+          "abrir",
+          "ir a",
+          "roles",
+          "usuarios",
+          "funcionalidades",
+          "permisos",
+          "objetos",
+          "aplicaciones",
+          "dashboard",
+        ].some((keyword) => buttonText.includes(keyword));
+
         // Si el botón tiene un ícono de navegación o texto que sugiere navegación
-        const hasNavIcon = button.querySelector('svg') !== null;
-        
+        const hasNavIcon = button.querySelector("svg") !== null;
+
         if (hasNavigationKeywords || hasNavIcon) {
           // Pequeño delay para mostrar loading después del click
           setTimeout(() => {
@@ -38,11 +48,11 @@ export const LoadingInitializer: React.FC = () => {
     };
 
     // Agregar listener para clicks
-    document.addEventListener('click', handleClick, { capture: true });
+    document.addEventListener("click", handleClick, { capture: true });
 
     // Cleanup
     return () => {
-      document.removeEventListener('click', handleClick, { capture: true });
+      document.removeEventListener("click", handleClick, { capture: true });
     };
   }, [loadingContext]);
 

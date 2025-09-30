@@ -631,7 +631,9 @@ export const apiListarObjetos = async (
     }
 
     if (status === 403) {
-      return (error?.response?.data || { reason: "FORBIDDEN" }) as ListarObjetosResp;
+      return (error?.response?.data || {
+        reason: "FORBIDDEN",
+      }) as ListarObjetosResp;
     }
 
     throw error;
@@ -697,7 +699,9 @@ export const apiAbmFuncionalidades = async (
     }
 
     if (status === 403) {
-      return (error?.response?.data || { reason: "FORBIDDEN" }) as AbmFuncionalidadesResp;
+      return (error?.response?.data || {
+        reason: "FORBIDDEN",
+      }) as AbmFuncionalidadesResp;
     }
 
     throw error;
@@ -767,7 +771,9 @@ export const apiListarFuncionalidades = async (
     }
 
     if (status === 403) {
-      return (error?.response?.data || { reason: "FORBIDDEN" }) as ListarFuncionalidadesResp;
+      return (error?.response?.data || {
+        reason: "FORBIDDEN",
+      }) as ListarFuncionalidadesResp;
     }
 
     throw error;
@@ -802,8 +808,6 @@ export type AbmRolesResp = {
 
 /* Duplicate apiObtenerRol removed to fix redeclaration error */
 
-
-
 export const apiAbmRoles = async (
   payload: AbmRolesReq,
   opts?: { signal?: AbortSignal },
@@ -827,12 +831,13 @@ export const apiAbmRoles = async (
           localStorage.removeItem("token");
         }
         if (typeof document !== "undefined") {
-          document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          document.cookie =
+            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         }
       } catch (cleanupError) {
         console.warn("Error during token cleanup:", cleanupError);
       }
-      
+
       // Redirigir al login
       if (typeof window !== "undefined") {
         window.location.href = "/login";
@@ -907,7 +912,9 @@ export const apiObtenerRol = async (
     }
 
     if (status === 403) {
-      return (error?.response?.data || { reason: "FORBIDDEN" }) as ObtenerRolResp;
+      return (error?.response?.data || {
+        reason: "FORBIDDEN",
+      }) as ObtenerRolResp;
     }
 
     throw error;
@@ -951,12 +958,13 @@ export const apiImportarUsuario = async (
           localStorage.removeItem("token");
         }
         if (typeof document !== "undefined") {
-          document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          document.cookie =
+            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         }
       } catch (cleanupError) {
         console.warn("Error during token cleanup:", cleanupError);
       }
-      
+
       // Redirigir al login
       if (typeof window !== "undefined") {
         window.location.href = "/login";
@@ -964,7 +972,9 @@ export const apiImportarUsuario = async (
     }
 
     if (status === 403) {
-      return (error?.response?.data || { reason: "FORBIDDEN" }) as ImportarUsuarioResp;
+      return (error?.response?.data || {
+        reason: "FORBIDDEN",
+      }) as ImportarUsuarioResp;
     }
 
     throw error;
@@ -1072,15 +1082,19 @@ export type RolAsignado = {
   esRoot: string;
 };
 
-export const apiGetRoles = async (
-  opts?: { signal?: AbortSignal },
-): Promise<RolAsignado[]> => {
+export const apiGetRoles = async (opts?: {
+  signal?: AbortSignal;
+}): Promise<RolAsignado[]> => {
   try {
-    const res = await api.post("/getRoles", {}, {
-      signal: opts?.signal,
-      withCredentials: true,
-      headers: { "Content-Type": "application/json" },
-    });
+    const res = await api.post(
+      "/getRoles",
+      {},
+      {
+        signal: opts?.signal,
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
 
     return res.data || [];
   } catch (error: any) {
@@ -1166,49 +1180,50 @@ export const apiGetRolUsuario = async (
 // Body: {} (vacÃ­o)
 // Respuesta: Array de atributos del usuario actual
 // =====================
-export const apiGetAtributos = async (
-  opts?: { signal?: AbortSignal },
-): Promise<GetAtributosResp> => {
-  return withApiLogging(
-    "/getAtributos",
-    async () => {
-      try {
-        const res = await api.post("/getAtributos", {}, {
+export const apiGetAtributos = async (opts?: {
+  signal?: AbortSignal;
+}): Promise<GetAtributosResp> => {
+  return withApiLogging("/getAtributos", async () => {
+    try {
+      const res = await api.post(
+        "/getAtributos",
+        {},
+        {
           signal: opts?.signal,
           withCredentials: true,
           headers: { "Content-Type": "application/json" },
-        });
+        },
+      );
 
-        return res.data;
-      } catch (error: any) {
-        const status = error?.response?.status;
+      return res.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
 
-        if (status === 401) {
-          try {
-            clearSentryUser();
-          } catch {}
-          try {
-            if (typeof window !== "undefined") {
-              localStorage.removeItem("user");
-              localStorage.removeItem("token");
-            }
-            if (typeof document !== "undefined") {
-              document.cookie = "token=; path=/; max-age=0";
-            }
-          } catch {}
-          const e = new Error("UNAUTHORIZED");
-          (e as any).status = 401;
-          throw e;
-        }
-
-        if (status === 403) {
-          return [];
-        }
-
-        throw error;
+      if (status === 401) {
+        try {
+          clearSentryUser();
+        } catch {}
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          }
+          if (typeof document !== "undefined") {
+            document.cookie = "token=; path=/; max-age=0";
+          }
+        } catch {}
+        const e = new Error("UNAUTHORIZED");
+        (e as any).status = 401;
+        throw e;
       }
-    },
-  );
+
+      if (status === 403) {
+        return [];
+      }
+
+      throw error;
+    }
+  });
 };
 
 // =====================
@@ -1220,44 +1235,41 @@ export const apiABMAtributos = async (
   payload: ABMAtributosReq,
   opts?: { signal?: AbortSignal },
 ): Promise<ABMAtributosResp> => {
-  return withApiLogging(
-    "/ABMAtributos",
-    async () => {
-      try {
-        const res = await api.post("/ABMAtributos", payload, {
-          signal: opts?.signal,
-          withCredentials: true,
-          headers: { "Content-Type": "application/json" },
-        });
+  return withApiLogging("/ABMAtributos", async () => {
+    try {
+      const res = await api.post("/ABMAtributos", payload, {
+        signal: opts?.signal,
+        withCredentials: true,
+        headers: { "Content-Type": "application/json" },
+      });
 
-        return res.data;
-      } catch (error: any) {
-        const status = error?.response?.status;
+      return res.data;
+    } catch (error: any) {
+      const status = error?.response?.status;
 
-        if (status === 401) {
-          try {
-            clearSentryUser();
-          } catch {}
-          try {
-            if (typeof window !== "undefined") {
-              localStorage.removeItem("user");
-              localStorage.removeItem("token");
-            }
-            if (typeof document !== "undefined") {
-              document.cookie = "token=; path=/; max-age=0";
-            }
-          } catch {}
-          const e = new Error("UNAUTHORIZED");
-          (e as any).status = 401;
-          throw e;
-        }
-
-        if (status === 403) {
-          return { success: false, message: "FORBIDDEN" };
-        }
-
-        throw error;
+      if (status === 401) {
+        try {
+          clearSentryUser();
+        } catch {}
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+          }
+          if (typeof document !== "undefined") {
+            document.cookie = "token=; path=/; max-age=0";
+          }
+        } catch {}
+        const e = new Error("UNAUTHORIZED");
+        (e as any).status = 401;
+        throw e;
       }
-    },
-  );
+
+      if (status === 403) {
+        return { success: false, message: "FORBIDDEN" };
+      }
+
+      throw error;
+    }
+  });
 };

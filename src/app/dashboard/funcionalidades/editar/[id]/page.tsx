@@ -2,37 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { apiListarFuncionalidades, type ListarFuncionalidadesItem } from "@/services/api";
+import {
+  apiListarFuncionalidades,
+  type ListarFuncionalidadesItem,
+} from "@/services/api";
 import FuncionalidadForm from "@/components/dashboard/funcionalidades/FuncionalidadForm";
 
 export default function EditarFuncionalidadPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
-  
+
   const [loading, setLoading] = useState(true);
-  const [funcionalidad, setFuncionalidad] = useState<ListarFuncionalidadesItem | null>(null);
+  const [funcionalidad, setFuncionalidad] =
+    useState<ListarFuncionalidadesItem | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadFuncionalidad = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
         // Cargar todas las funcionalidades y buscar la específica
         // TODO: Ideally habría una API getFuncionalidad(id) pero usaremos listar por ahora
         const response = await apiListarFuncionalidades({ AplicacionId: 3 });
-        
+
         const funcionalidadData = response.sdtFuncionalidades.find(
-          f => f.FuncionalidadId === parseInt(id)
+          (f) => f.FuncionalidadId === parseInt(id),
         );
-        
+
         if (!funcionalidadData) {
           setError(`Funcionalidad con ID ${id} no encontrada`);
           return;
         }
-        
+
         setFuncionalidad(funcionalidadData);
       } catch (err) {
         console.error("Error cargando funcionalidad:", err);
@@ -92,7 +96,7 @@ export default function EditarFuncionalidadPage() {
     estado: funcionalidad.FuncionalidadEstado as "A" | "I",
     esPublico: funcionalidad.FuncionalidadEsPublico === "S",
     soloRoot: funcionalidad.FuncionalidadSoloRoot === "S",
-    acciones: funcionalidad.Accion || []
+    acciones: funcionalidad.Accion || [],
   };
 
   return (

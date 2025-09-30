@@ -3,15 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Shield, 
-  Settings, 
-  FileText, 
-  UserPlus, 
+import {
+  Users,
+  Shield,
+  Settings,
+  FileText,
+  UserPlus,
   ShieldCheck,
   BarChart3,
-  Download
+  Download,
 } from "lucide-react";
 
 interface QuickAction {
@@ -29,7 +29,7 @@ interface QuickActionsWidgetProps {
   actions?: QuickAction[];
 }
 
-export function QuickActionsWidget({ 
+export function QuickActionsWidget({
   actions = [
     {
       id: "1",
@@ -38,7 +38,7 @@ export function QuickActionsWidget({
       icon: UserPlus,
       variant: "default",
       href: "/dashboard/usuarios/crear",
-      badge: "Nuevo"
+      badge: "Nuevo",
     },
     {
       id: "2",
@@ -46,7 +46,7 @@ export function QuickActionsWidget({
       description: "Administrar roles y permisos",
       icon: Shield,
       variant: "outline",
-      href: "/dashboard/roles"
+      href: "/dashboard/roles",
     },
     {
       id: "3",
@@ -54,7 +54,7 @@ export function QuickActionsWidget({
       description: "Revisar logs del sistema",
       icon: FileText,
       variant: "outline",
-      href: "/dashboard/eventos"
+      href: "/dashboard/eventos",
     },
     {
       id: "4",
@@ -63,7 +63,7 @@ export function QuickActionsWidget({
       icon: Settings,
       variant: "outline",
       href: "/dashboard/configuracion",
-      disabled: true
+      disabled: true,
     },
     {
       id: "5",
@@ -71,7 +71,7 @@ export function QuickActionsWidget({
       description: "Generar reportes de seguridad",
       icon: BarChart3,
       variant: "secondary",
-      href: "/dashboard/reportes"
+      href: "/dashboard/reportes",
     },
     {
       id: "6",
@@ -79,11 +79,10 @@ export function QuickActionsWidget({
       description: "Descargar información del sistema",
       icon: Download,
       variant: "secondary",
-      href: "/dashboard/exportar"
-    }
-  ]
+      href: "/dashboard/exportar",
+    },
+  ],
 }: QuickActionsWidgetProps) {
-  
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -96,7 +95,7 @@ export function QuickActionsWidget({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {actions.map((action) => {
             const Icon = action.icon;
-            
+
             return (
               <Button
                 key={action.id}
@@ -110,7 +109,9 @@ export function QuickActionsWidget({
                     <Icon className="w-5 h-5 mt-1 flex-shrink-0" />
                     <div className="text-left flex-1">
                       <div className="font-medium text-sm">{action.title}</div>
-                      <div className="text-xs opacity-70 mt-0.5">{action.description}</div>
+                      <div className="text-xs opacity-70 mt-0.5">
+                        {action.description}
+                      </div>
                       {action.badge && (
                         <Badge variant="outline" className="mt-2 text-xs">
                           {action.badge}
@@ -119,11 +120,16 @@ export function QuickActionsWidget({
                     </div>
                   </div>
                 ) : (
-                  <a href={action.href} className="flex items-start space-x-3 w-full">
+                  <a
+                    href={action.href}
+                    className="flex items-start space-x-3 w-full"
+                  >
                     <Icon className="w-5 h-5 mt-1 flex-shrink-0" />
                     <div className="text-left flex-1">
                       <div className="font-medium text-sm">{action.title}</div>
-                      <div className="text-xs opacity-70 mt-0.5">{action.description}</div>
+                      <div className="text-xs opacity-70 mt-0.5">
+                        {action.description}
+                      </div>
                       {action.badge && (
                         <Badge variant="outline" className="mt-2 text-xs">
                           {action.badge}

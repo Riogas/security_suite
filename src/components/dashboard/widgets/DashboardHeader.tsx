@@ -10,28 +10,28 @@ interface DashboardHeaderProps {
   lastUpdated?: string;
 }
 
-export function DashboardHeader({ 
+export function DashboardHeader({
   title = "Panel de Control",
   subtitle = "Sistema de Seguridad y Gestión de Accesos",
   systemStatus = "active",
-  lastUpdated = "2 min"
+  lastUpdated = "2 min",
 }: DashboardHeaderProps) {
   const statusConfig = {
     active: {
       color: "bg-green-50 text-green-700 border-green-200",
       icon: CheckCircle,
-      text: "Sistema Activo"
+      text: "Sistema Activo",
     },
     maintenance: {
       color: "bg-yellow-50 text-yellow-700 border-yellow-200",
       icon: Clock,
-      text: "Mantenimiento"
+      text: "Mantenimiento",
     },
     error: {
       color: "bg-red-50 text-red-700 border-red-200",
       icon: CheckCircle,
-      text: "Sistema con Errores"
-    }
+      text: "Sistema con Errores",
+    },
   };
 
   const StatusIcon = statusConfig[systemStatus].icon;

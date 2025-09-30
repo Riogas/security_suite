@@ -20,15 +20,15 @@ export default function DashboardPage() {
       subtitle: "+12% desde el mes pasado",
       trend: { value: 12, isPositive: true },
       icon: Users,
-      color: "default" as const
+      color: "default" as const,
     },
     {
-      title: "Accesos Hoy", 
+      title: "Accesos Hoy",
       value: "1,284",
       subtitle: "+8% desde ayer",
       trend: { value: 8, isPositive: true },
       icon: LogIn,
-      color: "success" as const
+      color: "success" as const,
     },
     {
       title: "Alertas Pendientes",
@@ -36,15 +36,15 @@ export default function DashboardPage() {
       subtitle: "-2 desde ayer",
       trend: { value: 2, isPositive: false },
       icon: AlertTriangle,
-      color: "warning" as const
+      color: "warning" as const,
     },
     {
       title: "Uptime Sistema",
       value: "99.9%",
       subtitle: "Últimos 30 días",
       icon: Activity,
-      color: "success" as const
-    }
+      color: "success" as const,
+    },
   ];
 
   // Datos para gráficas
@@ -55,19 +55,24 @@ export default function DashboardPage() {
     { label: "Jue", value: 280 },
     { label: "Vie", value: 320 },
     { label: "Sáb", value: 150 },
-    { label: "Dom", value: 120 }
+    { label: "Dom", value: 120 },
   ];
 
   const lineChartSeries = [45, 30, 85, 120, 95, 70, 55];
-  const lineChartLabels = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"];
+  const lineChartLabels = [
+    "00:00",
+    "04:00",
+    "08:00",
+    "12:00",
+    "16:00",
+    "20:00",
+    "24:00",
+  ];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <DashboardHeader 
-        systemStatus="active"
-        lastUpdated="2 min"
-      />
+      <DashboardHeader systemStatus="active" lastUpdated="2 min" />
 
       {/* Estadísticas principales */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

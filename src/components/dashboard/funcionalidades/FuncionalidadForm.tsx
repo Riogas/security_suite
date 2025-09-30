@@ -1,19 +1,54 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Save, ArrowLeft, GripVertical, Plus, X, Trash2, ChevronDown, ChevronRight, Search } from "lucide-react";
-import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import {
+  Save,
+  ArrowLeft,
+  GripVertical,
+  Plus,
+  X,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  Search,
+} from "lucide-react";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { apiListarObjetos, apiAbmFuncionalidades, type ListarObjetosItem, type AbmFuncionalidadesReq } from "@/services/api";
+import {
+  apiListarObjetos,
+  apiAbmFuncionalidades,
+  type ListarObjetosItem,
+  type AbmFuncionalidadesReq,
+} from "@/services/api";
 
 // Opciones de aplicaciones
 const APP_OPTIONS = [
@@ -51,7 +86,7 @@ interface FuncionalidadFormProps {
     estado?: EstadoCode;
     esPublico?: boolean;
     soloRoot?: boolean;
-    acciones?: Array<{AccionId: number; ObjetoId: number}>;
+    acciones?: Array<{ AccionId: number; ObjetoId: number }>;
   };
   onSave?: (data: any) => void;
   onCancel?: () => void;
@@ -81,12 +116,18 @@ export default function FuncionalidadForm({
   const [loadingObjetos, setLoadingObjetos] = useState(false);
 
   // Estados para drag and drop
-  const [selectedItems, setSelectedItems] = useState<(Objeto | SortableAction)[]>([]);
+  const [selectedItems, setSelectedItems] = useState<
+    (Objeto | SortableAction)[]
+  >([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // Estados para colapsar/expandir objetos
-  const [collapsedObjects, setCollapsedObjects] = useState<Set<string>>(new Set());
-  const [collapsedSelectedObjects, setCollapsedSelectedObjects] = useState<Set<string>>(new Set());
+  const [collapsedObjects, setCollapsedObjects] = useState<Set<string>>(
+    new Set(),
+  );
+  const [collapsedSelectedObjects, setCollapsedSelectedObjects] = useState<
+    Set<string>
+  >(new Set());
 
   // Estados para filtros de búsqueda
   const [searchAvailable, setSearchAvailable] = useState("");
@@ -100,30 +141,32 @@ export default function FuncionalidadForm({
         AplicacionId: parseInt(aplicacionId),
         sinMenu: false, // Para funcionalidades necesitamos incluir elementos MENU
         Page: 1,
-        PageSize: 100 // Cargar todos los objetos
+        PageSize: 100, // Cargar todos los objetos
       });
 
       // Convertir la respuesta de la API al formato interno
-      const objetosFromApi: Objeto[] = response.sdtListaObjetos.map((item: ListarObjetosItem) => ({
-        id: `obj-${item.ObjetoId}`,
-        nombre: item.ObjetoKey,
-        codigo: item.ObjetoKey,
-        ruta: `/${item.ObjetoKey.toLowerCase()}`,
-        acciones: item.Acciones.map(accion => ({
-          id: `act-${accion.AccionId}`,
-          nombre: accion.AccionLabel || accion.AccionKey,
-          codigo: accion.AccionCodigo,
-          descripcion: accion.AccionDescripcion,
-          ruta: accion.AccionPath
-        }))
-      }));
+      const objetosFromApi: Objeto[] = response.sdtListaObjetos.map(
+        (item: ListarObjetosItem) => ({
+          id: `obj-${item.ObjetoId}`,
+          nombre: item.ObjetoKey,
+          codigo: item.ObjetoKey,
+          ruta: `/${item.ObjetoKey.toLowerCase()}`,
+          acciones: item.Acciones.map((accion) => ({
+            id: `act-${accion.AccionId}`,
+            nombre: accion.AccionLabel || accion.AccionKey,
+            codigo: accion.AccionCodigo,
+            descripcion: accion.AccionDescripcion,
+            ruta: accion.AccionPath,
+          })),
+        }),
+      );
 
       setObjetos(objetosFromApi);
-      
+
       // Colapsar todos los objetos por defecto
-      setCollapsedObjects(new Set(objetosFromApi.map(obj => obj.id)));
+      setCollapsedObjects(new Set(objetosFromApi.map((obj) => obj.id)));
     } catch (error) {
-      console.error('Error loading objetos:', error);
+      console.error("Error loading objetos:", error);
       // Mantener objetos por defecto en caso de error
       setObjetos([
         {
@@ -132,10 +175,22 @@ export default function FuncionalidadForm({
           codigo: "USERS",
           ruta: "/usuarios",
           acciones: [
-            { id: "act-1", nombre: "Ver", codigo: "VIEW", descripcion: "Visualizar usuarios", ruta: "/usuarios/view" },
-            { id: "act-2", nombre: "Crear", codigo: "CREATE", descripcion: "Crear nuevos usuarios", ruta: "/usuarios/create" },
-          ]
-        }
+            {
+              id: "act-1",
+              nombre: "Ver",
+              codigo: "VIEW",
+              descripcion: "Visualizar usuarios",
+              ruta: "/usuarios/view",
+            },
+            {
+              id: "act-2",
+              nombre: "Crear",
+              codigo: "CREATE",
+              descripcion: "Crear nuevos usuarios",
+              ruta: "/usuarios/create",
+            },
+          ],
+        },
       ]);
     } finally {
       setLoadingObjetos(false);
@@ -151,10 +206,10 @@ export default function FuncionalidadForm({
   useEffect(() => {
     if (mode === "edit" && initialData?.acciones && objetos.length > 0) {
       const elementosASeleccionar: (Objeto | SortableAction)[] = [];
-      
+
       // Agrupar acciones por objeto
       const accionesPorObjeto = new Map<number, number[]>();
-      initialData.acciones.forEach(accion => {
+      initialData.acciones.forEach((accion) => {
         const objetoId = accion.ObjetoId;
         if (!accionesPorObjeto.has(objetoId)) {
           accionesPorObjeto.set(objetoId, []);
@@ -164,20 +219,22 @@ export default function FuncionalidadForm({
 
       // Para cada objeto, verificar si seleccionar el objeto completo o acciones individuales
       accionesPorObjeto.forEach((accionIds, objetoId) => {
-        const objeto = objetos.find(obj => parseInt(obj.id.replace('obj-', '')) === objetoId);
+        const objeto = objetos.find(
+          (obj) => parseInt(obj.id.replace("obj-", "")) === objetoId,
+        );
         if (!objeto) return;
 
         // Si todas las acciones del objeto están seleccionadas, seleccionar el objeto completo
-        const todasLasAccionesSeleccionadas = objeto.acciones.every(accion => 
-          accionIds.includes(parseInt(accion.id.replace('act-', '')))
+        const todasLasAccionesSeleccionadas = objeto.acciones.every((accion) =>
+          accionIds.includes(parseInt(accion.id.replace("act-", ""))),
         );
 
         if (todasLasAccionesSeleccionadas) {
           elementosASeleccionar.push(objeto);
         } else {
           // Seleccionar acciones individuales
-          objeto.acciones.forEach(accion => {
-            const accionId = parseInt(accion.id.replace('act-', ''));
+          objeto.acciones.forEach((accion) => {
+            const accionId = parseInt(accion.id.replace("act-", ""));
             if (accionIds.includes(accionId)) {
               elementosASeleccionar.push(accion);
             }
@@ -198,32 +255,32 @@ export default function FuncionalidadForm({
   // Handlers
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       setSaving(true);
 
       // Construir array de acciones desde los elementos seleccionados
-      const acciones: Array<{ObjetoId: number, AccionId: number}> = [];
-      
-      selectedItems.forEach(item => {
+      const acciones: Array<{ ObjetoId: number; AccionId: number }> = [];
+
+      selectedItems.forEach((item) => {
         // Si es un objeto, agregar todas sus acciones
-        if ('acciones' in item) {
+        if ("acciones" in item) {
           const objeto = item as Objeto;
-          objeto.acciones.forEach(accion => {
-            const objetoId = parseInt(objeto.id.replace('obj-', ''));
-            const accionId = parseInt(accion.id.replace('act-', ''));
+          objeto.acciones.forEach((accion) => {
+            const objetoId = parseInt(objeto.id.replace("obj-", ""));
+            const accionId = parseInt(accion.id.replace("act-", ""));
             acciones.push({ ObjetoId: objetoId, AccionId: accionId });
           });
         } else {
           // Si es una acción individual
           const accion = item as SortableAction;
-          const accionId = parseInt(accion.id.replace('act-', ''));
+          const accionId = parseInt(accion.id.replace("act-", ""));
           // Buscar el objeto padre de esta acción
-          const objetoPadre = objetos.find(obj => 
-            obj.acciones.some(acc => acc.id === accion.id)
+          const objetoPadre = objetos.find((obj) =>
+            obj.acciones.some((acc) => acc.id === accion.id),
           );
           if (objetoPadre) {
-            const objetoId = parseInt(objetoPadre.id.replace('obj-', ''));
+            const objetoId = parseInt(objetoPadre.id.replace("obj-", ""));
             acciones.push({ ObjetoId: objetoId, AccionId: accionId });
           }
         }
@@ -237,12 +294,12 @@ export default function FuncionalidadForm({
         FuncionalidadFchIns: new Date().toISOString(),
         FuncionalidadEsPublico: formData.esPublico ? "S" : "N",
         FuncionalidadSoloRoot: formData.soloRoot ? "S" : "N",
-        FuncionalidadFchDesde: new Date().toISOString().split('T')[0],
-        FuncionalidadFchHasta: new Date().toISOString().split('T')[0],
-        Accion: acciones
+        FuncionalidadFchDesde: new Date().toISOString().split("T")[0],
+        FuncionalidadFchHasta: new Date().toISOString().split("T")[0],
+        Accion: acciones,
       };
 
-      console.log('Guardando funcionalidad:', payload);
+      console.log("Guardando funcionalidad:", payload);
       const result = await apiAbmFuncionalidades(payload);
 
       if (result.success) {
@@ -254,10 +311,10 @@ export default function FuncionalidadForm({
           });
         }
       } else {
-        throw new Error(result.message || 'Error al guardar la funcionalidad');
+        throw new Error(result.message || "Error al guardar la funcionalidad");
       }
     } catch (error) {
-      console.error('Error guardando funcionalidad:', error);
+      console.error("Error guardando funcionalidad:", error);
       // Aquí podrías agregar un toast o mensaje de error
     } finally {
       setSaving(false);
@@ -265,7 +322,7 @@ export default function FuncionalidadForm({
   };
 
   const handleFieldChange = (field: string, value: any) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -278,52 +335,55 @@ export default function FuncionalidadForm({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (over && over.id === "selected-items") {
       const draggedItem = findItemById(active.id as string);
       if (draggedItem) {
         // Si es un objeto, agregar el objeto y todas sus acciones
-        if ('acciones' in draggedItem) {
+        if ("acciones" in draggedItem) {
           const objeto = draggedItem as Objeto;
           const newItems = [objeto, ...objeto.acciones].filter(
-            item => !selectedItems.find(existing => existing.id === item.id)
+            (item) =>
+              !selectedItems.find((existing) => existing.id === item.id),
           );
-          setSelectedItems(prev => [...prev, ...newItems]);
+          setSelectedItems((prev) => [...prev, ...newItems]);
         } else {
           // Si es una acción, agregar la acción y su objeto padre (si no está ya)
           const accion = draggedItem as SortableAction;
-          
+
           // Buscar el objeto padre de esta acción
-          const objetoPadre = objetos.find(obj => 
-            obj.acciones.some(acc => acc.id === accion.id)
+          const objetoPadre = objetos.find((obj) =>
+            obj.acciones.some((acc) => acc.id === accion.id),
           );
-          
+
           if (objetoPadre) {
             const itemsToAdd: (Objeto | SortableAction)[] = [];
-            
+
             // Agregar el objeto padre si no está ya seleccionado
-            if (!selectedItems.find(item => item.id === objetoPadre.id)) {
+            if (!selectedItems.find((item) => item.id === objetoPadre.id)) {
               itemsToAdd.push(objetoPadre);
             }
-            
+
             // Agregar la acción si no está ya seleccionada
-            if (!selectedItems.find(item => item.id === accion.id)) {
+            if (!selectedItems.find((item) => item.id === accion.id)) {
               itemsToAdd.push(accion);
             }
-            
-            setSelectedItems(prev => [...prev, ...itemsToAdd]);
+
+            setSelectedItems((prev) => [...prev, ...itemsToAdd]);
           }
         }
       }
     }
-    
+
     setActiveId(null);
   };
 
   // Handlers para colapsar/expandir
   const toggleObjectCollapse = (objectId: string, isSelected = false) => {
-    const setterFunction = isSelected ? setCollapsedSelectedObjects : setCollapsedObjects;
-    setterFunction(prev => {
+    const setterFunction = isSelected
+      ? setCollapsedSelectedObjects
+      : setCollapsedObjects;
+    setterFunction((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(objectId)) {
         newSet.delete(objectId);
@@ -335,22 +395,28 @@ export default function FuncionalidadForm({
   };
 
   // Funciones de filtrado
-  const filteredAvailableObjetos = objetos.filter(objeto => 
-    objeto.nombre.toLowerCase().includes(searchAvailable.toLowerCase())
+  const filteredAvailableObjetos = objetos.filter((objeto) =>
+    objeto.nombre.toLowerCase().includes(searchAvailable.toLowerCase()),
   );
 
   const filteredSelectedItems = () => {
     if (!searchSelected) return getSelectedObjectsGrouped();
-    
-    const filtered = new Map<string, { objeto: Objeto | null, acciones: SortableAction[] }>();
+
+    const filtered = new Map<
+      string,
+      { objeto: Objeto | null; acciones: SortableAction[] }
+    >();
     const grouped = getSelectedObjectsGrouped();
-    
+
     for (const [key, group] of grouped) {
-      if (group.objeto && group.objeto.nombre.toLowerCase().includes(searchSelected.toLowerCase())) {
+      if (
+        group.objeto &&
+        group.objeto.nombre.toLowerCase().includes(searchSelected.toLowerCase())
+      ) {
         filtered.set(key, group);
       }
     }
-    
+
     return filtered;
   };
 
@@ -367,84 +433,104 @@ export default function FuncionalidadForm({
   };
 
   const removeFromSelected = (id: string) => {
-    setSelectedItems(prev => prev.filter(item => item.id !== id));
+    setSelectedItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   // Obtener objetos seleccionados (agrupar por objeto padre)
   const getSelectedObjectsGrouped = () => {
-    const objectsMap = new Map<string, { objeto: Objeto | null, acciones: SortableAction[] }>();
-    
-    selectedItems.forEach(item => {
-      if ('acciones' in item) {
+    const objectsMap = new Map<
+      string,
+      { objeto: Objeto | null; acciones: SortableAction[] }
+    >();
+
+    selectedItems.forEach((item) => {
+      if ("acciones" in item) {
         // Es un objeto
         const objeto = item as Objeto;
         objectsMap.set(objeto.id, {
           objeto,
-          acciones: objectsMap.get(objeto.id)?.acciones || []
+          acciones: objectsMap.get(objeto.id)?.acciones || [],
         });
       } else {
         // Es una acción, encontrar su objeto padre
-        const parentObject = objetos.find(obj => obj.acciones.some(acc => acc.id === item.id));
+        const parentObject = objetos.find((obj) =>
+          obj.acciones.some((acc) => acc.id === item.id),
+        );
         if (parentObject) {
-          const existing = objectsMap.get(parentObject.id) || { objeto: null, acciones: [] };
+          const existing = objectsMap.get(parentObject.id) || {
+            objeto: null,
+            acciones: [],
+          };
           objectsMap.set(parentObject.id, {
             ...existing,
-            acciones: [...existing.acciones, item as SortableAction]
+            acciones: [...existing.acciones, item as SortableAction],
           });
         }
       }
     });
-    
+
     return Array.from(objectsMap.entries());
   };
 
-// Componente para items draggables
-const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing"
-    >
-      {children}
-    </div>
-  );
-};
-
-// Componente Droppable para la zona de destino
-const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode }) => {
-  const { isOver, setNodeRef } = useDroppable({
+  // Componente para items draggables
+  const SortableItem = ({
     id,
-  });
+    children,
+  }: {
+    id: string;
+    children: React.ReactNode;
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id });
 
-  const style = {
-    backgroundColor: isOver ? 'rgba(59, 130, 246, 0.1)' : undefined,
-    borderColor: isOver ? '#3b82f6' : undefined,
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing"
+      >
+        {children}
+      </div>
+    );
   };
 
-  return (
-    <div ref={setNodeRef} style={style} className="transition-colors">
-      {children}
-    </div>
-  );
-};
+  // Componente Droppable para la zona de destino
+  const DroppableArea = ({
+    id,
+    children,
+  }: {
+    id: string;
+    children: React.ReactNode;
+  }) => {
+    const { isOver, setNodeRef } = useDroppable({
+      id,
+    });
+
+    const style = {
+      backgroundColor: isOver ? "rgba(59, 130, 246, 0.1)" : undefined,
+      borderColor: isOver ? "#3b82f6" : undefined,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} className="transition-colors">
+        {children}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -493,9 +579,11 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div className="md:col-span-3 space-y-1.5">
                   <Label htmlFor="aplicacion">Aplicación</Label>
-                  <Select 
-                    value={formData.aplicacion} 
-                    onValueChange={(value) => handleFieldChange("aplicacion", value)}
+                  <Select
+                    value={formData.aplicacion}
+                    onValueChange={(value) =>
+                      handleFieldChange("aplicacion", value)
+                    }
                   >
                     <SelectTrigger id="aplicacion" className="h-9">
                       <SelectValue placeholder="Seleccionar aplicación" />
@@ -516,7 +604,9 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                     id="nombre"
                     className="h-9"
                     value={formData.nombre}
-                    onChange={(e) => handleFieldChange("nombre", e.target.value)}
+                    onChange={(e) =>
+                      handleFieldChange("nombre", e.target.value)
+                    }
                     placeholder="Nombre de la funcionalidad"
                     required
                   />
@@ -527,9 +617,11 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                 <div className="md:col-span-2 space-y-1.5">
                   <Label>Estado</Label>
-                  <Select 
-                    value={formData.estado} 
-                    onValueChange={(value) => handleFieldChange("estado", value)}
+                  <Select
+                    value={formData.estado}
+                    onValueChange={(value) =>
+                      handleFieldChange("estado", value)
+                    }
                   >
                     <SelectTrigger className="h-9">
                       <SelectValue />
@@ -558,7 +650,9 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                     <Switch
                       id="esPublico"
                       checked={formData.esPublico}
-                      onCheckedChange={(checked) => handleFieldChange("esPublico", checked)}
+                      onCheckedChange={(checked) =>
+                        handleFieldChange("esPublico", checked)
+                      }
                     />
                     <Label htmlFor="esPublico">Es Público</Label>
                   </div>
@@ -567,7 +661,9 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                     <Switch
                       id="soloRoot"
                       checked={formData.soloRoot}
-                      onCheckedChange={(checked) => handleFieldChange("soloRoot", checked)}
+                      onCheckedChange={(checked) =>
+                        handleFieldChange("soloRoot", checked)
+                      }
                     />
                     <Label htmlFor="soloRoot">Solo Root</Label>
                   </div>
@@ -593,7 +689,9 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                     Objetos Disponibles
                   </CardTitle>
                   <Badge variant="secondary" className="text-xs">
-                    {searchAvailable ? `${filteredAvailableObjetos.length} de ${objetos.length}` : `${filteredAvailableObjetos.length} objetos`}
+                    {searchAvailable
+                      ? `${filteredAvailableObjetos.length} de ${objetos.length}`
+                      : `${filteredAvailableObjetos.length} objetos`}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -629,86 +727,116 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                   </div>
                 ) : (
                   <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                  {filteredAvailableObjetos.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <Search className="h-12 w-12 text-gray-300 mb-3" />
-                      <p className="text-gray-500 font-medium">
-                        {searchAvailable ? 'No se encontraron objetos' : 'No hay objetos disponibles'}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        {searchAvailable ? `Buscando: "${searchAvailable}"` : 'Selecciona una aplicación diferente'}
-                      </p>
-                    </div>
-                  ) : (
-                  <SortableContext items={filteredAvailableObjetos.map(obj => obj.id)} strategy={verticalListSortingStrategy}>
-                    {filteredAvailableObjetos.map((objeto) => {
-                      const isCollapsed = collapsedObjects.has(objeto.id);
-                      return (
-                        <div key={objeto.id} className="space-y-1.5">
-                          {/* Objeto Principal con botón de colapso */}
-                          <div className="relative">
-                            <SortableItem id={objeto.id}>
-                              <div className="group flex items-center gap-2.5 p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-lg hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing hover:from-blue-100 hover:to-blue-200">
-                                <GripVertical className="h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
-                                <div className="flex-1 min-w-0 pr-12">
-                                  <div className="font-medium text-gray-900 truncate text-sm">{objeto.nombre}</div>
-                                  <div className="text-xs text-blue-600 font-mono">{objeto.codigo}</div>
-                                </div>
-                                <div className="flex flex-col items-end gap-1 flex-shrink-0 mr-8">
-                                  <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-0.5">Objeto</Badge>
-                                  <span className="text-xs text-blue-500 font-medium">
-                                    {objeto.acciones.length} acciones
-                                  </span>
-                                </div>
-                              </div>
-                            </SortableItem>
-                            
-                            {/* Botón de colapso/expand */}
-                            <button
-                              onClick={() => toggleObjectCollapse(objeto.id)}
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full bg-white shadow-sm border hover:bg-gray-50 transition-colors z-10"
-                              type="button"
-                            >
-                              {isCollapsed ? (
-                                <ChevronRight className="h-3.5 w-3.5 text-blue-600" />
-                              ) : (
-                                <ChevronDown className="h-3.5 w-3.5 text-blue-600" />
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Acciones del objeto (colapsables) */}
-                          {!isCollapsed && (
-                            <div className="ml-6 space-y-1.5 relative animate-in slide-in-from-top-2 duration-200">
-                              <div className="absolute left-[-12px] top-0 bottom-0 w-px bg-gray-200" />
-                              <SortableContext items={objeto.acciones.map(acc => acc.id)} strategy={verticalListSortingStrategy}>
-                                {objeto.acciones.map((accion) => (
-                                  <SortableItem key={accion.id} id={accion.id}>
-                                    <div className="group relative flex items-center gap-2.5 p-2.5 bg-gradient-to-r from-green-50 to-green-100 border-l-2 border-green-400 rounded-md hover:shadow-sm transition-all duration-200 cursor-grab active:cursor-grabbing hover:from-green-100 hover:to-green-200">
-                                      <div className="absolute left-[-14px] top-1/2 w-2.5 h-px bg-gray-200" />
-                                      <GripVertical className="h-3.5 w-3.5 text-green-400 group-hover:text-green-600 transition-colors flex-shrink-0" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-800 text-sm truncate">{accion.nombre}</div>
-                                        {accion.descripcion && (
-                                          <div className="text-xs text-gray-600 truncate">{accion.descripcion}</div>
-                                        )}
-                                        <div className="text-xs text-green-600 font-mono">{accion.codigo}</div>
+                    {filteredAvailableObjetos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Search className="h-12 w-12 text-gray-300 mb-3" />
+                        <p className="text-gray-500 font-medium">
+                          {searchAvailable
+                            ? "No se encontraron objetos"
+                            : "No hay objetos disponibles"}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {searchAvailable
+                            ? `Buscando: "${searchAvailable}"`
+                            : "Selecciona una aplicación diferente"}
+                        </p>
+                      </div>
+                    ) : (
+                      <SortableContext
+                        items={filteredAvailableObjetos.map((obj) => obj.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {filteredAvailableObjetos.map((objeto) => {
+                          const isCollapsed = collapsedObjects.has(objeto.id);
+                          return (
+                            <div key={objeto.id} className="space-y-1.5">
+                              {/* Objeto Principal con botón de colapso */}
+                              <div className="relative">
+                                <SortableItem id={objeto.id}>
+                                  <div className="group flex items-center gap-2.5 p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-lg hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing hover:from-blue-100 hover:to-blue-200">
+                                    <GripVertical className="h-4 w-4 text-blue-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                                    <div className="flex-1 min-w-0 pr-12">
+                                      <div className="font-medium text-gray-900 truncate text-sm">
+                                        {objeto.nombre}
                                       </div>
-                                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs px-1.5 py-0.5 flex-shrink-0">
-                                        Acción
-                                      </Badge>
+                                      <div className="text-xs text-blue-600 font-mono">
+                                        {objeto.codigo}
+                                      </div>
                                     </div>
-                                  </SortableItem>
-                                ))}
-                              </SortableContext>
+                                    <div className="flex flex-col items-end gap-1 flex-shrink-0 mr-8">
+                                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-0.5">
+                                        Objeto
+                                      </Badge>
+                                      <span className="text-xs text-blue-500 font-medium">
+                                        {objeto.acciones.length} acciones
+                                      </span>
+                                    </div>
+                                  </div>
+                                </SortableItem>
+
+                                {/* Botón de colapso/expand */}
+                                <button
+                                  onClick={() =>
+                                    toggleObjectCollapse(objeto.id)
+                                  }
+                                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-full bg-white shadow-sm border hover:bg-gray-50 transition-colors z-10"
+                                  type="button"
+                                >
+                                  {isCollapsed ? (
+                                    <ChevronRight className="h-3.5 w-3.5 text-blue-600" />
+                                  ) : (
+                                    <ChevronDown className="h-3.5 w-3.5 text-blue-600" />
+                                  )}
+                                </button>
+                              </div>
+
+                              {/* Acciones del objeto (colapsables) */}
+                              {!isCollapsed && (
+                                <div className="ml-6 space-y-1.5 relative animate-in slide-in-from-top-2 duration-200">
+                                  <div className="absolute left-[-12px] top-0 bottom-0 w-px bg-gray-200" />
+                                  <SortableContext
+                                    items={objeto.acciones.map((acc) => acc.id)}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {objeto.acciones.map((accion) => (
+                                      <SortableItem
+                                        key={accion.id}
+                                        id={accion.id}
+                                      >
+                                        <div className="group relative flex items-center gap-2.5 p-2.5 bg-gradient-to-r from-green-50 to-green-100 border-l-2 border-green-400 rounded-md hover:shadow-sm transition-all duration-200 cursor-grab active:cursor-grabbing hover:from-green-100 hover:to-green-200">
+                                          <div className="absolute left-[-14px] top-1/2 w-2.5 h-px bg-gray-200" />
+                                          <GripVertical className="h-3.5 w-3.5 text-green-400 group-hover:text-green-600 transition-colors flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-gray-800 text-sm truncate">
+                                              {accion.nombre}
+                                            </div>
+                                            {accion.descripcion && (
+                                              <div className="text-xs text-gray-600 truncate">
+                                                {accion.descripcion}
+                                              </div>
+                                            )}
+                                            <div className="text-xs text-green-600 font-mono">
+                                              {accion.codigo}
+                                            </div>
+                                          </div>
+                                          <Badge
+                                            variant="outline"
+                                            className="bg-green-100 text-green-700 border-green-300 text-xs px-1.5 py-0.5 flex-shrink-0"
+                                          >
+                                            Acción
+                                          </Badge>
+                                        </div>
+                                      </SortableItem>
+                                    ))}
+                                  </SortableContext>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </SortableContext>
-                  )}
-                </div>
+                          );
+                        })}
+                      </SortableContext>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -761,90 +889,121 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                             <GripVertical className="h-3 w-3 text-white" />
                           </div>
                         </div>
-                        <p className="text-lg font-medium mb-2">Arrastra elementos aquí</p>
+                        <p className="text-lg font-medium mb-2">
+                          Arrastra elementos aquí
+                        </p>
                         <p className="text-sm text-center max-w-48">
-                          Arrastra un <strong>objeto</strong> y se incluirán todas sus acciones
+                          Arrastra un <strong>objeto</strong> y se incluirán
+                          todas sus acciones
                         </p>
                       </div>
                     ) : Array.from(filteredSelectedItems()).length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-gray-400">
                         <Search className="h-12 w-12 text-gray-300 mb-3" />
-                        <p className="text-lg font-medium mb-2">No se encontraron elementos</p>
+                        <p className="text-lg font-medium mb-2">
+                          No se encontraron elementos
+                        </p>
                         <p className="text-sm text-center">
-                          Buscando: <strong>&quot;{searchSelected}&quot;</strong>
+                          Buscando:{" "}
+                          <strong>&quot;{searchSelected}&quot;</strong>
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {Array.from(filteredSelectedItems()).map(([objectId, { objeto, acciones }]) => {
-                          const isCollapsed = collapsedSelectedObjects.has(objectId);
-                          const hasObject = objeto !== null;
-                          
-                          return (
-                            <div key={objectId} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                              {/* Header del objeto */}
-                              {hasObject && (
-                                <div 
-                                  className="group flex items-center gap-2.5 p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-t-lg cursor-pointer hover:from-blue-100 hover:to-blue-200 transition-all duration-200"
-                                  onClick={() => toggleObjectCollapse(objectId, true)}
-                                >
-                                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
-                                  <div className="flex-1 min-w-0 pr-16">
-                                    <div className="font-medium text-gray-900 truncate text-sm">{objeto.nombre}</div>
-                                    <div className="text-xs text-blue-600 font-mono">{objeto.codigo}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">Objeto</Badge>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-600 h-7 w-7 p-0"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeFromSelected(objeto.id);
-                                      }}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Acciones del objeto */}
-                              {acciones.length > 0 && !isCollapsed && (
-                                <div className="p-2.5 space-y-1.5 border-t border-gray-100">
-                                  {acciones.map((accion) => (
-                                    <div
-                                      key={accion.id}
-                                      className="group flex items-center gap-2.5 p-2.5 bg-gradient-to-r from-green-50 to-green-100 border-l-2 border-green-400 rounded-md"
-                                    >
-                                      <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-800 text-sm truncate">{accion.nombre}</div>
-                                        {accion.descripcion && (
-                                          <div className="text-xs text-gray-600 truncate">{accion.descripcion}</div>
-                                        )}
-                                        <div className="text-xs text-green-600 font-mono">{accion.codigo}</div>
+                        {Array.from(filteredSelectedItems()).map(
+                          ([objectId, { objeto, acciones }]) => {
+                            const isCollapsed =
+                              collapsedSelectedObjects.has(objectId);
+                            const hasObject = objeto !== null;
+
+                            return (
+                              <div
+                                key={objectId}
+                                className="bg-white border border-gray-200 rounded-lg shadow-sm"
+                              >
+                                {/* Header del objeto */}
+                                {hasObject && (
+                                  <div
+                                    className="group flex items-center gap-2.5 p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-t-lg cursor-pointer hover:from-blue-100 hover:to-blue-200 transition-all duration-200"
+                                    onClick={() =>
+                                      toggleObjectCollapse(objectId, true)
+                                    }
+                                  >
+                                    <div className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0 pr-16">
+                                      <div className="font-medium text-gray-900 truncate text-sm">
+                                        {objeto.nombre}
                                       </div>
-                                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs px-1.5 py-0.5 flex-shrink-0">
-                                        Acción
+                                      <div className="text-xs text-blue-600 font-mono">
+                                        {objeto.codigo}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">
+                                        Objeto
                                       </Badge>
                                       <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-600 h-6 w-6 p-0"
-                                        onClick={() => removeFromSelected(accion.id)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-600 h-7 w-7 p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeFromSelected(objeto.id);
+                                        }}
                                       >
-                                        <Trash2 className="h-3 w-3" />
+                                        <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                        
+                                  </div>
+                                )}
+
+                                {/* Acciones del objeto */}
+                                {acciones.length > 0 && !isCollapsed && (
+                                  <div className="p-2.5 space-y-1.5 border-t border-gray-100">
+                                    {acciones.map((accion) => (
+                                      <div
+                                        key={accion.id}
+                                        className="group flex items-center gap-2.5 p-2.5 bg-gradient-to-r from-green-50 to-green-100 border-l-2 border-green-400 rounded-md"
+                                      >
+                                        <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="font-medium text-gray-800 text-sm truncate">
+                                            {accion.nombre}
+                                          </div>
+                                          {accion.descripcion && (
+                                            <div className="text-xs text-gray-600 truncate">
+                                              {accion.descripcion}
+                                            </div>
+                                          )}
+                                          <div className="text-xs text-green-600 font-mono">
+                                            {accion.codigo}
+                                          </div>
+                                        </div>
+                                        <Badge
+                                          variant="outline"
+                                          className="bg-green-100 text-green-700 border-green-300 text-xs px-1.5 py-0.5 flex-shrink-0"
+                                        >
+                                          Acción
+                                        </Badge>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:text-red-600 h-6 w-6 p-0"
+                                          onClick={() =>
+                                            removeFromSelected(accion.id)
+                                          }
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          },
+                        )}
+
                         {/* Botón para limpiar todos */}
                         {selectedItems.length > 1 && (
                           <div className="pt-4 border-t border-gray-200">
@@ -880,9 +1039,7 @@ const DroppableArea = ({ id, children }: { id: string; children: React.ReactNode
                     {findItemById(activeId)?.codigo}
                   </div>
                 </div>
-                <Badge className="bg-blue-500 text-white">
-                  Arrastrando...
-                </Badge>
+                <Badge className="bg-blue-500 text-white">Arrastrando...</Badge>
               </div>
             ) : null}
           </DragOverlay>

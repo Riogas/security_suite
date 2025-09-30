@@ -11,8 +11,8 @@ type PageProps = { searchParams: Promise<Search> };
 
 export default async function NoAutorizado({ searchParams }: PageProps) {
   const sp = await searchParams; // 👈 Next 15: hay que await
-  const code   = (sp.code as string)   || "";
-  const ruta   = (sp.ruta as string)   || "";
+  const code = (sp.code as string) || "";
+  const ruta = (sp.ruta as string) || "";
   const nombre = (sp.nombre as string) || "";
 
   const appId = process.env.NEXT_PUBLIC_APLICACION_ID || "0";
@@ -24,12 +24,12 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
 
   const adminEmail = "admin@tu-dominio.com";
   const asunto = encodeURIComponent("Solicitud de acceso a pantalla");
-  const cuerpo  = encodeURIComponent(
+  const cuerpo = encodeURIComponent(
     `Hola,\n\nNecesito acceso a la siguiente pantalla:\n\n` +
-    `Pantalla: ${nombre || ruta || "(desconocido)"}\n` +
-    `Ruta: ${ruta || "(desconocido)"}\n` +
-    `Código: ${codeWithApp}\n` +
-    `Usuario: ${userName}\n\nGracias.`
+      `Pantalla: ${nombre || ruta || "(desconocido)"}\n` +
+      `Ruta: ${ruta || "(desconocido)"}\n` +
+      `Código: ${codeWithApp}\n` +
+      `Usuario: ${userName}\n\nGracias.`,
   );
   const mailto = `mailto:${adminEmail}?subject=${asunto}&body=${cuerpo}`;
 
@@ -39,7 +39,8 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
         <LockKeyhole size={60} className="text-[#3b82f6] mb-4" />
         <h1 className="text-3xl font-bold text-white mb-2">Acceso denegado</h1>
         <p className="text-gray-400 mb-6 text-center">
-          No tienes permisos para acceder a esta sección.<br />
+          No tienes permisos para acceder a esta sección.
+          <br />
           Si crees que esto es un error, contacta al administrador.
         </p>
 
@@ -54,7 +55,9 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
         {(code || ruta || nombre) && (
           <div className="w-full mb-6 rounded-xl border border-[#2f394d] bg-[#1b2433] p-4 text-sm text-gray-300">
             <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-white">Detalles de esta pantalla</div>
+              <div className="font-semibold text-white">
+                Detalles de esta pantalla
+              </div>
               <CopyClipboard
                 textToCopy={`Pantalla: ${nombre || ruta}\nRuta: ${ruta}\nCódigo: ${codeWithApp}\nUsuario: ${userName}`}
                 label="Copiar"
@@ -63,15 +66,21 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
             <div className="space-y-1">
               <div>
                 <span className="text-gray-400">Pantalla:</span>{" "}
-                <span className="font-medium text-white">{nombre || ruta || "—"}</span>
+                <span className="font-medium text-white">
+                  {nombre || ruta || "—"}
+                </span>
               </div>
               <div>
                 <span className="text-gray-400">Ruta:</span>{" "}
-                <code className="rounded bg-[#121826] px-1.5 py-0.5">{ruta || "—"}</code>
+                <code className="rounded bg-[#121826] px-1.5 py-0.5">
+                  {ruta || "—"}
+                </code>
               </div>
               <div>
                 <span className="text-gray-400">Código:</span>{" "}
-                <code className="rounded bg-[#121826] px-1.5 py-0.5">{codeWithApp || "—"}</code>
+                <code className="rounded bg-[#121826] px-1.5 py-0.5">
+                  {codeWithApp || "—"}
+                </code>
               </div>
               <div>
                 <span className="text-gray-400">Usuario:</span>{" "}
@@ -86,10 +95,16 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
         )}
 
         <div className="flex w-full gap-3">
-          <Link href="/" className="flex-1 px-5 py-2 rounded-lg bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition text-center">
+          <Link
+            href="/"
+            className="flex-1 px-5 py-2 rounded-lg bg-[#3b82f6] text-white font-semibold hover:bg-[#2563eb] transition text-center"
+          >
             Volver al inicio
           </Link>
-          <a href={mailto} className="flex-1 px-5 py-2 rounded-lg bg-[#374151] text-white font-semibold hover:bg-[#4b5563] transition text-center">
+          <a
+            href={mailto}
+            className="flex-1 px-5 py-2 rounded-lg bg-[#374151] text-white font-semibold hover:bg-[#4b5563] transition text-center"
+          >
             Solicitar acceso
           </a>
         </div>

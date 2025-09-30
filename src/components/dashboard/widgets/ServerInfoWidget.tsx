@@ -3,13 +3,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Server, 
-  Database, 
-  Wifi, 
+import {
+  Server,
+  Database,
+  Wifi,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
 } from "lucide-react";
 
 interface ServerInfoWidgetProps {
@@ -20,14 +20,13 @@ interface ServerInfoWidgetProps {
   lastBackup?: string;
 }
 
-export function ServerInfoWidget({ 
+export function ServerInfoWidget({
   serverName = "SEC-SRV-01",
   uptime = "15d 7h 23m",
   status = "online",
   version = "v2.1.4",
-  lastBackup = "Hace 2 horas"
+  lastBackup = "Hace 2 horas",
 }: ServerInfoWidgetProps) {
-
   const getStatusConfig = (status: "online" | "maintenance" | "offline") => {
     const configs = {
       online: {
@@ -35,22 +34,22 @@ export function ServerInfoWidget({
         color: "text-green-600",
         bgColor: "bg-green-50 border-green-200",
         badgeColor: "bg-green-100 text-green-700",
-        text: "En Línea"
+        text: "En Línea",
       },
       maintenance: {
         icon: AlertTriangle,
         color: "text-yellow-600",
         bgColor: "bg-yellow-50 border-yellow-200",
         badgeColor: "bg-yellow-100 text-yellow-700",
-        text: "Mantenimiento"
+        text: "Mantenimiento",
       },
       offline: {
         icon: AlertTriangle,
         color: "text-red-600",
         bgColor: "bg-red-50 border-red-200",
         badgeColor: "bg-red-100 text-red-700",
-        text: "Fuera de Línea"
-      }
+        text: "Fuera de Línea",
+      },
     };
     return configs[status];
   };
@@ -112,8 +111,10 @@ export function ServerInfoWidget({
 
         {/* Connection Status */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-foreground">Estado de Conexiones</h4>
-          
+          <h4 className="text-sm font-medium text-foreground">
+            Estado de Conexiones
+          </h4>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -152,7 +153,9 @@ export function ServerInfoWidget({
 
         {/* Resource Usage Summary */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-foreground">Uso General de Recursos</h4>
+          <h4 className="text-sm font-medium text-foreground">
+            Uso General de Recursos
+          </h4>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span>Sistema General</span>

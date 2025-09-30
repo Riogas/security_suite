@@ -2,7 +2,10 @@
 
 import { Copy } from "lucide-react";
 
-export default function CopyClipboard({ textToCopy, label = "Copiar" }: {
+export default function CopyClipboard({
+  textToCopy,
+  label = "Copiar",
+}: {
   textToCopy: string;
   label?: string;
 }) {
@@ -15,7 +18,9 @@ export default function CopyClipboard({ textToCopy, label = "Copiar" }: {
       const blob = new Blob([textToCopy], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "detalles.txt"; a.click();
+      a.href = url;
+      a.download = "detalles.txt";
+      a.click();
       URL.revokeObjectURL(url);
     }
   }

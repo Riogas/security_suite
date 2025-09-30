@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
 
 // Solo inicializar Sentry si tenemos un DSN válido y no estamos en desarrollo local
-const validDsn = process.env.SENTRY_DSN && process.env.SENTRY_DSN !== "your-dsn-here";
+const validDsn =
+  process.env.SENTRY_DSN && process.env.SENTRY_DSN !== "your-dsn-here";
 const isDevelopment = process.env.NODE_ENV === "development";
 
 if (validDsn && !isDevelopment) {

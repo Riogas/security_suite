@@ -2,7 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -27,19 +32,19 @@ export function PaginationControls({
   const getVisiblePages = () => {
     const pages = [];
     const showPages = 5; // Número de páginas a mostrar
-    
+
     let start = Math.max(1, currentPage - Math.floor(showPages / 2));
     const end = Math.min(totalPages, start + showPages - 1);
-    
+
     // Ajustar el inicio si no hay suficientes páginas al final
     if (end - start + 1 < showPages) {
       start = Math.max(1, end - showPages + 1);
     }
-    
+
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    
+
     return pages;
   };
 
@@ -50,7 +55,9 @@ export function PaginationControls({
           Mostrando {totalItems} de {totalItems} elementos
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Elementos por página:</span>
+          <span className="text-sm text-muted-foreground">
+            Elementos por página:
+          </span>
           <div className="flex gap-1">
             {[5, 10, 20, 50].map((size) => (
               <Button
@@ -107,7 +114,7 @@ export function PaginationControls({
           >
             <ChevronsLeft className="w-4 h-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -139,7 +146,7 @@ export function PaginationControls({
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"

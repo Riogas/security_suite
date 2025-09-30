@@ -51,7 +51,10 @@ interface ObjectListProps {
   isLoading: boolean;
 }
 
-export function SortableActionItem({ action, onRemove }: SortableActionItemProps) {
+export function SortableActionItem({
+  action,
+  onRemove,
+}: SortableActionItemProps) {
   const {
     attributes,
     listeners,
@@ -73,7 +76,7 @@ export function SortableActionItem({ action, onRemove }: SortableActionItemProps
       style={style}
       className={`
         group flex items-center gap-3 p-3 rounded-lg border-2 
-        ${isDragging ? 'border-blue-400 bg-blue-50/50' : 'border-border hover:border-blue-300'}
+        ${isDragging ? "border-blue-400 bg-blue-50/50" : "border-border hover:border-blue-300"}
         transition-all duration-200 cursor-grab active:cursor-grabbing
       `}
       {...attributes}
@@ -119,7 +122,7 @@ export function ObjetoCard({
 }: ObjetoCardProps) {
   const highlightText = (text: string, search: string) => {
     if (!search) return text;
-    const regex = new RegExp(`(${search})`, 'gi');
+    const regex = new RegExp(`(${search})`, "gi");
     const parts = text.split(regex);
     return parts.map((part, index) =>
       regex.test(part) ? (
@@ -128,7 +131,7 @@ export function ObjetoCard({
         </mark>
       ) : (
         part
-      )
+      ),
     );
   };
 
@@ -136,8 +139,8 @@ export function ObjetoCard({
     <Card
       className={`
         border-2 cursor-pointer transition-all duration-200 hover:shadow-md
-        ${isSelected ? 'border-blue-500 bg-blue-50/30' : 'border-border'}
-        ${isOver ? 'border-green-500 bg-green-50/30' : ''}
+        ${isSelected ? "border-blue-500 bg-blue-50/30" : "border-border"}
+        ${isOver ? "border-green-500 bg-green-50/30" : ""}
       `}
       onClick={onSelect}
     >
@@ -157,17 +160,17 @@ export function ObjetoCard({
           </Badge>
         )}
       </CardHeader>
-      
+
       {isSelected && (
         <CardContent className="pt-0">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Acciones seleccionadas</span>
-              <Badge variant="secondary">
-                {objeto.acciones.length}
-              </Badge>
+              <span className="text-sm font-medium">
+                Acciones seleccionadas
+              </span>
+              <Badge variant="secondary">{objeto.acciones.length}</Badge>
             </div>
-            
+
             {objeto.acciones.length === 0 ? (
               <div className="text-center py-4 text-muted-foreground">
                 <Plus className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -203,9 +206,10 @@ export function ObjectList({
 }: ObjectListProps) {
   const { active } = useDndContext();
 
-  const filteredObjects = objetos.filter((obj) =>
-    obj.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    obj.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredObjects = objetos.filter(
+    (obj) =>
+      obj.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      obj.codigo.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (isLoading) {
@@ -256,13 +260,16 @@ export function ObjectList({
             <div className="text-center py-8">
               <Package className="w-12 h-12 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-muted-foreground">
-                {searchTerm ? "No se encontraron objetos" : "No hay objetos disponibles"}
+                {searchTerm
+                  ? "No se encontraron objetos"
+                  : "No hay objetos disponibles"}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
               {filteredObjects.map((objeto) => {
-                const isOver = active?.id && selectedObjects.includes(objeto.id);
+                const isOver =
+                  active?.id && selectedObjects.includes(objeto.id);
                 return (
                   <ObjetoCard
                     key={objeto.id}
@@ -271,7 +278,9 @@ export function ObjectList({
                     isOver={!!isOver}
                     onSelect={() => onObjectSelect(objeto.id)}
                     onAddAction={(action) => onAddAction(objeto.id, action)}
-                    onRemoveAction={(actionId) => onRemoveAction(objeto.id, actionId)}
+                    onRemoveAction={(actionId) =>
+                      onRemoveAction(objeto.id, actionId)
+                    }
                     searchTerm={searchTerm}
                   />
                 );

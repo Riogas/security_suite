@@ -20,7 +20,12 @@ export default function EditarObjetoPage() {
       }
       try {
         const appId = Number(process.env.NEXT_PUBLIC_APLICACION_ID) || 1;
-        const payload = { AplicacionId: appId, Page: 1, PageSize: 500, sinMenu: true } as any;
+        const payload = {
+          AplicacionId: appId,
+          Page: 1,
+          PageSize: 500,
+          sinMenu: true,
+        } as any;
         console.log("[EditarObjeto] Llamando listarObjetos", { id, payload });
         // Reutilizamos listar para obtener el objeto por ID
         const res = await apiListarObjetos(payload);
@@ -32,10 +37,15 @@ export default function EditarObjetoPage() {
         });
         const obj = lista.find((o: any) => String(o?.ObjetoId) === String(id));
         if (!obj) {
-          console.warn("[EditarObjeto] Objeto no encontrado en la lista", { id });
+          console.warn("[EditarObjeto] Objeto no encontrado en la lista", {
+            id,
+          });
           return;
         }
-        console.log("[EditarObjeto] Objeto encontrado", { ObjetoId: obj.ObjetoId, ObjetoKey: obj.ObjetoKey });
+        console.log("[EditarObjeto] Objeto encontrado", {
+          ObjetoId: obj.ObjetoId,
+          ObjetoKey: obj.ObjetoKey,
+        });
         const data = {
           objetoid: String(obj.ObjetoId),
           aplicacionid: String(obj.AplicacionId),
@@ -45,7 +55,10 @@ export default function EditarObjetoPage() {
           objetoespublico: obj.ObjetoEsPublico === "S",
           objetocreadoen: obj.ObjetoCreadoEn,
           acciones: (obj.Acciones || []).map((a: any) => ({
-            uid: (typeof crypto !== "undefined" && (crypto as any).randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2)),
+            uid:
+              typeof crypto !== "undefined" && (crypto as any).randomUUID
+                ? (crypto as any).randomUUID()
+                : Math.random().toString(36).slice(2),
             accionid: String(a.AccionId),
             accionkey: a.AccionKey,
             acciondescripcion: a.AccionDescripcion,

@@ -7,6 +7,10 @@ export default function CrearFuncionalidadPage() {
     console.log("submit crear funcionalidad", data);
   };
   return (
-    <FuncionalidadForm mode="create" onSave={handleSubmit} onCancel={() => history.back()} />
+    <FuncionalidadForm
+      mode="create"
+      onSave={handleSubmit}
+      onCancel={() => history.back()}
+    />
   );
 }

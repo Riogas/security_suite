@@ -10,47 +10,50 @@ export const usePageTransition = () => {
   const [isPending, startTransition] = useTransition();
   const { showLoading, hideLoading } = useLoading();
 
-  const navigateWithLoading = useCallback((
-    path: string,
-    options?: {
-      loadingText?: string;
-      replace?: boolean;
-    }
-  ) => {
-    const {
-      loadingText = "Navegando...",
-      replace = false,
-    } = options || {};
+  const navigateWithLoading = useCallback(
+    (
+      path: string,
+      options?: {
+        loadingText?: string;
+        replace?: boolean;
+      },
+    ) => {
+      const { loadingText = "Navegando...", replace = false } = options || {};
 
-    // No hacer nada si ya estamos en esa página
-    if (pathname === path) return;
+      // No hacer nada si ya estamos en esa página
+      if (pathname === path) return;
 
-    showLoading(loadingText);
+      showLoading(loadingText);
 
-    startTransition(() => {
-      if (replace) {
-        router.replace(path);
-      } else {
-        router.push(path);
-      }
-      
-      // Ocultar loading después de un breve delay para suavizar la transición
-      setTimeout(() => {
-        hideLoading();
-      }, 300);
-    });
-  }, [router, pathname, showLoading, hideLoading]);
+      startTransition(() => {
+        if (replace) {
+          router.replace(path);
+        } else {
+          router.push(path);
+        }
 
-  const goBack = useCallback((loadingText = "Regresando...") => {
-    showLoading(loadingText);
-    
-    startTransition(() => {
-      router.back();
-      setTimeout(() => {
-        hideLoading();
-      }, 300);
-    });
-  }, [router, showLoading, hideLoading]);
+        // Ocultar loading después de un breve delay para suavizar la transición
+        setTimeout(() => {
+          hideLoading();
+        }, 300);
+      });
+    },
+    [router, pathname, showLoading, hideLoading],
+  );
+
+  const goBack = useCallback(
+    (loadingText = "Regresando...") => {
+      showLoading(loadingText);
+
+      startTransition(() => {
+        router.back();
+        setTimeout(() => {
+          hideLoading();
+        }, 300);
+      });
+    },
+    [router, showLoading, hideLoading],
+  );
 
   return {
     navigateWithLoading,

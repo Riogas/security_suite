@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "flex min-h-screen bg-background text-foreground transition-colors duration-300"
+        "flex min-h-screen bg-background text-foreground transition-colors duration-300",
       )}
     >
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -42,7 +42,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <nav className="mb-4 text-sm text-muted-foreground">
             <ol className="flex items-center space-x-2">
               <li>
-                <Link href="/dashboard" className="text-primary hover:underline">
+                <Link
+                  href="/dashboard"
+                  className="text-primary hover:underline"
+                >
                   Inicio
                 </Link>
               </li>
@@ -52,7 +55,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   {index === pathSegments.length - 1 ? (
                     <span className="text-foreground">{segment.label}</span>
                   ) : (
-                    <Link href={segment.href} className="text-primary hover:underline">
+                    <Link
+                      href={segment.href}
+                      className="text-primary hover:underline"
+                    >
                       {segment.label}
                     </Link>
                   )}

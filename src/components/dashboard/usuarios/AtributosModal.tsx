@@ -88,20 +88,20 @@ export default function AtributosModal({
         </div>
 
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={handleClose} 
-            disabled={saving} 
-            size="lg" 
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={saving}
+            size="lg"
             className="h-12 px-10"
           >
             <X className="w-4 h-4 mr-2" />
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || atributos.length === 0} 
-            size="lg" 
+          <Button
+            onClick={handleSave}
+            disabled={saving || atributos.length === 0}
+            size="lg"
             className="h-12 px-10"
           >
             <Save className="w-4 h-4 mr-2" />

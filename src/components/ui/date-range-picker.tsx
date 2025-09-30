@@ -41,7 +41,7 @@ export function DateRangePicker({
             className={cn(
               "h-9 justify-start text-left font-normal min-w-[200px]",
               !date && "text-muted-foreground",
-              disabled && "opacity-50 cursor-not-allowed"
+              disabled && "opacity-50 cursor-not-allowed",
             )}
             disabled={disabled}
           >

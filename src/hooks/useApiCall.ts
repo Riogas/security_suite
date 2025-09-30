@@ -12,7 +12,7 @@ interface UseApiCallOptions {
 
 export const useApiCall = <T = any>(
   apiFunction: (...args: any[]) => Promise<T>,
-  options: UseApiCallOptions = {}
+  options: UseApiCallOptions = {},
 ) => {
   const {
     loadingText = "Procesando...",
@@ -26,39 +26,50 @@ export const useApiCall = <T = any>(
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<T | null>(null);
 
-  const execute = useCallback(async (...args: any[]) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      if (showGlobalLoading) {
-        showLoading(loadingText);
-      }
+  const execute = useCallback(
+    async (...args: any[]) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const result = await apiFunction(...args);
-      setData(result);
-      
-      if (onSuccess) {
-        onSuccess(result);
+        if (showGlobalLoading) {
+          showLoading(loadingText);
+        }
+
+        const result = await apiFunction(...args);
+        setData(result);
+
+        if (onSuccess) {
+          onSuccess(result);
+        }
+
+        return result;
+      } catch (err: any) {
+        const errorMessage = err?.message || "Error inesperado";
+        setError(errorMessage);
+
+        if (onError) {
+          onError(err);
+        }
+
+        throw err;
+      } finally {
+        setIsLoading(false);
+        if (showGlobalLoading) {
+          hideLoading();
+        }
       }
-      
-      return result;
-    } catch (err: any) {
-      const errorMessage = err?.message || "Error inesperado";
-      setError(errorMessage);
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      throw err;
-    } finally {
-      setIsLoading(false);
-      if (showGlobalLoading) {
-        hideLoading();
-      }
-    }
-  }, [apiFunction, loadingText, showGlobalLoading, showLoading, hideLoading, onSuccess, onError]);
+    },
+    [
+      apiFunction,
+      loadingText,
+      showGlobalLoading,
+      showLoading,
+      hideLoading,
+      onSuccess,
+      onError,
+    ],
+  );
 
   return {
     execute,

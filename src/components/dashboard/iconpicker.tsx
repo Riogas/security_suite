@@ -66,7 +66,10 @@ export default function IconPicker({
 
   // Construye lista de opciones a partir de iconMap, con filtros opcionales
   const options = React.useMemo(() => {
-    let entries = Object.entries(iconMap) as [IconName, React.ComponentType<any>][];
+    let entries = Object.entries(iconMap) as [
+      IconName,
+      React.ComponentType<any>,
+    ][];
     if (include && include.length) {
       const inc = new Set(include);
       entries = entries.filter(([k]) => inc.has(k));
@@ -98,7 +101,12 @@ export default function IconPicker({
             {CurrentIcon ? (
               <CurrentIcon className="h-4 w-4 shrink-0" aria-hidden />
             ) : null}
-            <span className={cn("truncate", !CurrentIcon && "text-muted-foreground")}> 
+            <span
+              className={cn(
+                "truncate",
+                !CurrentIcon && "text-muted-foreground",
+              )}
+            >
               {currentLabel ?? placeholder}
             </span>
           </span>
@@ -108,7 +116,10 @@ export default function IconPicker({
       <PopoverContent className="w-80 p-0" align="start">
         <Command>
           <div className="flex items-center gap-1 p-2">
-            <CommandInput placeholder="Buscar icono por nombre…" className="h-9" />
+            <CommandInput
+              placeholder="Buscar icono por nombre…"
+              className="h-9"
+            />
             {clearable && value ? (
               <Button
                 type="button"

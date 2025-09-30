@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
+import {
   Activity,
   User,
   Shield,
@@ -13,12 +13,20 @@ import {
   UserPlus,
   Trash2,
   Edit,
-  Clock
+  Clock,
 } from "lucide-react";
 
 interface RecentActivity {
   id: string;
-  type: "login" | "logout" | "user_created" | "user_updated" | "user_deleted" | "role_assigned" | "permission_changed" | "system_config";
+  type:
+    | "login"
+    | "logout"
+    | "user_created"
+    | "user_updated"
+    | "user_deleted"
+    | "role_assigned"
+    | "permission_changed"
+    | "system_config";
   user: string;
   description: string;
   timestamp: string;
@@ -30,7 +38,7 @@ interface RecentActivitiesWidgetProps {
   maxActivities?: number;
 }
 
-export function RecentActivitiesWidget({ 
+export function RecentActivitiesWidget({
   activities = [
     {
       id: "1",
@@ -38,15 +46,15 @@ export function RecentActivitiesWidget({
       user: "admin",
       description: "Inicio de sesión exitoso",
       timestamp: "Hace 2 minutos",
-      details: "IP: 192.168.1.100"
+      details: "IP: 192.168.1.100",
     },
     {
-      id: "2", 
+      id: "2",
       type: "user_created",
       user: "admin",
       description: "Usuario 'jperez' creado",
       timestamp: "Hace 15 minutos",
-      details: "Rol: Operador"
+      details: "Rol: Operador",
     },
     {
       id: "3",
@@ -54,7 +62,7 @@ export function RecentActivitiesWidget({
       user: "admin",
       description: "Rol 'Supervisor' asignado a 'mgarcia'",
       timestamp: "Hace 1 hora",
-      details: "Permisos actualizados"
+      details: "Permisos actualizados",
     },
     {
       id: "4",
@@ -62,7 +70,7 @@ export function RecentActivitiesWidget({
       user: "jlopez",
       description: "Sesión cerrada",
       timestamp: "Hace 2 horas",
-      details: "Tiempo de sesión: 4h 23m"
+      details: "Tiempo de sesión: 4h 23m",
     },
     {
       id: "5",
@@ -70,62 +78,61 @@ export function RecentActivitiesWidget({
       user: "admin",
       description: "Configuración de seguridad actualizada",
       timestamp: "Hace 3 horas",
-      details: "Timeout de sesión modificado"
-    }
+      details: "Timeout de sesión modificado",
+    },
   ],
-  maxActivities = 10
+  maxActivities = 10,
 }: RecentActivitiesWidgetProps) {
-
   const getActivityConfig = (type: RecentActivity["type"]) => {
     const configs = {
       login: {
         icon: LogIn,
         color: "text-green-600",
         bgColor: "bg-green-50",
-        borderColor: "border-green-200"
+        borderColor: "border-green-200",
       },
       logout: {
         icon: LogOut,
         color: "text-blue-600",
         bgColor: "bg-blue-50",
-        borderColor: "border-blue-200"
+        borderColor: "border-blue-200",
       },
       user_created: {
         icon: UserPlus,
         color: "text-purple-600",
         bgColor: "bg-purple-50",
-        borderColor: "border-purple-200"
+        borderColor: "border-purple-200",
       },
       user_updated: {
         icon: Edit,
         color: "text-orange-600",
         bgColor: "bg-orange-50",
-        borderColor: "border-orange-200"
+        borderColor: "border-orange-200",
       },
       user_deleted: {
         icon: Trash2,
         color: "text-red-600",
         bgColor: "bg-red-50",
-        borderColor: "border-red-200"
+        borderColor: "border-red-200",
       },
       role_assigned: {
         icon: Shield,
         color: "text-indigo-600",
         bgColor: "bg-indigo-50",
-        borderColor: "border-indigo-200"
+        borderColor: "border-indigo-200",
       },
       permission_changed: {
         icon: Settings,
         color: "text-yellow-600",
         bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200"
+        borderColor: "border-yellow-200",
       },
       system_config: {
         icon: Settings,
         color: "text-gray-600",
         bgColor: "bg-gray-50",
-        borderColor: "border-gray-200"
-      }
+        borderColor: "border-gray-200",
+      },
     };
     return configs[type];
   };
@@ -162,16 +169,18 @@ export function RecentActivitiesWidget({
             {displayActivities.map((activity, index) => {
               const config = getActivityConfig(activity.type);
               const Icon = config.icon;
-              
+
               return (
                 <div
                   key={activity.id}
                   className={`flex items-start space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm ${config.bgColor} ${config.borderColor}`}
                 >
-                  <div className={`p-2 rounded-full ${config.bgColor} border ${config.borderColor}`}>
+                  <div
+                    className={`p-2 rounded-full ${config.bgColor} border ${config.borderColor}`}
+                  >
                     <Icon className={`w-4 h-4 ${config.color}`} />
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center space-x-2">
@@ -180,18 +189,24 @@ export function RecentActivitiesWidget({
                             {getInitials(activity.user)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium">{activity.user}</span>
+                        <span className="text-sm font-medium">
+                          {activity.user}
+                        </span>
                       </div>
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         <span>{activity.timestamp}</span>
                       </div>
                     </div>
-                    
-                    <p className="text-sm text-foreground mb-1">{activity.description}</p>
-                    
+
+                    <p className="text-sm text-foreground mb-1">
+                      {activity.description}
+                    </p>
+
                     {activity.details && (
-                      <p className="text-xs text-muted-foreground">{activity.details}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.details}
+                      </p>
                     )}
                   </div>
                 </div>

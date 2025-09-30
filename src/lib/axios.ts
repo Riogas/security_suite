@@ -73,9 +73,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.code === 'ECONNRESET' || error.code === 'ECONNABORTED') {
-      console.error('Error de conexión con el backend:', error.message);
-      toast.error('Error de conexión con el servidor. Verifique que el backend esté ejecutándose.');
+    if (error.code === "ECONNRESET" || error.code === "ECONNABORTED") {
+      console.error("Error de conexión con el backend:", error.message);
+      toast.error(
+        "Error de conexión con el servidor. Verifique que el backend esté ejecutándose.",
+      );
     } else if (error.response?.status === 401) {
       // Token inválido o expirado
       document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
@@ -87,7 +89,7 @@ api.interceptors.response.use(
       }, 1200);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Importar e inicializar el interceptor de loading

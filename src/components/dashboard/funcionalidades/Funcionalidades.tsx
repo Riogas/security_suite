@@ -24,7 +24,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiListarFuncionalidades, type ListarFuncionalidadesItem } from "@/services/api";
+import {
+  apiListarFuncionalidades,
+  type ListarFuncionalidadesItem,
+} from "@/services/api";
 import { Pencil, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -51,22 +54,24 @@ export default function FuncionalidadesTable() {
   const fetcher = async (aplicacionId: number = 3, signal?: AbortSignal) => {
     const res = await apiListarFuncionalidades(
       { AplicacionId: aplicacionId },
-      { signal }
+      { signal },
     );
-    
+
     const items = res?.sdtFuncionalidades || [];
-    
+
     // Filtrar por búsqueda si existe
     const filteredItems = items.filter((item: ListarFuncionalidadesItem) => {
-      const matchesSearch = !debouncedSearch || 
-        item.FuncionalidadNombre.toLowerCase().includes(debouncedSearch.toLowerCase());
-      
-      const matchesEstado = estado === "todos" || 
-        item.FuncionalidadEstado === estado;
-        
-      const matchesPublico = !esPublico || 
-        item.FuncionalidadEsPublico === "S";
-        
+      const matchesSearch =
+        !debouncedSearch ||
+        item.FuncionalidadNombre.toLowerCase().includes(
+          debouncedSearch.toLowerCase(),
+        );
+
+      const matchesEstado =
+        estado === "todos" || item.FuncionalidadEstado === estado;
+
+      const matchesPublico = !esPublico || item.FuncionalidadEsPublico === "S";
+
       return matchesSearch && matchesEstado && matchesPublico;
     });
 
@@ -85,12 +90,12 @@ export default function FuncionalidadesTable() {
     (async () => {
       try {
         const { items, total } = await fetcher(3, ac.signal); // AplicacionId = 3 (GOYA)
-        
+
         // Aplicar paginación manual ya que la API no la soporta
         const startIndex = pageIndex * pageSize;
         const endIndex = startIndex + pageSize;
         const paginatedItems = items.slice(startIndex, endIndex);
-        
+
         setRows(paginatedItems);
         setTotalPages(Math.max(1, Math.ceil(total / pageSize)) || 1);
       } catch (e: any) {
@@ -116,7 +121,11 @@ export default function FuncionalidadesTable() {
         const val = row.original?.FuncionalidadEstado;
         const activo = val === "A";
         return (
-          <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
+          <Badge
+            className={
+              activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"
+            }
+          >
             {activo ? "Activo" : "Inactivo"}
           </Badge>
         );
@@ -138,7 +147,11 @@ export default function FuncionalidadesTable() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/dashboard/funcionalidades/editar/${row.original?.FuncionalidadId}`)}
+            onClick={() =>
+              router.push(
+                `/dashboard/funcionalidades/editar/${row.original?.FuncionalidadId}`,
+              )
+            }
           >
             <Pencil className="w-4 h-4" />
           </Button>
@@ -214,7 +227,11 @@ export default function FuncionalidadesTable() {
             }}
           >
             <SelectTrigger>
-              {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+              {estado === "A"
+                ? "Activo"
+                : estado === "I"
+                  ? "Inactivo"
+                  : "Estado"}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="A">Activo</SelectItem>
@@ -232,7 +249,10 @@ export default function FuncionalidadesTable() {
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -277,16 +297,28 @@ export default function FuncionalidadesTable() {
             Página {pageIndex + 1} de {table.getPageCount()}
           </span>
           <div className="flex items-center gap-2">
-            <Button onClick={() => table.setPageIndex(0)} disabled={pageIndex === 0}>
+            <Button
+              onClick={() => table.setPageIndex(0)}
+              disabled={pageIndex === 0}
+            >
               «
             </Button>
-            <Button onClick={() => table.previousPage()} disabled={pageIndex === 0}>
+            <Button
+              onClick={() => table.previousPage()}
+              disabled={pageIndex === 0}
+            >
               ‹
             </Button>
-            <Button onClick={() => table.nextPage()} disabled={pageIndex >= table.getPageCount() - 1}>
+            <Button
+              onClick={() => table.nextPage()}
+              disabled={pageIndex >= table.getPageCount() - 1}
+            >
               ›
             </Button>
-            <Button onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={pageIndex >= table.getPageCount() - 1}>
+            <Button
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={pageIndex >= table.getPageCount() - 1}
+            >
               »
             </Button>
           </div>
