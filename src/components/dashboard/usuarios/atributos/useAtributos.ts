@@ -161,7 +161,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
       // Convertir atributos a formato UserPreference[]
       const userPreferences: UserPreference[] = atributos.map(
         (atributo, index) => ({
-          UserPreferenceId: parseInt(atributo.id) || 0, // Si es un nuevo atributo, usar 0
+          UserPreferenceId: 0, // Siempre enviar 0 para nuevos atributos
           UserExtendedId: userId,
           UserPreferenceAtributo: atributo.descripcion,
           UserPreferenceValor: atributo.valor,
