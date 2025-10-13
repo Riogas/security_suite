@@ -28,6 +28,15 @@ export function useAtributos(userId: number, isOpen: boolean) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 🔍 DEBUG: Rastrear cambios de loading
+  console.log("🎣 [useAtributos] Estados:", {
+    userId,
+    isOpen,
+    loading,
+    saving,
+    atributosCount: atributos.length,
+  });
+
   // Generar JSON a partir de los campos
   const generarJsonValor = (campos: CampoValor[]): string => {
     const obj = campos.reduce(
@@ -43,79 +52,93 @@ export function useAtributos(userId: number, isOpen: boolean) {
     return JSON.stringify(obj, null, 2);
   };
 
+  // Parsear valor de atributo (puede venir como "{16: Rivera}" o JSON válido)
+  const parsearValorAtributo = (valor: string): CampoValor[] => {
+    try {
+      // Intentar parsear como JSON estándar
+      const valorParseado = JSON.parse(valor);
+      if (typeof valorParseado === "object" && valorParseado !== null) {
+        return Object.entries(valorParseado).map(([id, val]) => ({
+          id,
+          valor: String(val),
+        }));
+      }
+    } catch {
+      // Si falla el parse estándar, intentar parsear formato "{16: Rivera}"
+      try {
+        // Remover llaves externas y separar por comas
+        const contenido = valor.replace(/^\{|\}$/g, "").trim();
+        const pares = contenido.split(",").map((par) => par.trim());
+
+        const campos: CampoValor[] = [];
+        for (const par of pares) {
+          const [id, ...valorParts] = par.split(":");
+          if (id && valorParts.length > 0) {
+            campos.push({
+              id: id.trim(),
+              valor: valorParts.join(":").trim(),
+            });
+          }
+        }
+
+        if (campos.length > 0) {
+          return campos;
+        }
+      } catch (e) {
+        console.log("Error parseando formato alternativo:", e);
+      }
+    }
+
+    // Si todo falla, retornar como campo simple
+    return [{ id: "valor", valor: valor }];
+  };
+
   // Cargar atributos existentes del usuario
   const cargarAtributos = async () => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      console.log("🎣 [useAtributos] cargarAtributos: Modal cerrado, no cargar");
+      return;
+    }
 
+    console.log("🎣 [useAtributos] ⏳ Iniciando carga de atributos - setLoading(true)");
     setLoading(true);
     try {
-      const atributosExistentes = await apiGetAtributos();
+      const atributosExistentes = await apiGetAtributos(userId);
+      console.log("Atributos recibidos de la API:", atributosExistentes);
 
       if (atributosExistentes.length > 0) {
-        // Convertir UserPreference[] a Atributo[]
-        // Agrupar por UserPreferenceAtributo (descripción)
-        const atributosAgrupados = atributosExistentes.reduce(
-          (acc, pref) => {
-            const key = pref.UserPreferenceAtributo;
-            if (!acc[key]) {
-              acc[key] = {
-                id: pref.UserPreferenceId.toString(),
-                descripcion: pref.UserPreferenceAtributo,
-                campos: [],
-                valor: "",
-              };
-            }
+        // Convertir cada UserPreference a Atributo
+        const atributosConvertidos = atributosExistentes.map((pref) => {
+          const campos = parsearValorAtributo(pref.UserPreferenceValor);
+          console.log(`Procesando atributo "${pref.UserPreferenceAtributo}":`, {
+            valor: pref.UserPreferenceValor,
+            camposParseados: campos,
+          });
 
-            // Parsear el valor JSON si es posible
-            try {
-              const valorParseado = JSON.parse(pref.UserPreferenceValor);
-              if (typeof valorParseado === "object" && valorParseado !== null) {
-                acc[key].campos = Object.entries(valorParseado).map(
-                  ([id, valor]) => ({
-                    id,
-                    valor: String(valor),
-                  }),
-                );
-                acc[key].valor = JSON.stringify(valorParseado, null, 2);
-              } else {
-                // Si no es un objeto JSON válido, tratar como campo simple
-                acc[key].campos = [
-                  { id: "valor", valor: pref.UserPreferenceValor },
-                ];
-                acc[key].valor = JSON.stringify(
-                  { valor: pref.UserPreferenceValor },
-                  null,
-                  2,
-                );
-              }
-            } catch {
-              // Si no se puede parsear como JSON, tratar como texto simple
-              acc[key].campos = [
-                { id: "valor", valor: pref.UserPreferenceValor },
-              ];
-              acc[key].valor = JSON.stringify(
-                { valor: pref.UserPreferenceValor },
-                null,
-                2,
-              );
-            }
+          return {
+            id: pref.UserPreferenceId.toString(),
+            descripcion: pref.UserPreferenceAtributo,
+            campos: campos,
+            valor: pref.UserPreferenceValor, // Mantener el valor original
+          };
+        });
 
-            return acc;
-          },
-          {} as Record<string, Atributo>,
-        );
-
-        setAtributos(Object.values(atributosAgrupados));
+        console.log("Atributos convertidos:", atributosConvertidos);
+        setAtributos(atributosConvertidos);
+      } else {
+        console.log("No hay atributos existentes");
+        setAtributos([]);
       }
     } catch (error) {
-      console.error("Error al cargar atributos:", error);
+      console.error("🎣 [useAtributos] ❌ Error al cargar atributos:", error);
       toast.error("Error al cargar los atributos del usuario");
     } finally {
+      console.log("🎣 [useAtributos] ✅ Carga completada - setLoading(false)");
       setLoading(false);
     }
   };
 
-  // Crear nuevo atributo
+  // Crear nuevo atributo (se agrega a los existentes cargados de BD)
   const crearAtributo = () => {
     if (!descripcionAtributo.trim()) {
       toast.error("Por favor ingresa una descripción para el atributo");
@@ -127,13 +150,16 @@ export function useAtributos(userId: number, isOpen: boolean) {
       return;
     }
 
+    const valorJson = generarJsonValor(camposActuales);
+
     const nuevoAtributo: Atributo = {
-      id: Date.now().toString(),
+      id: `nuevo-${Date.now()}`, // ID temporal para nuevos atributos
       descripcion: descripcionAtributo.trim(),
       campos: [...camposActuales],
-      valor: generarJsonValor(camposActuales),
+      valor: valorJson,
     };
 
+    // Agregar al array existente (que incluye los de BD + los nuevos locales)
     setAtributos((prev) => [...prev, nuevoAtributo]);
 
     // Limpiar formulario
@@ -141,7 +167,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
     setCamposActuales([]);
     setNuevoCampo({ id: "", valor: "" });
 
-    toast.success(`Atributo "${nuevoAtributo.descripcion}" creado`);
+    toast.success(`Atributo "${nuevoAtributo.descripcion}" creado localmente`);
   };
 
   // Eliminar atributo
@@ -150,18 +176,30 @@ export function useAtributos(userId: number, isOpen: boolean) {
     toast.success("Atributo eliminado");
   };
 
-  // Guardar todos los atributos
+  // Guardar todos los atributos (solo guarda los nuevos creados localmente)
   const guardarAtributos = async () => {
     try {
       setSaving(true);
 
       console.log("Guardando atributos para usuario:", userId);
-      console.log("Atributos:", atributos);
+      console.log("Atributos totales:", atributos);
 
-      // Convertir atributos a formato UserPreference[]
-      const userPreferences: UserPreference[] = atributos.map(
-        (atributo, index) => ({
-          UserPreferenceId: 0, // Siempre enviar 0 para nuevos atributos
+      // Filtrar solo los atributos nuevos (con ID que empieza con "nuevo-")
+      const atributosNuevos = atributos.filter((attr) =>
+        attr.id.startsWith("nuevo-"),
+      );
+
+      if (atributosNuevos.length === 0) {
+        toast.info("No hay atributos nuevos para guardar");
+        return true;
+      }
+
+      console.log("Atributos nuevos a guardar:", atributosNuevos);
+
+      // Convertir atributos nuevos a formato UserPreference[]
+      const userPreferences: UserPreference[] = atributosNuevos.map(
+        (atributo) => ({
+          UserPreferenceId: 0, // 0 para nuevos atributos
           UserExtendedId: userId,
           UserPreferenceAtributo: atributo.descripcion,
           UserPreferenceValor: atributo.valor,
@@ -178,7 +216,13 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
       await apiABMAtributos(payload);
 
-      toast.success("Atributos guardados correctamente");
+      toast.success(
+        `${atributosNuevos.length} atributo(s) guardado(s) correctamente`,
+      );
+
+      // Recargar atributos desde la BD para obtener los IDs reales
+      await cargarAtributos();
+
       return true;
     } catch (error) {
       console.error("Error guardando atributos:", error);
@@ -189,9 +233,8 @@ export function useAtributos(userId: number, isOpen: boolean) {
     }
   };
 
-  // Limpiar estado al cerrar
+  // Limpiar estado al cerrar (solo limpia el formulario, no los atributos)
   const limpiarEstado = () => {
-    setAtributos([]);
     setDescripcionAtributo("");
     setCamposActuales([]);
     setNuevoCampo({ id: "", valor: "" });
@@ -199,7 +242,12 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
   // useEffect para cargar atributos cuando se abre el modal
   useEffect(() => {
-    cargarAtributos();
+    if (isOpen) {
+      cargarAtributos();
+    } else {
+      // Al cerrar el modal, limpiar todos los atributos para que se recarguen al abrir
+      setAtributos([]);
+    }
   }, [isOpen]);
 
   return {

@@ -44,7 +44,16 @@ export default function AtributosModal({
     limpiarEstado,
   } = useAtributos(userId, isOpen);
 
+  // 🔍 DEBUG: Rastrear estados de loading
+  console.log("🔷 [AtributosModal] Estados:", {
+    isOpen,
+    loading,
+    saving,
+    atributosCount: atributos.length,
+  });
+
   const handleClose = () => {
+    console.log("🔷 [AtributosModal] handleClose llamado");
     limpiarEstado();
     onClose();
   };
@@ -58,7 +67,10 @@ export default function AtributosModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="!max-w-none w-[96vw] h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="!max-w-none w-[96vw] h-[90vh] overflow-hidden flex flex-col"
+        data-no-loading="true"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
@@ -82,7 +94,7 @@ export default function AtributosModal({
 
           <ListaAtributosPanel
             atributos={atributos}
-            loading={loading}
+            loading={false}
             onEliminarAtributo={eliminarAtributo}
           />
         </div>

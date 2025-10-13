@@ -1177,17 +1177,20 @@ export const apiGetRolUsuario = async (
 };
 // =====================
 // âœ… Servicio: Obtener atributos del usuario (POST /getAtributos)
-// Body: {} (vacÃ­o)
-// Respuesta: Array de atributos del usuario actual
+// Body: { UserId: number }
+// Respuesta: Array de atributos del usuario especificado
 // =====================
-export const apiGetAtributos = async (opts?: {
-  signal?: AbortSignal;
-}): Promise<GetAtributosResp> => {
+export const apiGetAtributos = async (
+  userId: number,
+  opts?: {
+    signal?: AbortSignal;
+  },
+): Promise<GetAtributosResp> => {
   return withApiLogging("/getAtributos", async () => {
     try {
       const res = await api.post(
         "/getAtributos",
-        {},
+        { UserId: userId },
         {
           signal: opts?.signal,
           withCredentials: true,
@@ -1195,7 +1198,8 @@ export const apiGetAtributos = async (opts?: {
         },
       );
 
-      return res.data;
+      // La API devuelve {"sdtAtributos": [...]}
+      return res.data?.sdtAtributos || [];
     } catch (error: any) {
       const status = error?.response?.status;
 

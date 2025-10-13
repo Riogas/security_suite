@@ -369,7 +369,10 @@ export default function AsignarRolesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col"
+        data-no-loading="true"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Asignar Roles - {userName}

@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
       args:
         # ⚠️ Evaluado en BUILD por next.config.* (rewrites)
         BACKEND_BASE_URL: "http://192.168.1.72:8082/servicios/SecuritySuite"

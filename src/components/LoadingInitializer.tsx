@@ -17,6 +17,24 @@ export const LoadingInitializer: React.FC = () => {
       const button = target.closest("button") as HTMLButtonElement;
 
       if (button) {
+        // ❌ IGNORAR: Botones con data-no-loading="true"
+        if (
+          button.getAttribute("data-no-loading") === "true" ||
+          button.closest('[data-no-loading="true"]')
+        ) {
+          return;
+        }
+
+        // ❌ IGNORAR: Botones dentro de Dialogs/Modals
+        if (
+          button.closest('[role="dialog"]') ||
+          button.closest('[data-slot="dialog"]') ||
+          button.closest('[data-slot="dialog-overlay"]') ||
+          button.closest('[data-slot="dialog-portal"]')
+        ) {
+          return;
+        }
+
         // Detectar si el botón podría navegar
         const buttonText = button.textContent?.toLowerCase() || "";
         const hasNavigationKeywords = [

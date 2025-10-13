@@ -17,7 +17,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -42,7 +41,7 @@ export default function UsuariosTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [sinMigrar, setSinMigrar] = useState(true);
+  const [tipoUsuario, setTipoUsuario] = useState("todos"); // "todos" | "sinImportar" | "locales"
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -89,10 +88,13 @@ export default function UsuariosTable() {
     const ac = new AbortController();
     (async () => {
       try {
+        // Convertir tipoUsuario a sinMigrar boolean
+        const sinMigrar = tipoUsuario === "sinImportar" ? true : tipoUsuario === "locales" ? false : undefined;
+        
         const { items, total } = await fetcher({
           FiltroTexto: debouncedSearch,
           Estado: estado === "S" ? "S" : estado === "N" ? "N" : "",
-          sinMigrar,
+          sinMigrar: sinMigrar !== undefined ? sinMigrar : true, // Default true para "todos"
           Pagesize: pageSize,
           CurrentPage: pageIndex + 1,
           signal: ac.signal,
@@ -105,7 +107,7 @@ export default function UsuariosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, sinMigrar, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, tipoUsuario, pageIndex, pageSize]);
 
   const getInitials = (nombre: string) => {
     if (!nombre || nombre.trim() === "" || nombre === "undefined") return "U";
@@ -165,7 +167,7 @@ export default function UsuariosTable() {
     // 2. El usuario no ha sido importado previamente
     // 3. El usuario tiene los campos necesarios
     return (
-      sinMigrar &&
+      tipoUsuario === "sinImportar" &&
       userId &&
       !importedUsers.has(userId) &&
       user?.UserExtendedNombre
@@ -185,16 +187,26 @@ export default function UsuariosTable() {
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={sinMigrar}
-              onCheckedChange={(v) => {
-                setSinMigrar(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Sin importar</span>
-          </div>
+          <Select
+            value={tipoUsuario}
+            onValueChange={(v) => {
+              setTipoUsuario(v);
+              setPageIndex(0);
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              {tipoUsuario === "sinImportar"
+                ? "Sin importar"
+                : tipoUsuario === "locales"
+                  ? "Locales"
+                  : "Todos"}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="sinImportar">Sin importar</SelectItem>
+              <SelectItem value="locales">Locales</SelectItem>
+            </SelectContent>
+          </Select>
           <Select
             value={estado}
             onValueChange={(v) => {
@@ -202,7 +214,7 @@ export default function UsuariosTable() {
               setPageIndex(0);
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-[180px]">
               {estado === "S"
                 ? "Activo"
                 : estado === "N"

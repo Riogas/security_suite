@@ -33,6 +33,13 @@ export default function CrearAtributoPanel({
   setNuevoCampo,
   onCrearAtributo,
 }: CrearAtributoPanelProps) {
+  // 🔍 DEBUG: Rastrear props
+  console.log("➕ [CrearAtributoPanel] Props:", {
+    descripcionAtributo,
+    camposActualesCount: camposActuales.length,
+    nuevoCampo,
+  });
+
   // Agregar nuevo campo a la colección actual
   const agregarCampo = () => {
     if (!nuevoCampo.id.trim() || !nuevoCampo.valor.trim()) {

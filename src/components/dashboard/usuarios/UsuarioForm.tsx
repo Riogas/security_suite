@@ -28,6 +28,7 @@ interface UsuarioFormProps {
 export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
   const [formData, setFormData] = useState({
     UserExtendedUserName: "",
     UserExtendedPassword: "",
@@ -51,12 +52,21 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [showAtributosModal, setShowAtributosModal] = useState(false);
 
+  // 🔍 DEBUG: Rastrear estados de modales
+  console.log("👤 [UsuarioForm] Estados:", {
+    loading,
+    initialLoading,
+    showRolesModal,
+    showAtributosModal,
+    userId,
+  });
+
   useEffect(() => {
     if (mode === "edit" && userId) {
       const loadUserData = async () => {
         try {
           console.log("Cargando datos de usuario - activando loading");
-          setLoading(true);
+          setInitialLoading(true);
           const response = await apiUsuarios({
             FiltroTexto: "",
             Estado: "",
@@ -122,7 +132,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           toast.error("Error al cargar los datos del usuario");
         } finally {
           console.log("Carga de usuario completada - desactivando loading");
-          setLoading(false);
+          setInitialLoading(false);
         }
       };
 
@@ -163,7 +173,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  if (loading && mode === "edit") {
+  if (initialLoading && mode === "edit") {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -191,6 +201,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                 variant="outline"
                 onClick={() => setShowRolesModal(true)}
                 className="flex items-center gap-2"
+                data-no-loading="true"
               >
                 <Users className="w-4 h-4" />
                 Asignar Roles
@@ -200,6 +211,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                 variant="outline"
                 onClick={() => setShowAtributosModal(true)}
                 className="flex items-center gap-2"
+                data-no-loading="true"
               >
                 <Settings className="w-4 h-4" />
                 Atributos

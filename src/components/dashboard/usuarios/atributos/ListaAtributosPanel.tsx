@@ -29,7 +29,14 @@ export default function ListaAtributosPanel({
   loading,
   onEliminarAtributo,
 }: ListaAtributosPanelProps) {
+  // 🔍 DEBUG: Rastrear prop loading
+  console.log("📋 [ListaAtributosPanel] Props:", {
+    loading,
+    atributosCount: atributos.length,
+  });
+
   if (loading) {
+    console.log("📋 [ListaAtributosPanel] ⏳ Mostrando spinner de carga");
     return (
       <div className="w-[52%] space-y-6">
         <Card className="h-full">
@@ -80,29 +87,41 @@ export default function ListaAtributosPanel({
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {atributos.map((atributo) => (
-                <div
-                  key={atributo.id}
-                  className="border rounded-lg p-4 space-y-3"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-base mb-1">
-                        {atributo.descripcion}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {atributo.campos.length} campos configurados
-                      </p>
+              {atributos.map((atributo) => {
+                const esNuevo = atributo.id.startsWith("nuevo-");
+                return (
+                  <div
+                    key={atributo.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-base">
+                            {atributo.descripcion}
+                          </h4>
+                          {esNuevo && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-green-50 text-green-700 border-green-200"
+                            >
+                              Nuevo
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {atributo.campos.length} campos configurados
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEliminarAtributo(atributo.id)}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEliminarAtributo(atributo.id)}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
 
                   {/* Mostrar campos */}
                   <div className="space-y-2">
@@ -137,7 +156,8 @@ export default function ListaAtributosPanel({
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -27,6 +27,24 @@ export const useAutoLoading = () => {
       const link = target.closest("a[href]") as HTMLAnchorElement;
       const button = target.closest("button") as HTMLButtonElement;
 
+      // Ignorar elementos con data-no-loading="true"
+      if (
+        target.getAttribute("data-no-loading") === "true" ||
+        target.closest('[data-no-loading="true"]')
+      ) {
+        return;
+      }
+
+      // Ignorar clicks dentro de Dialogs/Modals
+      if (
+        target.closest('[role="dialog"]') ||
+        target.closest('[data-slot="dialog"]') ||
+        target.closest('[data-slot="dialog-overlay"]') ||
+        target.closest('[data-slot="dialog-portal"]')
+      ) {
+        return;
+      }
+
       if (
         link &&
         link.href &&
@@ -52,9 +70,18 @@ export const useAutoLoading = () => {
     window.fetch = async (...args) => {
       const url = args[0] as string;
 
-      // Solo mostrar loading para APIs, no para assets
+      // Excluir llamadas de modales (cargas de datos)
+      const isModalDataLoad =
+        typeof url === "string" &&
+        (url.includes("getAtributos") ||
+          url.includes("getRoles") ||
+          url.includes("getRolesAsignados") ||
+          url.includes("get") && !url.includes("listar"));
+
+      // Solo mostrar loading para APIs de acción, no para cargas de datos de modales
       if (
         typeof url === "string" &&
+        !isModalDataLoad &&
         (url.includes("/api/") || url.startsWith("/"))
       ) {
         const isApiCall =
@@ -70,7 +97,10 @@ export const useAutoLoading = () => {
         const response = await originalFetch(...args);
         return response;
       } finally {
-        setTimeout(() => hideLoading(), 500);
+        // Solo ocultar loading si lo mostramos
+        if (!isModalDataLoad) {
+          setTimeout(() => hideLoading(), 500);
+        }
       }
     };
 

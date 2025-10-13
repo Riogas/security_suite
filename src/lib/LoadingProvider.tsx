@@ -48,6 +48,10 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({
   const pathname = usePathname();
 
   const showLoading = (text = "Cargando...") => {
+    // 🔍 DEBUG: Rastrear llamadas a showLoading
+    console.log("🌐 [LoadingProvider] 🔴 showLoading() llamado con:", text);
+    console.trace("🌐 [LoadingProvider] Stack trace:");
+
     // Limpiar timeouts anteriores si existen
     if (loadingTimeout) {
       clearTimeout(loadingTimeout);
@@ -71,6 +75,9 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({
   };
 
   const hideLoading = () => {
+    // 🔍 DEBUG: Rastrear llamadas a hideLoading
+    console.log("🌐 [LoadingProvider] 🟢 hideLoading() llamado");
+
     // Limpiar timeouts anteriores si existen
     if (loadingTimeout) {
       clearTimeout(loadingTimeout);
@@ -83,6 +90,7 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({
 
     // Usar timeout muy corto para suavizar la transición
     const timeout = setTimeout(() => {
+      console.log("🌐 [LoadingProvider] ✅ setIsLoading(false) ejecutado");
       setIsLoading(false);
     }, 50);
 
