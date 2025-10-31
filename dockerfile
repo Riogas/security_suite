@@ -34,7 +34,6 @@ COPY tsconfig*.json ./
 COPY postcss.config.* ./
 COPY tailwind.config.* ./
 # .env files son opcionales (no commitear al repo por seguridad)
-COPY .env* ./ 2>/dev/null || true
 COPY public ./public
 COPY src ./src
 # Si tenés otras carpetas necesarias para el build, agregalas acá:
@@ -60,7 +59,6 @@ RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.env* ./
 
 USER nextjs
 EXPOSE 3000
