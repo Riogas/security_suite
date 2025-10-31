@@ -8,7 +8,7 @@ services:
         BACKEND_BASE_URL: "http://192.168.1.72:8082/servicios/SecuritySuite"
     container_name: security-users
     ports:
-      - "4001:3000"
+      - "4000:3000"
     environment:
       NODE_ENV: "production"
       NEXT_TELEMETRY_DISABLED: "1"
