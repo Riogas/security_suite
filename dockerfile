@@ -33,7 +33,8 @@ COPY next.config.* ./
 COPY tsconfig*.json ./
 COPY postcss.config.* ./
 COPY tailwind.config.* ./
-COPY .env* ./
+# .env files son opcionales (no commitear al repo por seguridad)
+COPY .env* ./ 2>/dev/null || true
 COPY public ./public
 COPY src ./src
 # Si tenés otras carpetas necesarias para el build, agregalas acá:
