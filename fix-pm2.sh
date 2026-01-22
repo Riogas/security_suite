@@ -55,7 +55,12 @@ if [ ! -d ".next" ]; then
     echo -e "${RED}❌ Error: No existe .next/ - Ejecuta: pnpm run build${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Build existe${NC}"
+if [ ! -f ".next/standalone/server.js" ]; then
+    echo -e "${RED}❌ Error: No existe .next/standalone/server.js${NC}"
+    echo "El build no generó standalone. Verifica next.config.ts"
+    exit 1
+fi
+echo -e "${GREEN}✓ Build standalone existe${NC}"
 
 echo ""
 echo -e "${BLUE}[8/8] Iniciando aplicación con PM2...${NC}"

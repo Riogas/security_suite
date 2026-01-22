@@ -104,8 +104,7 @@ ls -lh logs/
 ```javascript
 {
   name: 'securitySuite',           // Nombre del proceso
-  script: 'node_modules/next/dist/bin/next',
-  args: 'start -p 3000',           // Puerto 3000
+  script: '.next/standalone/server.js',  // Standalone build
   instances: 1,                    // Número de instancias
   exec_mode: 'cluster',            // Modo cluster
   max_memory_restart: '1G',        // Restart si usa >1GB
