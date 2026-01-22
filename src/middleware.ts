@@ -199,12 +199,14 @@ export async function middleware(request: NextRequest) {
   let userName = "";
   const payload = decodeJwtPayload(token);
   if (payload) {
-    userName =
+    const rawName = 
       payload.name ||
       payload.username ||
       payload.email ||
       payload.preferred_username ||
       "";
+    // Sanitizar el nombre de usuario para headers
+    userName = String(rawName).trim().slice(0, 200) || "";
   }
   log("userName decodificado:", userName || "(vacío)");
 
@@ -223,30 +225,46 @@ export async function middleware(request: NextRequest) {
 
   // 5) Permiso OK → Inyectar headers y cookies espejo
   const reqHeaders = new Headers(request.headers);
-  reqHeaders.set("x-route-code", code);
-  reqHeaders.set("x-route-name", name);
-  if (userName) reqHeaders.set("x-user-name", userName);
+  
+  // Sanitizar y validar valores antes de setear headers
+  const safeCode = String(code || "").slice(0, 100);
+  const safeName = String(name || "").slice(0, 200);
+  const safeUserName = userName ? String(userName).slice(0, 200) : "";
+  
+  if (safeCode) reqHeaders.set("x-route-code", safeCode);
+  if (safeName) reqHeaders.set("x-route-name", safeName);
+  if (safeUserName) reqHeaders.set("x-user-name", safeUserName);
 
   const res = NextResponse.next({ request: { headers: reqHeaders } });
   res.headers.set("x-mw-hit", "1");
-  res.headers.set("x-route-code", code);
-  res.headers.set("x-route-name", name);
-  if (userName) res.headers.set("x-user-name", userName);
-
-  res.cookies.set("routeCode", code, { path: "/" });
-  res.cookies.set("routeName", name, { path: "/" });
-  if (userName) res.cookies.set("userName", userName, { path: "/" });
+  if (safeCode) {
+    res.headers.set("x-route-code", safeCode);
+    res.cookies.set("routeCode", safeCode, { path: "/" });
+  }
+  if (safeName) {
+    res.headers.set("x-route-name", safeName);
+    res.cookies.set("routeName", safeName, { path: "/" });
+  }
+  if (safeUserName) {
+    res.headers.set("x-user-name", safeUserName);
+    res.cookies.set("userName", safeUserName, { path: "/" });
+  }
 
   log("headers set:", {
-    "x-route-code": code,
-    "x-route-name": name,
-    "x-user-name": userName || "(no-set)",
+    "x-route-code": safeCode || "(no-set)",
+    "x-route-name": safeName || "(no-set)",
+    "x-user-name": safeUserName || "(no-set)",
   });
 
   return res;
   } catch (error) {
     // Capturar cualquier error del middleware
-    console.error("[MW] Error en middleware:", error);
+    console.error("[MW] Error en middleware:", {
+      pathname: request.nextUrl.pathname,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      headers: Object.fromEntries(request.headers.entries()),
+    });
     
     // En caso de error, permitir continuar sin bloquear
     // Puedes cambiar esto a redirect login si prefieres
