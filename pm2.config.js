@@ -4,7 +4,6 @@ module.exports = {
       name: 'securitySuite',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
-      cwd: './',
       instances: 1,
       exec_mode: 'cluster',
       
@@ -13,10 +12,24 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
         NEXT_TELEMETRY_DISABLED: 1,
+        
+        // App Config
         NEXT_PUBLIC_APLICACION_ID: 1,
+        APLICACION_ID: 1,
+        
+        // API URLs
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',
         NEXT_PUBLIC_PERMISOS_API_URL: '/api/Permisos',
-        // Agrega más variables según necesites desde docker-compose.yml
+        PERMISOS_API_URL: 'http://192.168.1.72:8082/servicios/SecuritySuite/Permisos',
+        
+        // Backend URL
+        BACKEND_BASE_URL: 'http://192.168.1.72:8082/servicios/SecuritySuite',
+        
+        // Middleware Debug (0 = off, 1 = on)
+        DEBUG_MW: '0',
+        
+        // Route Salt para generar códigos de pantalla
+        ROUTE_SALT: 's',
       },
 
       // Logs
