@@ -2,15 +2,20 @@ module.exports = {
   apps: [
     {
       name: 'securitySuite',
-      script: '.next/standalone/server.js',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start',
       instances: 1,
-      exec_mode: 'cluster',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
       
       // Variables de entorno
       env: {
         NODE_ENV: 'production',
         PORT: 3000,
+        HOSTNAME: '0.0.0.0',
         NEXT_TELEMETRY_DISABLED: 1,
+        NODE_TLS_REJECT_UNAUTHORIZED: '0',
         
         // App Config
         NEXT_PUBLIC_APLICACION_ID: 1,
@@ -27,36 +32,24 @@ module.exports = {
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
         
-        // Route Salt para generar códigos de pantalla
+        // Route Salt
         ROUTE_SALT: 's',
       },
 
       // Logs
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: './logs/pm2-error.log',
       out_file: './logs/pm2-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
       
-      // Rotación de logs
-      log_type: 'json',
-      max_memory_restart: '1G',
-      
       // Auto restart
-      autorestart: true,
       max_restarts: 10,
       min_uptime: '10s',
       restart_delay: 4000,
       
-      // Monitoreo
-      watch: false,
-      ignore_watch: ['node_modules', 'logs', '.next'],
-      
       // Timeouts
       listen_timeout: 10000,
       kill_timeout: 5000,
-      
-      // Configuración de cluster
-      instance_var: 'INSTANCE_ID',
       
       // Gestión de errores
       exp_backoff_restart_delay: 100,

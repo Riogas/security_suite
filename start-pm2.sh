@@ -26,14 +26,7 @@ if [ ! -d ".next" ]; then
     echo "Ejecuta primero: pnpm run build"
     exit 1
 fi
-
-# Verificar que existe el standalone
-if [ ! -f ".next/standalone/server.js" ]; then
-    echo -e "${RED}❌ Error: No se encontró .next/standalone/server.js${NC}"
-    echo "El build no generó el standalone correctamente"
-    echo "Verifica next.config.ts tenga: output: 'standalone'"
-    exit 1
-fi
+echo -e "${GREEN}✓ Build encontrado${NC}"
 
 # Detener instancias anteriores
 echo -e "${YELLOW}[2/5] Deteniendo instancias anteriores...${NC}"

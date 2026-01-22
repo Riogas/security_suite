@@ -6,7 +6,7 @@ const BACKEND_BASE_URL =
   "http://192.168.1.72:8082/servicios/SecuritySuite";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // output: "standalone", // ❌ No se necesita sin Docker
   async rewrites() {
     return [
       {
