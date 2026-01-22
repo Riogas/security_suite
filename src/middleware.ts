@@ -160,24 +160,25 @@ async function apiCheckPermisoEdge(
 // Middleware
 // =========================
 export async function middleware(request: NextRequest) {
-  console.log("[MW] DEBUG_MW =", process.env.DEBUG_MW);
+  try {
+    console.log("[MW] DEBUG_MW =", process.env.DEBUG_MW);
 
-  const { pathname } = request.nextUrl;
-  log("→ request", pathname);
+    const { pathname } = request.nextUrl;
+    log("→ request", pathname);
 
-  // 1) Excluir assets/sistema y rutas públicas sin chequear
-  if (
-    PUBLIC_PATHS.includes(pathname) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/static") ||
-    pathname === "/favicon.ico" ||
-    /\.[a-zA-Z0-9]+$/.test(pathname) // archivos de /public (png, svg, js, css, etc.)
-  ) {
-    log("ruta pública / asset → Next()");
-    const res = NextResponse.next();
-    res.headers.set("x-mw-hit", "public");
-    return res;
-  }
+    // 1) Excluir assets/sistema y rutas públicas sin chequear
+    if (
+      PUBLIC_PATHS.includes(pathname) ||
+      pathname.startsWith("/_next") ||
+      pathname.startsWith("/static") ||
+      pathname === "/favicon.ico" ||
+      /\.[a-zA-Z0-9]+$/.test(pathname) // archivos de /public (png, svg, js, css, etc.)
+    ) {
+      log("ruta pública / asset → Next()");
+      const res = NextResponse.next();
+      res.headers.set("x-mw-hit", "public");
+      return res;
+    }
 
   // 2) JWT desde cookie
   const token = request.cookies.get("token")?.value;
@@ -243,6 +244,16 @@ export async function middleware(request: NextRequest) {
   });
 
   return res;
+  } catch (error) {
+    // Capturar cualquier error del middleware
+    console.error("[MW] Error en middleware:", error);
+    
+    // En caso de error, permitir continuar sin bloquear
+    // Puedes cambiar esto a redirect login si prefieres
+    const res = NextResponse.next();
+    res.headers.set("x-mw-error", "1");
+    return res;
+  }
 }
 
 // 6) Aplicar a todas las rutas menos APIs y estáticos
