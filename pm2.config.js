@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'securitySuite',
       script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 4000',
+      args: 'start -p 3000',
       cwd: './',
       instances: 1,
       exec_mode: 'cluster',
@@ -11,7 +11,7 @@ module.exports = {
       // Variables de entorno
       env: {
         NODE_ENV: 'production',
-        PORT: 4000,
+        PORT: 3000,
         NEXT_TELEMETRY_DISABLED: 1,
         NEXT_PUBLIC_APLICACION_ID: 1,
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',

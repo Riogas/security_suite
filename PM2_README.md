@@ -38,7 +38,7 @@ chmod +x start-pm2.sh
 bash start-pm2.sh
 ```
 
-✅ **¡Listo!** Tu aplicación está corriendo en `http://localhost:4000`
+✅ **¡Listo!** Tu aplicación está corriendo en `http://localhost:3000`
 
 ---
 
@@ -105,7 +105,7 @@ ls -lh logs/
 {
   name: 'securitySuite',           // Nombre del proceso
   script: 'node_modules/next/dist/bin/next',
-  args: 'start -p 4000',           // Puerto 4000
+  args: 'start -p 3000',           // Puerto 3000
   instances: 1,                    // Número de instancias
   exec_mode: 'cluster',            // Modo cluster
   max_memory_restart: '1G',        // Restart si usa >1GB
@@ -120,7 +120,7 @@ Edita `pm2.config.js` para agregar más variables:
 ```javascript
 env: {
   NODE_ENV: 'production',
-  PORT: 4000,
+  PORT: 3000,
   BACKEND_BASE_URL: 'http://tu-backend.com',
   NEXT_PUBLIC_API_URL: 'http://tu-backend.com',
   // ... más variables
@@ -211,8 +211,8 @@ pm2 logs securitySuite --lines 100
 ls -la .next/standalone/
 
 # Verificar puerto ocupado
-sudo lsof -i :4000
-sudo netstat -tulpn | grep 4000
+sudo lsof -i :3000
+sudo netstat -tulpn | grep 3000
 ```
 
 ### Alto uso de memoria
@@ -278,8 +278,8 @@ security_suite/
 
 ## 🌐 Acceso a la Aplicación
 
-- **Local**: http://localhost:4000
-- **Red local**: http://TU_IP_SERVIDOR:4000
+- **Local**: http://localhost:3000
+- **Red local**: http://TU_IP_SERVIDOR:3000
 - **Producción**: Configurar Nginx/Apache como reverse proxy
 
 ---
