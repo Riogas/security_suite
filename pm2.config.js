@@ -17,6 +17,7 @@ module.exports = {
         HOSTNAME: '0.0.0.0',
         NEXT_TELEMETRY_DISABLED: 1,
         NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        UV_THREADPOOL_SIZE: 2,
         
         // App Config
         NEXT_PUBLIC_APLICACION_ID: 1,
