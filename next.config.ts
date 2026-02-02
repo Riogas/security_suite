@@ -14,23 +14,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const nextConfig: NextConfig = {
-  // output: "standalone", // ❌ No se necesita sin Docker
-  async rewrites() {
-    console.log("[Next.js Config] Configurando rewrites para:", BACKEND_BASE_URL);
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${BACKEND_BASE_URL}/:path*`,
-      },
-    ];
-  },
-  // Configuración para prevenir problemas de SSL
-  serverRuntimeConfig: {
-    // Esto es solo para servidor
-  },
-  publicRuntimeConfig: {
-    // Esto es para cliente y servidor
-  },
+  // NO usamos rewrites porque no respetan NODE_TLS_REJECT_UNAUTHORIZED
+  // En su lugar usamos API routes personalizadas (ver src/app/api/[...proxy])
 };
 
 export default nextConfig;
