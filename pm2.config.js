@@ -26,10 +26,10 @@ module.exports = {
         // API URLs
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',
         NEXT_PUBLIC_PERMISOS_API_URL: '/api/Permisos',
-        PERMISOS_API_URL: 'http://192.168.1.72:8082/servicios/SecuritySuite/Permisos',
+        PERMISOS_API_URL: 'http://192.168.1.5:8082/servicios/SecuritySuite/Permisos',
         
         // Backend URL
-        BACKEND_BASE_URL: 'http://192.168.1.72:8082/servicios/SecuritySuite',
+        BACKEND_BASE_URL: 'http://192.168.1.5:8082/servicios/SecuritySuite',
         
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
