@@ -61,14 +61,15 @@ export default function LoginPage() {
       setLoading(true);
       setLockState("locked");
 
-      const APP_ID = Number(
-        process.env.NEXT_PUBLIC_APLICACION_ID ?? process.env.APLICACION_ID ?? 0,
-      );
+      const SISTEMA = 
+        process.env.NEXT_PUBLIC_APLICACION_ID ?? 
+        process.env.APLICACION_ID ?? 
+        "SecuritySuite";
 
       const response = await apiLoginUser({
         UserName: usuario,
         Password: password,
-        Sistema: APP_ID.toString(),
+        Sistema: SISTEMA,
       });
 
       console.log(`${tag} ✅ Respuesta recibida:`, response);
