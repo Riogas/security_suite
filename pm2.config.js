@@ -26,10 +26,10 @@ module.exports = {
         // API URLs
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',
         NEXT_PUBLIC_PERMISOS_API_URL: '/api/Permisos',
-        PERMISOS_API_URL: 'https://sgm-dev.glp.riogas.com.uy/Permisos',
+        PERMISOS_API_URL: 'https://sgm-dev.glp.riogas.com.uy/servicios/SecuritySuite/Permisos',
         
         // Backend URL
-        BACKEND_BASE_URL: 'https://sgm-dev.glp.riogas.com.uy',
+        BACKEND_BASE_URL: 'https://sgm-dev.glp.riogas.com.uy/servicios/SecuritySuite',
         
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
