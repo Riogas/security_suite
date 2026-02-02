@@ -20,8 +20,8 @@ module.exports = {
         UV_THREADPOOL_SIZE: 2,
         
         // App Config
-        NEXT_PUBLIC_APLICACION_ID: 'GOYA',
-        APLICACION_ID: 'GOYA',
+        NEXT_PUBLIC_APLICACION_ID: 'SecuritySuite',
+        APLICACION_ID: 'SecuritySuite',
         
         // API URLs
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',
