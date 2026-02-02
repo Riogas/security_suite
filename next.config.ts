@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 
 const BACKEND_BASE_URL =
   process.env.BACKEND_BASE_URL ??
-  "http://192.168.1.5:8082/servicios/SecuritySuite";
+  "https://sgm-dev.glp.riogas.com.uy";
 
 const nextConfig: NextConfig = {
   // output: "standalone", // ❌ No se necesita sin Docker
