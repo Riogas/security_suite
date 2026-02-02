@@ -7,6 +7,12 @@ const BACKEND_BASE_URL =
 
 console.log("[Next.js Config] BACKEND_BASE_URL:", BACKEND_BASE_URL);
 
+// Deshabilitar validación SSL para certificados autofirmados
+if (process.env.NODE_ENV === "production") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  console.log("[Next.js Config] SSL validation disabled for self-signed certificates");
+}
+
 const nextConfig: NextConfig = {
   // output: "standalone", // ❌ No se necesita sin Docker
   async rewrites() {
