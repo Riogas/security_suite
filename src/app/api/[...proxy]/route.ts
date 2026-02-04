@@ -13,37 +13,42 @@ const httpsAgent = new https.Agent({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-  return proxyRequest(request, params.proxy);
+  const { proxy } = await params;
+  return proxyRequest(request, proxy);
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-  return proxyRequest(request, params.proxy);
+  const { proxy } = await params;
+  return proxyRequest(request, proxy);
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-  return proxyRequest(request, params.proxy);
+  const { proxy } = await params;
+  return proxyRequest(request, proxy);
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-  return proxyRequest(request, params.proxy);
+  const { proxy } = await params;
+  return proxyRequest(request, proxy);
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-  return proxyRequest(request, params.proxy);
+  const { proxy } = await params;
+  return proxyRequest(request, proxy);
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
@@ -72,7 +77,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       try {
         body = await request.text();
-      } catch (e) {
+      } catch {
         // No body
       }
     }
@@ -82,7 +87,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
       method: request.method,
       headers,
       body,
-      // @ts-ignore - agent no está en los tipos pero funciona en Node.js
+      // @ts-expect-error - agent no está en los tipos pero funciona en Node.js
       agent: targetUrl.startsWith("https") ? httpsAgent : undefined,
     });
 

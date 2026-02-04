@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { apiLoginUser } from "@/services/api";
 import { useRouter } from "next/navigation";
 import LogRocket from "logrocket";
-import * as Sentry from "@sentry/nextjs";
 import Image from "next/image";
 
 export default function LoginPage() {
