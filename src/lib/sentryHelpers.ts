@@ -1,4 +1,5 @@
-import * as Sentry from "@sentry/nextjs";
+// Sentry removed - logging functions replaced with console
+// Original package @sentry/nextjs has been removed
 
 export const withApiLogging = async <T>(
   endpoint: string,
@@ -9,41 +10,13 @@ export const withApiLogging = async <T>(
   const startTime = Date.now();
   try {
     const result = await apiCall();
-    Sentry.addBreadcrumb({
-      message: `API call successful: ${endpoint}`,
-      category: "api",
-      level: "info",
-      data: {
-        endpoint,
-        duration: `${Date.now() - startTime}ms`,
-        timestamp: new Date().toISOString(),
-      },
-    });
+    console.log(`[API Success] ${endpoint} (${Date.now() - startTime}ms)`);
     return result;
   } catch (error: any) {
-    Sentry.addBreadcrumb({
-      message: `API call failed: ${endpoint}`,
-      category: "api",
-      level: "error",
-      data: {
-        endpoint,
-        error: error.message || "Unknown error",
-        statusCode: error.response?.status,
-        responseData: error.response?.data,
-        requestData,
-        duration: `${Date.now() - startTime}ms`,
-        timestamp: new Date().toISOString(),
-      },
-    });
-    Sentry.captureException(error, {
-      tags: {
-        section: "api",
-        endpoint,
-      },
-      extra: {
-        requestData,
-        responseData: error.response?.data,
-      },
+    console.error(`[API Error] ${endpoint}:`, {
+      error: error.message || "Unknown error",
+      statusCode: error.response?.status,
+      duration: `${Date.now() - startTime}ms`,
     });
     throw error;
   }
@@ -55,14 +28,9 @@ export const setSentryUser = (user: {
   name: string;
   role: string;
 }) => {
-  Sentry.setUser({
-    id: user.id,
-    email: user.email,
-    username: user.name,
-    role: user.role,
-  });
+  console.log(`[User] Set user: ${user.name} (${user.email})`);
 };
 
 export const clearSentryUser = () => {
-  Sentry.setUser(null);
+  console.log("[User] User cleared");
 };
