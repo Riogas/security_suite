@@ -94,11 +94,12 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     // Copiar headers de respuesta
     const responseHeaders = new Headers();
     response.headers.forEach((value, key) => {
-      // Excluir algunos headers
+      // Excluir headers que no deben reenviarse al cliente
       if (
         key !== "content-encoding" &&
         key !== "transfer-encoding" &&
-        key !== "connection"
+        key !== "connection" &&
+        key !== "set-cookie" // No reenviar Set-Cookie del backend para evitar sobreescribir cookies del cliente (ej: token)
       ) {
         responseHeaders.set(key, value);
       }

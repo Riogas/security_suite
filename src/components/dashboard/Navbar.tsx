@@ -21,12 +21,8 @@ import {
 } from "@/components/ui/select";
 import { useUser } from "@/hooks/useUser";
 
-const user =
-  typeof window !== "undefined"
-    ? JSON.parse(localStorage.getItem("user") || "{}")
-    : {};
-
-console.log("👤 Usuario logueado:", user.name, user.role);
+// Nota: el usuario se lee dentro del componente via useUser() hook
+// No leer localStorage a nivel de módulo para evitar problemas de SSR/hidratación
 
 function getPuestosFromStorage() {
   if (typeof window === "undefined") return [];

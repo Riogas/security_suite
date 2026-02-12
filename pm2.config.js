@@ -20,8 +20,8 @@ module.exports = {
         UV_THREADPOOL_SIZE: 2,
         
         // App Config
-        NEXT_PUBLIC_APLICACION_ID: 'SecuritySuite',
-        APLICACION_ID: 'SecuritySuite',
+        NEXT_PUBLIC_APLICACION_ID: '1',
+        APLICACION_ID: '1',
         
         // API URLs
         NEXT_PUBLIC_MENU_API_URL: '/api/Menu',

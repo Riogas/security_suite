@@ -41,26 +41,22 @@ api.interceptors.request.use((config) => {
   let token = null;
   if (typeof document !== "undefined") {
     const match = document.cookie.match(/(?:^|; )token=([^;]*)/);
-    if (match) token = match[1];
+    if (match && match[1]) token = match[1];
   }
-  // Si no está en cookie, buscar en localStorage
+  // Si no está en cookie, buscar en localStorage y re-sincronizar la cookie
   if (!token && typeof window !== "undefined") {
     token = localStorage.getItem("token");
-  }
-  // Chequear expiración
-  if (token && isJwtExpired(token)) {
-    // Eliminar token de cookie y localStorage
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    // Mostrar mensaje y redirigir al login
-    if (typeof window !== "undefined") {
-      toast.error("Su sesión ha expirado, por favor vuelva a loguearse");
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1200);
+    // Re-sincronizar la cookie desde localStorage (puede haberse perdido por Set-Cookie del backend)
+    if (token) {
+      console.log("[Axios] ⚠️ Token no encontrado en cookie, recuperado de localStorage");
+      document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
     }
-    return Promise.reject(new Error("Token expirado"));
+  }
+  // Chequear expiración — solo loguear advertencia, NO bloquear.
+  // El backend debe ser quien rechace el token (401) si está expirado.
+  // Nota: GeneXus puede emitir tokens con exp en 0 o con fecha pasada; dejar que el backend decida.
+  if (token && isJwtExpired(token)) {
+    console.warn("[Axios] ⚠️ Token JWT parece expirado según exp del payload. Se envía igualmente; el backend decidirá.");
   }
   if (token) {
     config.headers = config.headers || {};

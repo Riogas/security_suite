@@ -68,9 +68,9 @@ export const apiLogin = async (
   );
 };
 
-// ✅ Menú real: siempre envía { AplicacionId: "SecuritySuite" }
+// ✅ Menú real: siempre envía { AplicacionId } desde env (default: 1)
 export const apiMenu = async () => {
-  const App_ID = process.env.NEXT_PUBLIC_APLICACION_ID || 1; // Usar variable de entorno o valor por defecto
+  const App_ID = Number(process.env.NEXT_PUBLIC_APLICACION_ID) || 1;
   try {
     const response = await api.post(
       "/Menu",
@@ -107,6 +107,16 @@ export const apiCreateUser = async (body: any) => {
 };
 
 // ✅ Login real contra backend externo
+// Helper: busca una propiedad case-insensitive en un objeto
+function getCI<T = any>(obj: any, key: string): T | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  // Prueba exacta primero, luego lowercase
+  if (key in obj) return obj[key];
+  const lower = key.toLowerCase();
+  const found = Object.keys(obj).find((k) => k.toLowerCase() === lower);
+  return found ? obj[found] : undefined;
+}
+
 export const apiLoginUser = async (body: {
   UserName: string;
   Password: string;
@@ -117,24 +127,49 @@ export const apiLoginUser = async (body: {
       headers: { "Content-Type": "application/json" },
       withCredentials: true,
     });
+
+    const data = response.data;
+
+    // Buscar token case-insensitive (GeneXus puede devolver Token, token, TOKEN, etc.)
+    const token = getCI<string>(data, "token");
     // Guardar token en cookie
-    if (response.data?.token) {
-      document.cookie = `token=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+    if (token) {
+      document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      // Backup en localStorage
+      localStorage.setItem("token", token);
+      console.log("📥[Login] Token guardado en cookie y localStorage");
+    } else {
+      console.warn("📥[Login] ⚠️ No se encontró token en la respuesta:", Object.keys(data));
     }
-    // Guardar usuario en localStorage
-    if (response.data?.user) {
+
+    // Buscar usuario case-insensitive
+    const user = getCI<any>(data, "user");
+    if (user) {
       localStorage.setItem(
         "user",
         JSON.stringify({
-          nombre: response.data.user.nombre,
-          email: response.data.user.email,
-          username: response.data.user.username,
-          id: response.data.user.id,
-          isRoot: response.data.user.isRoot,
+          nombre: getCI(user, "nombre") ?? getCI(user, "name") ?? "",
+          email: getCI(user, "email") ?? "",
+          username: getCI(user, "username") ?? getCI(user, "userName") ?? "",
+          id: getCI(user, "id") ?? "",
+          isRoot: getCI(user, "isRoot") ?? getCI(user, "isroot") ?? "N",
         }),
       );
     }
-    return response.data;
+
+    // Normalizar la respuesta para que siempre tenga las keys en minúscula
+    return {
+      ...data,
+      success: getCI(data, "success") ?? true,
+      token: token,
+      user: user ? {
+        nombre: getCI(user, "nombre") ?? getCI(user, "name") ?? "",
+        email: getCI(user, "email") ?? "",
+        username: getCI(user, "username") ?? getCI(user, "userName") ?? "",
+        id: getCI(user, "id") ?? "",
+        isRoot: getCI(user, "isRoot") ?? getCI(user, "isroot") ?? "N",
+      } : data.user,
+    };
   } catch (error: any) {
     console.error(
       "Error al iniciar sesión:",

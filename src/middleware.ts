@@ -7,8 +7,11 @@ import type { NextRequest } from "next/server";
 // =========================
 const DEBUG = process.env.DEBUG_MW === "1";
 
-// Rutas públicas que no requieren permisos
-const PUBLIC_PATHS = ["/", "/login", "/no-autorizado", "/dashboard"];
+// Rutas públicas que no requieren permisos (exactas)
+const PUBLIC_PATHS = ["/", "/login", "/no-autorizado"];
+
+// Prefijos públicos: cualquier ruta que comience con estos no requiere permisos
+const PUBLIC_PREFIXES = ["/dashboard"];
 
 // API de permisos (¡no usa rewrites!)
 const PERMISOS_API_URL =
@@ -169,6 +172,7 @@ export async function middleware(request: NextRequest) {
     // 1) Excluir assets/sistema y rutas públicas sin chequear
     if (
       PUBLIC_PATHS.includes(pathname) ||
+      PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/")) ||
       pathname.startsWith("/_next") ||
       pathname.startsWith("/static") ||
       pathname === "/favicon.ico" ||
