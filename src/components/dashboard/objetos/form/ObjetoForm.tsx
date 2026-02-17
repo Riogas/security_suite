@@ -1140,12 +1140,12 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 }
               }}
             >
-              <DialogContent className="max-w-3xl">
+              <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
                 <DialogHeader>
                   <DialogTitle>Seleccionar objeto relacionado</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-3">
-                  <div className="flex gap-2">
+                <div className="space-y-3 flex flex-col min-h-0 overflow-hidden">
+                  <div className="flex gap-2 shrink-0">
                     <Input
                       placeholder="Buscar por clave..."
                       value={relationSearch}
@@ -1165,7 +1165,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                       Buscar
                     </Button>
                   </div>
-                  <div className="border rounded-md overflow-x-auto">
+                  <div className="border rounded-md overflow-auto min-h-0 flex-1">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1231,7 +1231,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center justify-between pt-2 shrink-0">
                     <span>
                       Página {relationPage} de{" "}
                       {Math.max(
@@ -1271,7 +1271,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 shrink-0">
                     <Button
                       type="button"
                       variant="outline"
