@@ -295,9 +295,23 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   const [relationSearch, setRelationSearch] = useState("");
   const [relationPage, setRelationPage] = useState(1);
   const relationPageSize = 20;
-  const [relationItems, setRelationItems] = useState<ListarObjetosItem[]>([]);
-  const [relationTotal, setRelationTotal] = useState(0);
+  const [relationAllItems, setRelationAllItems] = useState<ListarObjetosItem[]>([]);
   const [relationLoading, setRelationLoading] = useState(false);
+
+  // Filtrado y paginado local
+  const relationFiltered = useMemo(() => {
+    const q = relationSearch.trim().toLowerCase();
+    if (!q) return relationAllItems;
+    return relationAllItems.filter((item) =>
+      (item.ObjetoKey || "").toLowerCase().includes(q)
+    );
+  }, [relationAllItems, relationSearch]);
+
+  const relationTotalPages = Math.max(1, Math.ceil(relationFiltered.length / relationPageSize));
+  const relationItems = useMemo(() => {
+    const start = (relationPage - 1) * relationPageSize;
+    return relationFiltered.slice(start, start + relationPageSize);
+  }, [relationFiltered, relationPage, relationPageSize]);
   // Labels a mostrar en la columna de relación (mostrar ObjetoKey, guardar ObjetoId)
   const [relationLabels, setRelationLabels] = useState<Record<string, string>>(
     {},
@@ -572,18 +586,16 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     }
   }
 
-  async function loadRelationItems(page = 1) {
+  async function loadAllRelationItems() {
     try {
       setRelationLoading(true);
       const res = await apiListarObjetos({
         AplicacionId: Number(form.aplicacionid) || form.aplicacionid,
-        Page: page,
-        PageSize: relationPageSize,
-        Search: relationSearch?.trim() || "",
+        Page: 1,
+        PageSize: 9999,
+        sinMenu: true,
       });
-      setRelationItems(res.sdtListaObjetos || []);
-      setRelationTotal((res as any).total || 0);
-      setRelationPage(page);
+      setRelationAllItems(res.sdtListaObjetos || []);
     } catch (e) {
       console.error("No se pudo listar objetos relacionados", e);
     } finally {
@@ -593,10 +605,15 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
 
   useEffect(() => {
     if (relationOpen) {
-      loadRelationItems(1);
+      loadAllRelationItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relationOpen, form.aplicacionid]);
+
+  // Reset a página 1 cuando cambia el filtro de búsqueda
+  useEffect(() => {
+    setRelationPage(1);
+  }, [relationSearch]);
 
   // Enfocar la columna Etiqueta de la fila recién creada
   useEffect(() => {
@@ -1135,8 +1152,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 setRelationOpen(open);
                 if (!open) {
                   setRelationSearch("");
-                  setRelationItems([]);
-                  setRelationTotal(0);
+                  setRelationAllItems([]);
                 }
               }}
             >
@@ -1147,23 +1163,10 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 <div className="space-y-3 flex flex-col min-h-0 overflow-hidden">
                   <div className="flex gap-2 shrink-0">
                     <Input
-                      placeholder="Buscar por clave..."
+                      placeholder="Filtrar por clave..."
                       value={relationSearch}
                       onChange={(e) => setRelationSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          loadRelationItems(1);
-                        }
-                      }}
                     />
-                    <Button
-                      type="button"
-                      onClick={() => loadRelationItems(1)}
-                      disabled={relationLoading}
-                    >
-                      Buscar
-                    </Button>
                   </div>
                   <div className="border rounded-md overflow-auto min-h-0 flex-1">
                     <Table>
@@ -1233,39 +1236,30 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                   </div>
                   <div className="flex items-center justify-between pt-2 shrink-0">
                     <span>
-                      Página {relationPage} de{" "}
-                      {Math.max(
-                        1,
-                        Math.ceil(
-                          (relationTotal || 0 || relationItems.length) /
-                            relationPageSize,
-                        ),
-                      )}
+                      Página {relationPage} de {relationTotalPages}
                     </span>
                     <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => loadRelationItems(1)}
-                        disabled={relationPage === 1 || relationLoading}
+                        onClick={() => setRelationPage(1)}
+                        disabled={relationPage === 1}
                       >
                         «
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() =>
-                          loadRelationItems(Math.max(1, relationPage - 1))
-                        }
-                        disabled={relationPage === 1 || relationLoading}
+                        onClick={() => setRelationPage((p) => Math.max(1, p - 1))}
+                        disabled={relationPage === 1}
                       >
                         ‹
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => loadRelationItems(relationPage + 1)}
-                        disabled={relationLoading}
+                        onClick={() => setRelationPage((p) => Math.min(relationTotalPages, p + 1))}
+                        disabled={relationPage >= relationTotalPages}
                       >
                         ›
                       </Button>
