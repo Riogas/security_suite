@@ -14,7 +14,12 @@ export function useUser() {
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
-      setUser(JSON.parse(stored));
+      try {
+        setUser(JSON.parse(stored));
+      } catch (e) {
+        console.warn("⚠️ Dato corrupto en localStorage 'user', limpiando:", e);
+        localStorage.removeItem("user");
+      }
     }
   }, []);
 
