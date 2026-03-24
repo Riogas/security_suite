@@ -109,10 +109,14 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     });
   } catch (error: any) {
     console.error("[Proxy] Error:", error.message);
+    console.error("[Proxy] Cause:", error.cause);
+    console.error("[Proxy] BACKEND_BASE_URL:", BACKEND_BASE_URL);
     return NextResponse.json(
       {
         error: "Proxy error",
         message: error.message,
+        cause: error.cause?.message || error.cause?.code || String(error.cause),
+        targetUrl: `${BACKEND_BASE_URL}/${pathSegments.join("/")}`,
       },
       { status: 500 }
     );
