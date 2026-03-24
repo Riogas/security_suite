@@ -1,15 +1,9 @@
 // src/app/api/[...proxy]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import https from "https";
 
 const BACKEND_BASE_URL =
   process.env.BACKEND_BASE_URL ||
   "https://sgm-dev.glp.riogas.com.uy/servicios/SecuritySuite";
-
-// Agente HTTPS que ignora certificados autofirmados
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
 
 export async function GET(
   request: NextRequest,
@@ -82,13 +76,11 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
       }
     }
 
-    // Hacer la petición con el agente que ignora SSL
+    // NODE_TLS_REJECT_UNAUTHORIZED=0 se setea en next.config.ts para ignorar certificados autofirmados
     const response = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
-      // @ts-expect-error - agent no está en los tipos pero funciona en Node.js
-      agent: targetUrl.startsWith("https") ? httpsAgent : undefined,
     });
 
     // Copiar headers de respuesta
