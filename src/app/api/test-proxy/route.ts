@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const backendUrl = process.env.BACKEND_BASE_URL || "https://sgm-dev.glp.riogas.com.uy/servicios/SecuritySuite";
+    const backendUrl = process.env.BACKEND_BASE_URL || "https://sgm.glp.riogas.com.uy/servicios/SecuritySuite";
     const targetUrl = `${backendUrl}/loginUser`;
     
     console.log("[Test Proxy] Intentando conectar a:", targetUrl);
