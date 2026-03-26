@@ -31,6 +31,9 @@ module.exports = {
         // Backend URL
         BACKEND_BASE_URL: 'https://sgm.glp.riogas.com.uy/servicios/SecuritySuite',
         
+        // Database (Prisma)
+        DATABASE_URL: 'postgresql://postgres:CVRY,m7r:dHy@192.168.2.117:5432/securitysuite?schema=public',
+        
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
         
