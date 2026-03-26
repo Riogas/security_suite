@@ -16,7 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Key, RotateCcw, Users, Settings } from "lucide-react";
-import { apiUsuarios } from "@/services/api";
+import { apiUsuarioDBById, apiCrearUsuarioDB, apiActualizarUsuarioDB } from "@/services/api";
 import AsignarRolesModal from "./AsignarRolesModal";
 import AtributosModal from "./AtributosModal";
 
@@ -30,98 +30,61 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [formData, setFormData] = useState({
-    UserExtendedUserName: "",
-    UserExtendedPassword: "",
-    UserExtendedEmail: "",
-    UserExtendedNombre: "",
-    UserExtendedApellido: "",
-    UserExtendedEstado: "S",
-    UserExtendedTelefono: "",
-    UserExtendedTipoUser: "L",
-    UserExtendedExterno: "N",
-    UserExtendedUserExterno: "",
-    UserExtendedRoot: "N",
-    UserExtendedFechaIngreso: "",
-    UserExtendedFechaBaja: "",
-    UserExtendedFechaUltLogin: "",
-    UserExtendedIntentFall: "",
-    UserExtendedFecHoraUltBloq: "",
-    UserExtendedDesdeSistema: "N",
+    username: "",
+    password: "",
+    email: "",
+    nombre: "",
+    apellido: "",
+    estado: "A",
+    telefono: "",
+    tipoUsuario: "L",
+    esExterno: "N",
+    usuarioExterno: "",
+    esRoot: "N",
+    desdeSistema: "N",
+    modificaPermisos: "N",
+    cambioPassword: "N",
+    fechaCreacion: "",
+    fechaBaja: "",
+    fechaUltimoLogin: "",
+    intentosFallidos: "0",
+    fechaUltimoBloqueo: "",
+    observacion: "",
   });
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [showAtributosModal, setShowAtributosModal] = useState(false);
 
-  // 🔍 DEBUG: Rastrear estados de modales
-  console.log("👤 [UsuarioForm] Estados:", {
-    loading,
-    initialLoading,
-    showRolesModal,
-    showAtributosModal,
-    userId,
-  });
-
   useEffect(() => {
     if (mode === "edit" && userId) {
       const loadUserData = async () => {
         try {
-          console.log("Cargando datos de usuario - activando loading");
           setInitialLoading(true);
-          const response = await apiUsuarios({
-            FiltroTexto: "",
-            Estado: "",
-            sinMigrar: false,
-            Pagesize: "1000",
-            CurrentPage: "1",
-          });
+          const response = await apiUsuarioDBById(parseInt(userId));
 
-          const users = response?.SdtUsuarios || [];
-          console.log("Usuarios cargados:", users.length);
-          console.log(
-            "Buscando usuario con ID:",
-            userId,
-            "tipo:",
-            typeof userId,
-          );
-          console.log(
-            "Primeros usuarios para comparar IDs:",
-            users
-              .slice(0, 3)
-              .map((u: any) => ({
-                id: u.UserExtendedId,
-                tipo: typeof u.UserExtendedId,
-              })),
-          );
-          const user = users.find(
-            (u: any) =>
-              u.UserExtendedId === userId ||
-              u.UserExtendedId === parseInt(userId || "0"),
-          );
-          console.log("Usuario encontrado:", user);
-
-          if (user) {
+          if (response.success && response.usuario) {
+            const u = response.usuario;
             setFormData({
-              UserExtendedUserName: user.UserExtendedUserName || "",
-              UserExtendedPassword: "********", // No mostrar la contraseña real
-              UserExtendedEmail: user.UserExtendedEmail || "",
-              UserExtendedNombre: user.UserExtendedNombre || "",
-              UserExtendedApellido: user.UserExtendedApellido || "",
-              UserExtendedEstado: user.UserExtendedEstado || "S",
-              UserExtendedTelefono: user.UserExtendedTelefono || "",
-              UserExtendedTipoUser: user.UserExtendedTipoUser || "L",
-              UserExtendedExterno: user.UserExtendedExterno || "N",
-              UserExtendedUserExterno: user.UserExtendedUserExterno || "",
-              UserExtendedRoot: user.UserExtendedRoot || "N",
-              UserExtendedFechaIngreso: user.UserExtendedFechaIngreso || "",
-              UserExtendedFechaBaja: user.UserExtendedFechaBaja || "",
-              UserExtendedFechaUltLogin: user.UserExtendedFechaUltLogin || "",
-              UserExtendedIntentFall: user.UserExtendedIntentFall || "",
-              UserExtendedFecHoraUltBloq: user.UserExtendedFecHoraUltBloq || "",
-              UserExtendedDesdeSistema: user.UserExtendedDesdeSistema || "N",
-            });
-            console.log("FormData establecido:", {
-              UserExtendedEstado: user.UserExtendedEstado,
-              formDataEstado: user.UserExtendedEstado || "S",
+              username: u.username || "",
+              password: "********",
+              email: u.email || "",
+              nombre: u.nombre || "",
+              apellido: u.apellido || "",
+              estado: u.estado || "A",
+              telefono: u.telefono || "",
+              tipoUsuario: u.tipoUsuario || "L",
+              esExterno: u.esExterno || "N",
+              usuarioExterno: u.usuarioExterno || "",
+              esRoot: u.esRoot || "N",
+              desdeSistema: u.desdeSistema || "N",
+              modificaPermisos: u.modificaPermisos || "N",
+              cambioPassword: u.cambioPassword || "N",
+              fechaCreacion: u.fechaCreacion ? new Date(u.fechaCreacion).toISOString().slice(0, 10) : "",
+              fechaBaja: u.fechaBaja ? new Date(u.fechaBaja).toISOString().slice(0, 10) : "",
+              fechaUltimoLogin: u.fechaUltimoLogin ? new Date(u.fechaUltimoLogin).toISOString().slice(0, 16) : "",
+              intentosFallidos: String(u.intentosFallidos ?? 0),
+              fechaUltimoBloqueo: u.fechaUltimoBloqueo ? new Date(u.fechaUltimoBloqueo).toISOString().slice(0, 16) : "",
+              observacion: u.observacion || "",
             });
           } else {
             toast.error("Usuario no encontrado");
@@ -131,7 +94,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           console.error("Error cargando usuario:", error);
           toast.error("Error al cargar los datos del usuario");
         } finally {
-          console.log("Carga de usuario completada - desactivando loading");
           setInitialLoading(false);
         }
       };
@@ -142,29 +104,62 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("HandleSubmit llamado - activando loading");
     setLoading(true);
 
     try {
       if (mode === "create") {
-        console.log("Creando usuario:", formData);
+        if (!formData.username || !formData.password) {
+          toast.error("Usuario y contraseña son requeridos");
+          setLoading(false);
+          return;
+        }
+
+        await apiCrearUsuarioDB({
+          username: formData.username,
+          password: formData.password,
+          email: formData.email || undefined,
+          nombre: formData.nombre || undefined,
+          apellido: formData.apellido || undefined,
+          estado: formData.estado,
+          telefono: formData.telefono || undefined,
+          tipoUsuario: formData.tipoUsuario,
+          esExterno: formData.esExterno,
+          usuarioExterno: formData.usuarioExterno || undefined,
+          esRoot: formData.esRoot,
+          desdeSistema: formData.desdeSistema,
+        });
         toast.success("Usuario creado exitosamente");
       } else {
-        console.log("Actualizando usuario:", formData);
+        await apiActualizarUsuarioDB(parseInt(userId || "0"), {
+          email: formData.email || null,
+          nombre: formData.nombre || null,
+          apellido: formData.apellido || null,
+          estado: formData.estado,
+          telefono: formData.telefono || null,
+          tipoUsuario: formData.tipoUsuario,
+          esExterno: formData.esExterno,
+          usuarioExterno: formData.usuarioExterno || null,
+          esRoot: formData.esRoot,
+          desdeSistema: formData.desdeSistema,
+          modificaPermisos: formData.modificaPermisos,
+          cambioPassword: formData.cambioPassword,
+          observacion: formData.observacion || null,
+          fechaBaja: formData.fechaBaja || null,
+          password: formData.password !== "********" ? formData.password : undefined,
+        } as any);
         toast.success("Usuario actualizado exitosamente");
       }
       router.push("/dashboard/usuarios");
-    } catch (error) {
-      toast.error("Error al guardar el usuario");
+    } catch (error: any) {
+      toast.error(error.message || "Error al guardar el usuario");
     } finally {
-      console.log("HandleSubmit completado - desactivando loading");
       setLoading(false);
     }
   };
 
   const handlePasswordReset = () => {
-    const newPassword = formData.UserExtendedUserName;
-    setFormData((prev) => ({ ...prev, UserExtendedPassword: newPassword }));
+    const newPassword = formData.username;
+    setFormData((prev) => ({ ...prev, password: newPassword }));
     setShowPasswordReset(true);
     toast.success(`Contraseña establecida como: ${newPassword}`);
   };
@@ -257,9 +252,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="userName">Usuario *</Label>
               <Input
                 id="userName"
-                value={formData.UserExtendedUserName}
+                value={formData.username}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedUserName", e.target.value)
+                  handleInputChange("username", e.target.value)
                 }
                 placeholder="Nombre de usuario"
                 required
@@ -272,9 +267,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Input
                 id="email"
                 type="email"
-                value={formData.UserExtendedEmail}
+                value={formData.email}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedEmail", e.target.value)
+                  handleInputChange("email", e.target.value)
                 }
                 placeholder="correo@ejemplo.com"
               />
@@ -284,9 +279,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="nombre">Nombre *</Label>
               <Input
                 id="nombre"
-                value={formData.UserExtendedNombre}
+                value={formData.nombre}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedNombre", e.target.value)
+                  handleInputChange("nombre", e.target.value)
                 }
                 placeholder="Nombre"
                 required
@@ -297,9 +292,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="apellido">Apellido</Label>
               <Input
                 id="apellido"
-                value={formData.UserExtendedApellido}
+                value={formData.apellido}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedApellido", e.target.value)
+                  handleInputChange("apellido", e.target.value)
                 }
                 placeholder="Apellido"
               />
@@ -309,9 +304,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="telefono">Teléfono</Label>
               <Input
                 id="telefono"
-                value={formData.UserExtendedTelefono}
+                value={formData.telefono}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedTelefono", e.target.value)
+                  handleInputChange("telefono", e.target.value)
                 }
                 placeholder="+598 99 123 456"
               />
@@ -329,9 +324,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                 <Input
                   id="password"
                   type="password"
-                  value={formData.UserExtendedPassword}
+                  value={formData.password}
                   onChange={(e) =>
-                    handleInputChange("UserExtendedPassword", e.target.value)
+                    handleInputChange("password", e.target.value)
                   }
                   placeholder={mode === "edit" ? "********" : "Contraseña"}
                   disabled={mode === "edit" && !showPasswordReset}
@@ -359,9 +354,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="intentosFallidos">Intentos Fallidos</Label>
               <Input
                 id="intentosFallidos"
-                value={formData.UserExtendedIntentFall}
+                value={formData.intentosFallidos}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedIntentFall", e.target.value)
+                  handleInputChange("intentosFallidos", e.target.value)
                 }
                 placeholder="0"
                 type="number"
@@ -373,12 +368,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="fechaUltBloqueo">Fecha Último Bloqueo</Label>
               <Input
                 id="fechaUltBloqueo"
-                value={formData.UserExtendedFecHoraUltBloq}
+                value={formData.fechaUltimoBloqueo}
                 onChange={(e) =>
-                  handleInputChange(
-                    "UserExtendedFecHoraUltBloq",
-                    e.target.value,
-                  )
+                  handleInputChange("fechaUltimoBloqueo", e.target.value)
                 }
                 type="datetime-local"
                 disabled={mode === "create"}
@@ -396,17 +388,17 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
             <div className="space-y-2">
               <Label htmlFor="estado">Estado</Label>
               <Select
-                value={formData.UserExtendedEstado}
+                value={formData.estado}
                 onValueChange={(value) =>
-                  handleInputChange("UserExtendedEstado", value)
+                  handleInputChange("estado", value)
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="S">Activo</SelectItem>
-                  <SelectItem value="N">Inactivo</SelectItem>
+                  <SelectItem value="A">Activo</SelectItem>
+                  <SelectItem value="I">Inactivo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -414,9 +406,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
             <div className="space-y-2">
               <Label htmlFor="tipoUsuario">Tipo de Usuario</Label>
               <Select
-                value={formData.UserExtendedTipoUser}
+                value={formData.tipoUsuario}
                 onValueChange={(value) =>
-                  handleInputChange("UserExtendedTipoUser", value)
+                  handleInputChange("tipoUsuario", value)
                 }
               >
                 <SelectTrigger>
@@ -433,13 +425,13 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label>Usuario Root</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.UserExtendedRoot === "S"}
+                  checked={formData.esRoot === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange("UserExtendedRoot", checked ? "S" : "N")
+                    handleInputChange("esRoot", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.UserExtendedRoot === "S" ? "Sí" : "No"}
+                  {formData.esRoot === "S" ? "Sí" : "No"}
                 </span>
               </div>
             </div>
@@ -448,16 +440,13 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label>Usuario Externo</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.UserExtendedExterno === "S"}
+                  checked={formData.esExterno === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange(
-                      "UserExtendedExterno",
-                      checked ? "S" : "N",
-                    )
+                    handleInputChange("esExterno", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.UserExtendedExterno === "S"
+                  {formData.esExterno === "S"
                     ? "Habilitado"
                     : "Deshabilitado"}
                 </span>
@@ -468,28 +457,25 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label>Desde Sistema</Label>
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={formData.UserExtendedDesdeSistema === "S"}
+                  checked={formData.desdeSistema === "S"}
                   onCheckedChange={(checked) =>
-                    handleInputChange(
-                      "UserExtendedDesdeSistema",
-                      checked ? "S" : "N",
-                    )
+                    handleInputChange("desdeSistema", checked ? "S" : "N")
                   }
                 />
                 <span className="text-sm text-muted-foreground">
-                  {formData.UserExtendedDesdeSistema === "S" ? "Sí" : "No"}
+                  {formData.desdeSistema === "S" ? "Sí" : "No"}
                 </span>
               </div>
             </div>
 
-            {formData.UserExtendedExterno === "S" && (
+            {formData.esExterno === "S" && (
               <div className="space-y-2">
                 <Label htmlFor="userExterno">Usuario Externo</Label>
                 <Input
                   id="userExterno"
-                  value={formData.UserExtendedUserExterno}
+                  value={formData.usuarioExterno}
                   onChange={(e) =>
-                    handleInputChange("UserExtendedUserExterno", e.target.value)
+                    handleInputChange("usuarioExterno", e.target.value)
                   }
                   placeholder="Usuario para autenticación externa"
                 />
@@ -503,14 +489,12 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           <h3 className="text-lg font-semibold mb-4">Fechas e Historial</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="fechaIngreso">Fecha de Ingreso</Label>
+              <Label htmlFor="fechaCreacion">Fecha de Creación</Label>
               <Input
-                id="fechaIngreso"
-                value={formData.UserExtendedFechaIngreso}
-                onChange={(e) =>
-                  handleInputChange("UserExtendedFechaIngreso", e.target.value)
-                }
+                id="fechaCreacion"
+                value={formData.fechaCreacion}
                 type="date"
+                disabled
               />
             </div>
 
@@ -518,9 +502,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="fechaBaja">Fecha de Baja</Label>
               <Input
                 id="fechaBaja"
-                value={formData.UserExtendedFechaBaja}
+                value={formData.fechaBaja}
                 onChange={(e) =>
-                  handleInputChange("UserExtendedFechaBaja", e.target.value)
+                  handleInputChange("fechaBaja", e.target.value)
                 }
                 type="date"
               />
@@ -530,12 +514,9 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               <Label htmlFor="fechaUltLogin">Fecha Último Login</Label>
               <Input
                 id="fechaUltLogin"
-                value={formData.UserExtendedFechaUltLogin}
-                onChange={(e) =>
-                  handleInputChange("UserExtendedFechaUltLogin", e.target.value)
-                }
+                value={formData.fechaUltimoLogin}
                 type="datetime-local"
-                disabled={mode === "create"}
+                disabled
               />
               {mode === "create" && (
                 <p className="text-xs text-muted-foreground">
@@ -552,7 +533,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         isOpen={showRolesModal}
         onClose={() => setShowRolesModal(false)}
         userId={parseInt(userId || "0")}
-        userName={formData.UserExtendedUserName || "Usuario"}
+        userName={formData.username || "Usuario"}
       />
 
       {/* Modal de Atributos */}
@@ -560,7 +541,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         isOpen={showAtributosModal}
         onClose={() => setShowAtributosModal(false)}
         userId={parseInt(userId || "0")}
-        userName={formData.UserExtendedUserName || "Usuario"}
+        userName={formData.username || "Usuario"}
       />
     </div>
   );

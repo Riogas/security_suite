@@ -1312,3 +1312,161 @@ export const apiABMAtributos = async (
     }
   });
 };
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA (PostgreSQL) - Usuarios locales/migrados
+// =====================================================================
+
+// Tipos para usuarios PostgreSQL
+export interface UsuarioDB {
+  id: number;
+  username: string;
+  email: string | null;
+  nombre: string | null;
+  apellido: string | null;
+  estado: string;
+  fechaCreacion: string;
+  fechaBaja: string | null;
+  fechaUltimoLogin: string | null;
+  esExterno: string;
+  usuarioExterno: string | null;
+  tipoUsuario: string;
+  modificaPermisos: string;
+  cambioPassword: string;
+  intentosFallidos: number;
+  fechaUltimoBloqueo: string | null;
+  telefono: string | null;
+  creadoPor: string | null;
+  desdeSistema: string;
+  esRoot: string;
+  fechaUltimoPermiso: string | null;
+  observacion: string | null;
+  observacion2: string | null;
+}
+
+export interface UsuariosDBResponse {
+  success: boolean;
+  items: UsuarioDB[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+// ✅ Listar usuarios locales desde PostgreSQL
+export const apiUsuariosDB = async (
+  opts: {
+    filtro?: string;
+    estado?: string;
+    page?: number;
+    pageSize?: number;
+    signal?: AbortSignal;
+  } = {},
+): Promise<UsuariosDBResponse> => {
+  const params = new URLSearchParams();
+  if (opts.filtro) params.set("filtro", opts.filtro);
+  if (opts.estado) params.set("estado", opts.estado);
+  if (opts.page) params.set("page", String(opts.page));
+  if (opts.pageSize) params.set("pageSize", String(opts.pageSize));
+
+  const res = await fetch(`/api/db/usuarios?${params.toString()}`, {
+    signal: opts.signal,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+
+  return res.json();
+};
+
+// ✅ Obtener un usuario por ID desde PostgreSQL
+export const apiUsuarioDBById = async (
+  id: number,
+  opts?: { signal?: AbortSignal },
+): Promise<{ success: boolean; usuario: UsuarioDB & { roles?: any[]; preferencias?: any[] } }> => {
+  const res = await fetch(`/api/db/usuarios/${id}`, {
+    signal: opts?.signal,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+
+  return res.json();
+};
+
+// ✅ Crear usuario en PostgreSQL
+export const apiCrearUsuarioDB = async (
+  data: {
+    username: string;
+    password: string;
+    email?: string;
+    nombre?: string;
+    apellido?: string;
+    estado?: string;
+    telefono?: string;
+    tipoUsuario?: string;
+    esExterno?: string;
+    usuarioExterno?: string;
+    esRoot?: string;
+    desdeSistema?: string;
+    creadoPor?: string;
+  },
+): Promise<{ success: boolean; usuario?: UsuarioDB; error?: string }> => {
+  const res = await fetch("/api/db/usuarios", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.error || `Error ${res.status}`);
+  }
+
+  return json;
+};
+
+// ✅ Actualizar usuario en PostgreSQL
+export const apiActualizarUsuarioDB = async (
+  id: number,
+  data: Partial<Omit<UsuarioDB, "id" | "fechaCreacion">>,
+): Promise<{ success: boolean; usuario?: UsuarioDB; error?: string }> => {
+  const res = await fetch(`/api/db/usuarios/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.error || `Error ${res.status}`);
+  }
+
+  return json;
+};
+
+// ✅ Eliminar (desactivar) usuario en PostgreSQL
+export const apiEliminarUsuarioDB = async (
+  id: number,
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  const res = await fetch(`/api/db/usuarios/${id}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.error || `Error ${res.status}`);
+  }
+
+  return json;
+};

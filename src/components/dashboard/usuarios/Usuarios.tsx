@@ -19,34 +19,31 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { apiUsuarios, apiImportarUsuario } from "@/services/api";
+import { apiUsuarios, apiImportarUsuario, apiUsuariosDB, apiEliminarUsuarioDB } from "@/services/api";
 import {
   Pencil,
   Trash,
   Download,
   Mail,
   Phone,
-  Calendar,
+  Plus,
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function UsuariosTable() {
   const [rows, setRows] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [tipoUsuario, setTipoUsuario] = useState("todos"); // "todos" | "sinImportar" | "locales"
+  const [tipoUsuario, setTipoUsuario] = useState("locales"); // "locales" | "sinImportar" | "todos"
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [importingUsers, setImportingUsers] = useState<Set<number>>(new Set());
   const [importedUsers, setImportedUsers] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   // debounce
@@ -55,10 +52,12 @@ export default function UsuariosTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (opts: {
+  // =============================================
+  // Fetcher para GeneXus (usuarios sin importar)
+  // =============================================
+  const fetcherGeneXus = async (opts: {
     FiltroTexto: string;
     Estado: string;
-    sinMigrar: boolean;
     Pagesize: number;
     CurrentPage: number;
     signal?: AbortSignal;
@@ -67,7 +66,7 @@ export default function UsuariosTable() {
       {
         FiltroTexto: opts.FiltroTexto,
         Estado: opts.Estado,
-        sinMigrar: opts.sinMigrar,
+        sinMigrar: true,
         Pagesize: String(opts.Pagesize),
         CurrentPage: String(opts.CurrentPage),
       },
@@ -75,12 +74,29 @@ export default function UsuariosTable() {
     );
     const items = res?.SdtUsuarios || res?.sdtUsuarios || res?.items || [];
     const total = Number(
-      res?.MaxRegistros ??
-        res?.maxRegistros ??
-        res?.total ??
-        (items?.length || 0),
+      res?.MaxRegistros ?? res?.maxRegistros ?? res?.total ?? (items?.length || 0),
     );
     return { items, total };
+  };
+
+  // =============================================
+  // Fetcher para PostgreSQL (usuarios locales/migrados)
+  // =============================================
+  const fetcherDB = async (opts: {
+    filtro: string;
+    estado: string;
+    page: number;
+    pageSize: number;
+    signal?: AbortSignal;
+  }) => {
+    const res = await apiUsuariosDB({
+      filtro: opts.filtro,
+      estado: opts.estado,
+      page: opts.page,
+      pageSize: opts.pageSize,
+      signal: opts.signal,
+    });
+    return { items: res.items, total: res.total };
   };
 
   // load
@@ -88,22 +104,43 @@ export default function UsuariosTable() {
     const ac = new AbortController();
     (async () => {
       try {
-        // Convertir tipoUsuario a sinMigrar boolean
-        const sinMigrar = tipoUsuario === "sinImportar" ? true : tipoUsuario === "locales" ? false : undefined;
-        
-        const { items, total } = await fetcher({
-          FiltroTexto: debouncedSearch,
-          Estado: estado === "S" ? "S" : estado === "N" ? "N" : "",
-          sinMigrar: sinMigrar !== undefined ? sinMigrar : true, // Default true para "todos"
-          Pagesize: pageSize,
-          CurrentPage: pageIndex + 1,
-          signal: ac.signal,
-        });
-        setRows(items);
-        setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
+        setLoading(true);
+
+        if (tipoUsuario === "sinImportar") {
+          // ========== GeneXus API ==========
+          const estadoGx = estado === "S" ? "S" : estado === "N" ? "N" : "";
+          const { items, total } = await fetcherGeneXus({
+            FiltroTexto: debouncedSearch,
+            Estado: estadoGx,
+            Pagesize: pageSize,
+            CurrentPage: pageIndex + 1,
+            signal: ac.signal,
+          });
+          // Normalizar a formato con _source para saber el origen
+          const normalized = items.map((u: any) => ({ ...u, _source: "genexus" }));
+          setRows(normalized);
+          setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
+        } else {
+          // ========== PostgreSQL (Prisma) ==========
+          // "locales" o "todos" → traer de la DB
+          const estadoDB = estado === "S" ? "A" : estado === "N" ? "I" : "";
+          const { items, total } = await fetcherDB({
+            filtro: debouncedSearch,
+            estado: estadoDB,
+            page: pageIndex + 1,
+            pageSize,
+            signal: ac.signal,
+          });
+          // Normalizar a formato compatible con la tabla
+          const normalized = items.map((u: any) => ({ ...u, _source: "db" }));
+          setRows(normalized);
+          setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
+        }
       } catch (e: any) {
         if (e?.name !== "AbortError")
           console.error("Error cargando usuarios:", e);
+      } finally {
+        setLoading(false);
       }
     })();
     return () => ac.abort();
@@ -121,6 +158,36 @@ export default function UsuariosTable() {
     return nombre.substring(0, 1).toUpperCase() || "U";
   };
 
+  // =============================================
+  // Helpers para acceder a datos normalizados (DB vs GeneXus)
+  // =============================================
+  const getUserName = (row: any) =>
+    row._source === "db"
+      ? `${row.nombre || ""} ${row.apellido || ""}`.trim() || row.username
+      : row?.UserExtendedNombre || "Sin nombre";
+
+  const getUserUsername = (row: any) =>
+    row._source === "db" ? row.username : row?.UserExtendedUserName || "sin-usuario";
+
+  const getUserEmail = (row: any) =>
+    row._source === "db" ? row.email : row?.UserExtendedEmail;
+
+  const getUserId = (row: any) =>
+    row._source === "db" ? row.id : row?.UserExtendedId;
+
+  const getUserTelefono = (row: any) =>
+    row._source === "db" ? row.telefono : row?.UserExtendedTelefono;
+
+  const getUserEstado = (row: any) => {
+    if (row._source === "db") {
+      return row.estado === "A";
+    }
+    const est = row?.UserExtendedEstado;
+    return est === "S" || est === "A";
+  };
+
+  const isFromDB = (row: any) => row._source === "db";
+
   // Función para importar un usuario del sistema externo
   const handleImportUser = async (user: any) => {
     const userId = user?.UserExtendedId;
@@ -134,22 +201,18 @@ export default function UsuariosTable() {
 
       const response = await apiImportarUsuario({
         UserExtendedId: userId,
-        AplicacionId: 2, // Security Suite por defecto
+        AplicacionId: 2,
       });
 
       if (response.success) {
-        console.log(
-          `Usuario ${user?.UserExtendedNombre} importado exitosamente`,
-        );
+        toast.success(`Usuario ${user?.UserExtendedNombre} importado exitosamente`);
         setImportedUsers((prev) => new Set(prev).add(userId));
-
-        // Opcional: Actualizar la lista de usuarios
-        // Podrías recargar los datos o actualizar el estado local
       } else {
-        console.error("Error al importar usuario:", response.message);
+        toast.error("Error al importar usuario: " + (response.message || ""));
       }
     } catch (error) {
       console.error("Error en la importación:", error);
+      toast.error("Error al importar usuario");
     } finally {
       setImportingUsers((prev) => {
         const newSet = new Set(prev);
@@ -159,19 +222,30 @@ export default function UsuariosTable() {
     }
   };
 
-  // Función para determinar si un usuario debe mostrar el botón de importar
+  // Eliminar (desactivar) usuario de la DB
+  const handleDeleteUser = async (row: any) => {
+    const id = getUserId(row);
+    if (!id || !confirm("¿Estás seguro de desactivar este usuario?")) return;
+
+    try {
+      await apiEliminarUsuarioDB(id);
+      toast.success("Usuario desactivado correctamente");
+      // Recargar
+      setRows((prev) => prev.filter((r) => getUserId(r) !== id));
+    } catch (error: any) {
+      toast.error("Error al desactivar: " + error.message);
+    }
+  };
+
+  // Determinar si un usuario muestra botón importar
   const shouldShowImportButton = (user: any) => {
     const userId = user?.UserExtendedId;
-    // Solo mostrar el botón si:
-    // 1. Está activado el filtro "Sin importar"
-    // 2. El usuario no ha sido importado previamente
-    // 3. El usuario tiene los campos necesarios
     return (
       tipoUsuario === "sinImportar" &&
       userId &&
       !importedUsers.has(userId) &&
       user?.UserExtendedNombre
-    ); // Verificar que tiene datos básicos
+    );
   };
 
   return (
@@ -196,15 +270,15 @@ export default function UsuariosTable() {
           >
             <SelectTrigger className="w-[180px]">
               {tipoUsuario === "sinImportar"
-                ? "Sin importar"
+                ? "Sin importar (GX)"
                 : tipoUsuario === "locales"
-                  ? "Locales"
-                  : "Todos"}
+                  ? "Locales (DB)"
+                  : "Todos (DB)"}
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="sinImportar">Sin importar</SelectItem>
-              <SelectItem value="locales">Locales</SelectItem>
+              <SelectItem value="locales">Locales (DB)</SelectItem>
+              <SelectItem value="todos">Todos (DB)</SelectItem>
+              <SelectItem value="sinImportar">Sin importar (GX)</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -227,6 +301,13 @@ export default function UsuariosTable() {
               <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            onClick={() => router.push("/dashboard/usuarios/crear")}
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Usuario
+          </Button>
         </div>
       </div>
 
@@ -239,149 +320,160 @@ export default function UsuariosTable() {
               <TableHead>ID</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Origen</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(row?.UserExtendedNombre || "")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">
-                        {row?.UserExtendedNombre || "Sin nombre"}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        @{row?.UserExtendedUserName || "sin-usuario"}
-                      </div>
-                      {row?.UserExtendedEmail && (
-                        <div className="text-sm text-muted-foreground flex items-center">
-                          <Mail className="w-3 h-3 mr-1" />
-                          {row?.UserExtendedEmail}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-mono text-sm">
-                    {row?.UserExtendedUserName || "-"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const esUsuarioExterno = row?.sinMigrar;
-                    const tieneId = row?.UserExtendedId;
-
-                    if (esUsuarioExterno) {
-                      // Usuario externo que necesita ser importado - no tiene ID local
-                      return (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground"
-                        >
-                          Sin asignar
-                        </Badge>
-                      );
-                    } else {
-                      // Usuario que existe en el sistema local - mostrar ID
-                      return (
-                        <Badge variant="secondary">ID: {tieneId || "-"}</Badge>
-                      );
-                    }
-                  })()}
-                </TableCell>
-                <TableCell>
-                  {row?.UserExtendedTelefono ? (
-                    <div className="flex items-center text-sm">
-                      <Phone className="w-3 h-3 mr-1" />
-                      {row?.UserExtendedTelefono}
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </TableCell>
-                <TableCell>
-                  {(() => {
-                    const estado = row?.UserExtendedEstado;
-                    const activo = estado === "S" || estado === "A";
-                    return (
-                      <Badge
-                        className={
-                          activo
-                            ? "bg-green-900 text-green-200"
-                            : "bg-red-900 text-red-200"
-                        }
-                      >
-                        {activo ? "Activo" : "Inactivo"}
-                      </Badge>
-                    );
-                  })()}
-                </TableCell>
-                <TableCell>
-                  <div className="space-x-2">
-                    {shouldShowImportButton(row) ? (
-                      // Usuario externo - solo mostrar importar
-                      <>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleImportUser(row)}
-                          disabled={importingUsers.has(row?.UserExtendedId)}
-                        >
-                          {importingUsers.has(row?.UserExtendedId) ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span className="ml-1">Importando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4" />
-                              <span className="ml-1">Importar</span>
-                            </>
-                          )}
-                        </Button>
-                        {importedUsers.has(row?.UserExtendedId) && (
-                          <Badge
-                            variant="default"
-                            className="bg-green-600 text-white"
-                          >
-                            ✓ Importado
-                          </Badge>
-                        )}
-                      </>
-                    ) : (
-                      // Usuario local - mostrar editar y eliminar
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/usuarios/editar/${row?.UserExtendedId || ""}`,
-                            )
-                          }
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => console.log("Eliminar usuario", row)}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No se encontraron usuarios
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row, index) => (
+                <TableRow key={getUserId(row) || index}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-xs">
+                          {getInitials(getUserName(row))}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {getUserName(row)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          @{getUserUsername(row)}
+                        </div>
+                        {getUserEmail(row) && (
+                          <div className="text-sm text-muted-foreground flex items-center">
+                            <Mail className="w-3 h-3 mr-1" />
+                            {getUserEmail(row)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-mono text-sm">
+                      {getUserUsername(row)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {isFromDB(row) ? (
+                      <Badge variant="secondary">ID: {getUserId(row)}</Badge>
+                    ) : row?.sinMigrar ? (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Sin asignar
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">ID: {getUserId(row) || "-"}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {getUserTelefono(row) ? (
+                      <div className="flex items-center text-sm">
+                        <Phone className="w-3 h-3 mr-1" />
+                        {getUserTelefono(row)}
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(() => {
+                      const activo = getUserEstado(row);
+                      return (
+                        <Badge
+                          className={
+                            activo
+                              ? "bg-green-900 text-green-200"
+                              : "bg-red-900 text-red-200"
+                          }
+                        >
+                          {activo ? "Activo" : "Inactivo"}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    {isFromDB(row) ? (
+                      <Badge variant="outline" className="border-blue-500 text-blue-400">
+                        PostgreSQL
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-yellow-500 text-yellow-400">
+                        GeneXus
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-x-2">
+                      {shouldShowImportButton(row) ? (
+                        <>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleImportUser(row)}
+                            disabled={importingUsers.has(row?.UserExtendedId)}
+                          >
+                            {importingUsers.has(row?.UserExtendedId) ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span className="ml-1">Importando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4" />
+                                <span className="ml-1">Importar</span>
+                              </>
+                            )}
+                          </Button>
+                          {importedUsers.has(row?.UserExtendedId) && (
+                            <Badge
+                              variant="default"
+                              className="bg-green-600 text-white"
+                            >
+                              ✓ Importado
+                            </Badge>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/usuarios/editar/${getUserId(row)}`,
+                              )
+                            }
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteUser(row)}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
 
