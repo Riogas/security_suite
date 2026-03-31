@@ -77,7 +77,7 @@ export default function DashboardPage() {
       {/* Estadísticas principales */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statsData.map((stat, index) => (
-          <ModernStat key={index} {...stat} />
+          <ModernStat key={index} {...stat} index={index} />
         ))}
       </div>
 

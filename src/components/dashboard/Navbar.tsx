@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, LogOut, Settings, User as UserIcon } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { useState, useEffect } from "react";
 import {
@@ -20,6 +20,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useUser } from "@/hooks/useUser";
+import { motion } from "framer-motion";
 
 // Nota: el usuario se lee dentro del componente via useUser() hook
 // No leer localStorage a nivel de módulo para evitar problemas de SSR/hidratación
@@ -96,42 +97,57 @@ export function Navbar() {
   };
 
   return (
-    <header className="h-16 px-6 flex items-center justify-end border-b bg-card gap-4">
-      {/* Nombre de usuario */}
+    <header className="h-16 px-6 flex items-center justify-end border-b bg-card/80 backdrop-blur-sm gap-4">
+      {/* Nombre de usuario pill */}
       {mounted && user?.nombre && (
-        <div className="text-sm text-muted-foreground px-3 py-1 border rounded bg-secondary">
-          Usuario: {user.nombre}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-2 text-sm text-muted-foreground px-3 py-1.5
+            border border-border/60 rounded-full bg-muted/40"
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+          </span>
+          {user.nombre}
+        </motion.div>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="rounded-full p-0 h-10 w-10">
-            <Avatar>
+          <Button variant="ghost" className="rounded-full p-0 h-9 w-9 relative">
+            <Avatar className="h-9 w-9 ring-2 ring-border/60 ring-offset-1 ring-offset-background">
               <AvatarImage src="/avatar.png" alt="Avatar" />
-              <AvatarFallback>{userInitials}</AvatarFallback>
+              <AvatarFallback className="text-sm font-medium">{userInitials}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-0.5">
+              <p className="text-sm font-medium">{user?.nombre || "Usuario"}</p>
+              <p className="text-xs text-muted-foreground">{user?.username || ""}</p>
+            </div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Perfil</DropdownMenuItem>
-          <DropdownMenuItem>Configuración</DropdownMenuItem>
+          <DropdownMenuItem>
+            <UserIcon className="mr-2 h-4 w-4" /> Perfil
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Settings className="mr-2 h-4 w-4" /> Configuración
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={toggleTheme}>
             {mounted &&
               (theme === "dark" ? (
-                <>
-                  <Sun className="mr-2 h-4 w-4" /> Tema Claro
-                </>
+                <><Sun className="mr-2 h-4 w-4" /> Tema Claro</>
               ) : (
-                <>
-                  <Moon className="mr-2 h-4 w-4" /> Tema Oscuro
-                </>
+                <><Moon className="mr-2 h-4 w-4" /> Tema Oscuro</>
               ))}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout}>
-            Cerrar sesión
+          <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
+            <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

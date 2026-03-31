@@ -3,7 +3,7 @@
 import { ReactNode, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-
+import { AnimatePresence, motion } from "framer-motion";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Navbar } from "@/components/dashboard/Navbar";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Breadcrumbs */}
         <div className="px-6 pt-4">
           <nav className="mb-4 text-sm text-muted-foreground">
-            <ol className="flex items-center space-x-2">
+            <ol className="flex items-center space-x-1.5">
               <li>
                 <Link
                   href="/dashboard"
@@ -51,9 +51,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </li>
               {pathSegments.map((segment, index) => (
                 <li key={segment.href} className="flex items-center">
-                  <span className="mx-2">/</span>
+                  <span className="mx-1.5 opacity-40">/</span>
                   {index === pathSegments.length - 1 ? (
-                    <span className="text-foreground">{segment.label}</span>
+                    <span className="text-foreground font-medium">{segment.label}</span>
                   ) : (
                     <Link
                       href={segment.href}
@@ -68,8 +68,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
 
-        {/* Contenido */}
-        <main className="flex-1 px-6 pb-6">{children}</main>
+        {/* Contenido con page transition */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.main
+            key={pathname}
+            className="flex-1 px-6 pb-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
       </div>
     </div>
   );

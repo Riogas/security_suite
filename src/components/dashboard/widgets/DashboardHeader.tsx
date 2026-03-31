@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { Clock } from "lucide-react";
 
 interface DashboardHeaderProps {
   title?: string;
@@ -18,44 +18,76 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const statusConfig = {
     active: {
-      color: "bg-green-50 text-green-700 border-green-200",
-      icon: CheckCircle,
-      text: "Sistema Activo",
+      dot: "bg-green-500",
+      ping: "bg-green-400",
+      label: "Sistema Activo",
+      text: "text-green-400",
     },
     maintenance: {
-      color: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      icon: Clock,
-      text: "Mantenimiento",
+      dot: "bg-yellow-500",
+      ping: "bg-yellow-400",
+      label: "Mantenimiento",
+      text: "text-yellow-400",
     },
     error: {
-      color: "bg-red-50 text-red-700 border-red-200",
-      icon: CheckCircle,
-      text: "Sistema con Errores",
+      dot: "bg-red-500",
+      ping: "bg-red-400",
+      label: "Sistema con Errores",
+      text: "text-red-400",
     },
   };
 
-  const StatusIcon = statusConfig[systemStatus].icon;
+  const cfg = statusConfig[systemStatus];
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
+    <motion.div
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-3"
+    >
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-            {title}
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+              {title}
+            </span>
           </h1>
-          <p className="text-muted-foreground">{subtitle}</p>
+          <p className="text-muted-foreground mt-0.5 text-sm">{subtitle}</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="outline" className={statusConfig[systemStatus].color}>
-            <StatusIcon className="w-3 h-3 mr-1" />
-            {statusConfig[systemStatus].text}
-          </Badge>
-          <div className="text-sm text-muted-foreground flex items-center">
-            <Clock className="w-4 h-4 inline mr-1" />
-            Actualizado hace {lastUpdated}
+
+        <div className="flex items-center gap-3">
+          {/* Animated status pill */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
+              border border-white/10 bg-card/60 backdrop-blur-sm ${cfg.text}`}
+          >
+            <span className="relative flex h-2 w-2">
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${cfg.ping}`}
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${cfg.dot}`}
+              />
+            </span>
+            {cfg.label}
+          </div>
+
+          {/* Updated at */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1 rounded-full border border-border/40">
+            <Clock className="w-3.5 h-3.5" />
+            <span>Actualizado hace {lastUpdated}</span>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Subtle animated divider */}
+      <motion.div
+        className="h-px bg-gradient-to-r from-transparent via-border to-transparent"
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: 1, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.25, ease: "easeOut" }}
+      />
+    </motion.div>
   );
 }
