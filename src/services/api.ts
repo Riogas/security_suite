@@ -1661,6 +1661,7 @@ export const apiFuncionalidadesDB = async (opts?: {
   filtro?: string;
   estado?: string;
   aplicacionId?: number;
+  esPublico?: boolean;
   page?: number;
   pageSize?: number;
 }): Promise<FuncionalidadesDBResponse> => {
@@ -1668,6 +1669,7 @@ export const apiFuncionalidadesDB = async (opts?: {
   if (opts?.filtro) params.set("filtro", opts.filtro);
   if (opts?.estado) params.set("estado", opts.estado);
   if (opts?.aplicacionId) params.set("aplicacionId", String(opts.aplicacionId));
+  if (opts?.esPublico !== undefined) params.set("esPublico", opts.esPublico ? "S" : "N");
   if (opts?.page) params.set("page", String(opts.page));
   if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
   return dbFetch(`/api/db/funcionalidades?${params}`);

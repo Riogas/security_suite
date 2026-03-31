@@ -24,9 +24,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiAplicaciones } from "@/services/api";
-import { Pencil, Trash, Download } from "lucide-react";
+import { apiAplicacionesDB, apiEliminarAplicacionDB } from "@/services/api";
+import { Pencil, Trash, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export type FetcherParams = {
   FiltroTexto: string;
@@ -57,31 +58,27 @@ export default function AplicacionesTable<T = any>({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [sinMigrar, setSinMigrar] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [totalPages, setTotalPages] = useState(0);
   const router = useRouter();
 
-  const handleImport = (app: any) => {
-    console.log(
-      "Importar app:",
-      app?.AplicacionId || app?.AplicacionNombre,
-      app,
-    );
-    // TODO: implementar invocación a API de importación
-  };
   const handleEdit = (app: any) => {
-    const id = app?.AplicacionId || app?.id || "";
+    const id = app?.id || "";
     if (id) router.push(`/dashboard/aplicaciones/editar/${id}`);
   };
-  const handleDelete = (app: any) => {
-    console.log(
-      "Eliminar app:",
-      app?.AplicacionId || app?.AplicacionNombre,
-      app,
-    );
-    // TODO: confirmar y llamar API de eliminación
+  const handleDelete = async (app: any) => {
+    const id = app?.id;
+    if (!id) return;
+    if (!confirm(`¿Eliminar la aplicación "${app.nombre}"?`)) return;
+    try {
+      await apiEliminarAplicacionDB(id);
+      setRows((prev) => (prev as any[]).filter((r: any) => r.id !== id) as T[]);
+      toast.success("Aplicación eliminada");
+    } catch {
+      toast.error("Error al eliminar la aplicación");
+    }
   };
 
   // Debounce del texto de búsqueda
@@ -90,54 +87,37 @@ export default function AplicacionesTable<T = any>({
     return () => clearTimeout(id);
   }, [search]);
 
-  // Fetcher por defecto usando apiAplicaciones
+  // Fetcher por defecto usando apiAplicacionesDB (PostgreSQL)
   const defaultFetcher = async ({
     FiltroTexto,
     Pagesize,
     CurrentPage,
     Estado,
-    sinMigrar,
-    signal,
   }: FetcherParams): Promise<FetcherResult<any>> => {
-    const res = await apiAplicaciones(
-      {
-        FiltroTexto,
-        Estado: Estado ?? "",
-        sinMigrar: !!sinMigrar,
-        Pagesize: String(Pagesize),
-        CurrentPage: String(CurrentPage),
-      },
-      { signal },
-    );
-    // Respuesta esperada { MaxRegistros, sdtAplicaciones }
-    const items =
-      res?.sdtAplicaciones || res?.SdtAplicaciones || res?.items || [];
-    const total = Number(
-      res?.MaxRegistros ??
-        res?.maxRegistros ??
-        res?.total ??
-        (items?.length || 0),
-    );
+    const res = await apiAplicacionesDB({
+      filtro: FiltroTexto,
+      estado: Estado || "",
+      page: CurrentPage,
+      pageSize: Pagesize,
+    });
+    const items = res?.items || [];
+    const total = Number(res?.total ?? items.length);
     return { items, total };
   };
 
-  // Columnas por defecto simples
+  // Columnas usando campos PostgreSQL
   const defaultColumns: any[] = [
-    { accessorKey: "AplicacionNombre", header: "Aplicación" },
-    { accessorKey: "AplicacionDescripcion", header: "Descripción" },
-    { accessorKey: "AplicacionTecnologia", header: "Tecnología" },
+    { accessorKey: "nombre", header: "Aplicación" },
+    { accessorKey: "descripcion", header: "Descripción" },
+    { accessorKey: "tecnologia", header: "Tecnología" },
+    { accessorKey: "url", header: "URL" },
     {
-      accessorKey: "AplicacionEstado",
+      accessorKey: "estado",
       header: "Estado",
       cell: ({ row }: { row: { original: any } }) => {
-        const val = String(row.original?.AplicacionEstado ?? "").toUpperCase();
-        const activo = val === "A" || val === "S" || val === "ACTIVO";
+        const activo = row.original?.estado === "A";
         return (
-          <Badge
-            className={
-              activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"
-            }
-          >
+          <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
             {activo ? "Activo" : "Inactivo"}
           </Badge>
         );
@@ -148,28 +128,10 @@ export default function AplicacionesTable<T = any>({
       header: "Acciones",
       cell: ({ row }: { row: { original: any } }) => (
         <div className="space-x-2">
-          {sinMigrar && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleImport(row.original)}
-            >
-              <Download className="w-4 h-4" />
-              <span className="ml-1">Importar</span>
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleEdit(row.original)}
-          >
+          <Button variant="outline" size="sm" onClick={() => handleEdit(row.original)}>
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => handleDelete(row.original)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => handleDelete(row.original)}>
             <Trash className="w-4 h-4" />
           </Button>
         </div>
@@ -184,12 +146,13 @@ export default function AplicacionesTable<T = any>({
   // Carga de datos (server-side pagination)
   useEffect(() => {
     const ac = new AbortController();
+    setLoading(true);
     (async () => {
       try {
         const res = await fetcher({
           FiltroTexto: debouncedSearch,
           Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          sinMigrar,
+          sinMigrar: false,
           Pagesize: pageSize,
           CurrentPage: pageIndex + 1,
           signal: ac.signal,
@@ -199,10 +162,12 @@ export default function AplicacionesTable<T = any>({
         setTotalPages(Math.max(1, Math.ceil(total / pageSize)) || 0);
       } catch (e: any) {
         if (e?.name !== "AbortError") console.error("Error cargando datos:", e);
+      } finally {
+        setLoading(false);
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, sinMigrar, pageIndex, pageSize, fetcher]);
+  }, [debouncedSearch, estado, pageIndex, pageSize, fetcher]);
 
   const table = useReactTable({
     data: rows as any[],
@@ -236,16 +201,9 @@ export default function AplicacionesTable<T = any>({
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={sinMigrar}
-              onCheckedChange={(v) => {
-                setSinMigrar(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Sin importar</span>
-          </div>
+          <Button onClick={() => router.push("/dashboard/aplicaciones/crear")}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva Aplicación
+          </Button>
           <Select
             value={estado}
             onValueChange={(v) => {

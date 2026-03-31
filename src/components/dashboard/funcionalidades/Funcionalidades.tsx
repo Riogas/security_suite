@@ -25,21 +25,21 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
-  apiListarFuncionalidades,
-  type ListarFuncionalidadesItem,
+  apiFuncionalidadesDB,
+  apiEliminarFuncionalidadDB,
+  type FuncionalidadDB,
 } from "@/services/api";
-import { Pencil, Trash } from "lucide-react";
+import { Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function FuncionalidadesTable() {
   const [rows, setRows] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [sinMigrar, setSinMigrar] = useState(true);
-  // Filtros específicos: forzamos FEATURE
   const [esPublico, setEsPublico] = useState(false);
-  const tipo = "FEATURE";
+  const [loading, setLoading] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -51,37 +51,18 @@ export default function FuncionalidadesTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (aplicacionId: number = 3, signal?: AbortSignal) => {
-    const res = await apiListarFuncionalidades(
-      { AplicacionId: aplicacionId },
-      { signal },
-    );
-
-    const items = res?.sdtFuncionalidades || [];
-
-    // Filtrar por búsqueda si existe
-    const filteredItems = items.filter((item: ListarFuncionalidadesItem) => {
-      const matchesSearch =
-        !debouncedSearch ||
-        item.FuncionalidadNombre.toLowerCase().includes(
-          debouncedSearch.toLowerCase(),
-        );
-
-      const matchesEstado =
-        estado === "todos" || item.FuncionalidadEstado === estado;
-
-      const matchesPublico = !esPublico || item.FuncionalidadEsPublico === "S";
-
-      return matchesSearch && matchesEstado && matchesPublico;
-    });
-
-    // Agregar conteo de objetos/acciones
-    const normalized = filteredItems.map((item: ListarFuncionalidadesItem) => ({
-      ...item,
-      CantidadObjetos: item.Accion?.length || 0,
-    }));
-
-    return { items: normalized, total: normalized.length };
+  const handleDelete = async (id: number) => {
+    if (!confirm("¿Eliminar esta funcionalidad?")) return;
+    setLoading(true);
+    try {
+      await apiEliminarFuncionalidadDB(id);
+      toast.success("Funcionalidad eliminada");
+      setPageIndex(0);
+    } catch {
+      toast.error("Error al eliminar la funcionalidad");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // load
@@ -89,14 +70,15 @@ export default function FuncionalidadesTable() {
     const ac = new AbortController();
     (async () => {
       try {
-        const { items, total } = await fetcher(3, ac.signal); // AplicacionId = 3 (GOYA)
-
-        // Aplicar paginación manual ya que la API no la soporta
-        const startIndex = pageIndex * pageSize;
-        const endIndex = startIndex + pageSize;
-        const paginatedItems = items.slice(startIndex, endIndex);
-
-        setRows(paginatedItems);
+        const res = await apiFuncionalidadesDB({
+          filtro: debouncedSearch,
+          estado: estado === "todos" ? undefined : estado,
+          esPublico: esPublico ? true : undefined,
+          page: pageIndex + 1,
+          pageSize,
+        });
+        setRows(res?.items || []);
+        const total = res?.total ?? 0;
         setTotalPages(Math.max(1, Math.ceil(total / pageSize)) || 1);
       } catch (e: any) {
         if (e?.name !== "AbortError")
@@ -104,22 +86,20 @@ export default function FuncionalidadesTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, esPublico, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, esPublico, pageIndex, pageSize, loading]);
 
   const columns: any[] = [
     {
-      id: "Funcionalidad",
+      id: "nombre",
       header: "Funcionalidad",
-      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
-        return row.original?.FuncionalidadNombre ?? "";
-      },
+      cell: ({ row }: { row: { original: FuncionalidadDB } }) =>
+        row.original?.nombre ?? "",
     },
     {
-      id: "Estado",
+      id: "estado",
       header: "Estado",
-      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
-        const val = row.original?.FuncionalidadEstado;
-        const activo = val === "A";
+      cell: ({ row }: { row: { original: FuncionalidadDB } }) => {
+        const activo = row.original?.estado === "A";
         return (
           <Badge
             className={
@@ -132,24 +112,24 @@ export default function FuncionalidadesTable() {
       },
     },
     {
-      id: "CantObjetos",
+      id: "cantAcciones",
       header: "Cant. Acciones",
-      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => {
-        const c = row.original?.Accion?.length ?? 0;
+      cell: ({ row }: { row: { original: FuncionalidadDB } }) => {
+        const c = (row.original as any)?.acciones?.length ?? 0;
         return <span className="tabular-nums font-medium">{c}</span>;
       },
     },
     {
-      accessorKey: "acciones",
+      id: "ops",
       header: "Acciones",
-      cell: ({ row }: { row: { original: ListarFuncionalidadesItem } }) => (
+      cell: ({ row }: { row: { original: FuncionalidadDB } }) => (
         <div className="space-x-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() =>
               router.push(
-                `/dashboard/funcionalidades/editar/${row.original?.FuncionalidadId}`,
+                `/dashboard/funcionalidades/editar/${row.original?.id}`,
               )
             }
           >
@@ -158,7 +138,8 @@ export default function FuncionalidadesTable() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => console.log("Eliminar funcionalidad", row.original)}
+            disabled={loading}
+            onClick={() => handleDelete(row.original?.id)}
           >
             <Trash className="w-4 h-4" />
           </Button>
@@ -199,16 +180,10 @@ export default function FuncionalidadesTable() {
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={sinMigrar}
-              onCheckedChange={(v) => {
-                setSinMigrar(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Sin importar</span>
-          </div>
+          <Button onClick={() => router.push("/dashboard/funcionalidades/crear")}>
+            <Plus className="w-4 h-4 mr-1" />
+            Nueva Funcionalidad
+          </Button>
           <div className="flex items-center gap-2">
             <Switch
               checked={esPublico}

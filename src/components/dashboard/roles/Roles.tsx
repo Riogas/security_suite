@@ -24,16 +24,17 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiRoles } from "@/services/api";
-import { Pencil, Trash, Download } from "lucide-react";
+import { apiRolesDB, apiEliminarRolDB } from "@/services/api";
+import { Pencil, Trash, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function RolesTable() {
   const [rows, setRows] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [sinMigrar, setSinMigrar] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -48,40 +49,30 @@ export default function RolesTable() {
   const fetcher = async (opts: {
     FiltroTexto: string;
     Estado: string;
-    sinMigrar: boolean;
     Pagesize: number;
     CurrentPage: number;
     signal?: AbortSignal;
   }) => {
-    const res = await apiRoles(
-      {
-        FiltroTexto: opts.FiltroTexto,
-        Estado: opts.Estado,
-        sinMigrar: opts.sinMigrar,
-        Pagesize: String(opts.Pagesize),
-        CurrentPage: String(opts.CurrentPage),
-      },
-      { signal: opts.signal },
-    );
-    const items = res?.sdtRoles || res?.SdtRoles || res?.items || [];
-    const total = Number(
-      res?.MaxRegistros ??
-        res?.maxRegistros ??
-        res?.total ??
-        (items?.length || 0),
-    );
+    const res = await apiRolesDB({
+      filtro: opts.FiltroTexto,
+      estado: opts.Estado || undefined,
+      page: opts.CurrentPage,
+      pageSize: opts.Pagesize,
+    });
+    const items = res?.items || [];
+    const total = Number(res?.total ?? items.length);
     return { items, total };
   };
 
   // load
   useEffect(() => {
     const ac = new AbortController();
+    setLoading(true);
     (async () => {
       try {
         const { items, total } = await fetcher({
           FiltroTexto: debouncedSearch,
           Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          sinMigrar,
           Pagesize: pageSize,
           CurrentPage: pageIndex + 1,
           signal: ac.signal,
@@ -90,26 +81,28 @@ export default function RolesTable() {
         setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
       } catch (e: any) {
         if (e?.name !== "AbortError") console.error("Error cargando roles:", e);
+      } finally {
+        setLoading(false);
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, sinMigrar, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, pageIndex, pageSize]);
 
   const columns: any[] = [
-    { accessorKey: "RolNombre", header: "Rol" },
-    { accessorKey: "RolDescripcion", header: "Descripción" },
+    { accessorKey: "nombre", header: "Rol" },
+    { accessorKey: "descripcion", header: "Descripción" },
     {
-      accessorKey: "RolEstado",
+      accessorKey: "aplicacion",
+      header: "Aplicación",
+      cell: ({ row }: { row: { original: any } }) => row.original?.aplicacion?.nombre || "-",
+    },
+    {
+      accessorKey: "estado",
       header: "Estado",
       cell: ({ row }: { row: { original: any } }) => {
-        const val = String(row.original?.RolEstado ?? "").toUpperCase();
-        const activo = val === "A" || val === "S" || val === "ACTIVO";
+        const activo = row.original?.estado === "A";
         return (
-          <Badge
-            className={
-              activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"
-            }
-          >
+          <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
             {activo ? "Activo" : "Inactivo"}
           </Badge>
         );
@@ -120,31 +113,26 @@ export default function RolesTable() {
       header: "Acciones",
       cell: ({ row }: { row: { original: any } }) => (
         <div className="space-x-2">
-          {sinMigrar && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => console.log("Importar rol", row.original)}
-            >
-              <Download className="w-4 h-4" />
-              <span className="ml-1">Importar</span>
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              router.push(
-                `/dashboard/roles/editar/${row.original?.RolId || row.original?.id || ""}`,
-              )
-            }
+            onClick={() => router.push(`/dashboard/roles/editar/${row.original?.id || ""}`)}
           >
             <Pencil className="w-4 h-4" />
           </Button>
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => console.log("Eliminar rol", row.original)}
+            onClick={async () => {
+              if (!confirm(`¿Eliminar el rol "${row.original?.nombre}"?`)) return;
+              try {
+                await apiEliminarRolDB(row.original.id);
+                setRows((prev) => prev.filter((r) => r.id !== row.original.id));
+                toast.success("Rol eliminado");
+              } catch {
+                toast.error("Error al eliminar el rol");
+              }
+            }}
           >
             <Trash className="w-4 h-4" />
           </Button>
@@ -178,23 +166,13 @@ export default function RolesTable() {
         <Input
           placeholder="Búsqueda..."
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPageIndex(0);
-          }}
+          onChange={(e) => { setSearch(e.target.value); setPageIndex(0); }}
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={sinMigrar}
-              onCheckedChange={(v) => {
-                setSinMigrar(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Sin importar</span>
-          </div>
+          <Button onClick={() => router.push("/dashboard/roles/crear")}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo Rol
+          </Button>
           <Select
             value={estado}
             onValueChange={(v) => {
