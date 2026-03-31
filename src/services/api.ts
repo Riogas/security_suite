@@ -1470,3 +1470,329 @@ export const apiEliminarUsuarioDB = async (
 
   return json;
 };
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Aplicaciones
+// =====================================================================
+
+export interface AplicacionDB {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  estado: string;
+  url: string | null;
+  tecnologia: string | null;
+  fechaCreacion: string;
+  sistemaId: number | null;
+}
+
+export interface AplicacionesDBResponse {
+  success: boolean;
+  items: AplicacionDB[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+async function dbFetch(url: string, options?: RequestInit) {
+  const res = await fetch(url, options);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+  return json;
+}
+
+export const apiAplicacionesDB = async (opts?: {
+  filtro?: string;
+  estado?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<AplicacionesDBResponse> => {
+  const params = new URLSearchParams();
+  if (opts?.filtro) params.set("filtro", opts.filtro);
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+  return dbFetch(`/api/db/aplicaciones?${params}`);
+};
+
+export const apiAplicacionDBById = async (id: number) =>
+  dbFetch(`/api/db/aplicaciones/${id}`);
+
+export const apiCrearAplicacionDB = async (data: Partial<AplicacionDB>) =>
+  dbFetch("/api/db/aplicaciones", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiActualizarAplicacionDB = async (id: number, data: Partial<AplicacionDB>) =>
+  dbFetch(`/api/db/aplicaciones/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiEliminarAplicacionDB = async (id: number) =>
+  dbFetch(`/api/db/aplicaciones/${id}`, { method: "DELETE" });
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Roles
+// =====================================================================
+
+export interface RolDB {
+  id: number;
+  aplicacionId: number;
+  nombre: string;
+  descripcion: string | null;
+  estado: string;
+  nivel: number;
+  fechaCreacion: string;
+  creadoEn: string | null;
+  aplicacion?: { id: number; nombre: string };
+  funcionalidades?: { funcionalidadId: number; funcionalidad?: { id: number; nombre: string } }[];
+}
+
+export interface RolesDBResponse {
+  success: boolean;
+  items: RolDB[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const apiRolesDB = async (opts?: {
+  filtro?: string;
+  estado?: string;
+  aplicacionId?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<RolesDBResponse> => {
+  const params = new URLSearchParams();
+  if (opts?.filtro) params.set("filtro", opts.filtro);
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.aplicacionId) params.set("aplicacionId", String(opts.aplicacionId));
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+  return dbFetch(`/api/db/roles?${params}`);
+};
+
+export const apiRolDBById = async (id: number) =>
+  dbFetch(`/api/db/roles/${id}`);
+
+export const apiCrearRolDB = async (data: {
+  aplicacionId: number;
+  nombre: string;
+  descripcion?: string;
+  estado?: string;
+  nivel?: number;
+  creadoEn?: string;
+  funcionalidades?: { funcionalidadId: number }[];
+}) =>
+  dbFetch("/api/db/roles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiActualizarRolDB = async (
+  id: number,
+  data: {
+    nombre?: string;
+    descripcion?: string;
+    estado?: string;
+    nivel?: number;
+    creadoEn?: string;
+    funcionalidades?: { funcionalidadId: number }[];
+  }
+) =>
+  dbFetch(`/api/db/roles/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiEliminarRolDB = async (id: number) =>
+  dbFetch(`/api/db/roles/${id}`, { method: "DELETE" });
+
+// Roles de un usuario
+export const apiRolesUsuarioDB = async (usuarioId: number) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/roles`);
+
+export const apiAsignarRolesDB = async (
+  usuarioId: number,
+  roles: { rolId: number; fechaDesde?: string; fechaHasta?: string }[]
+) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/roles`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roles }),
+  });
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Funcionalidades
+// =====================================================================
+
+export interface FuncionalidadDB {
+  id: number;
+  aplicacionId: number;
+  nombre: string;
+  estado: string;
+  esPublico: string;
+  soloRoot: string;
+  fechaDesde: string | null;
+  fechaHasta: string | null;
+  fechaCreacion: string;
+  aplicacion?: { id: number; nombre: string };
+  acciones?: { accionId: number; accion?: { id: number; nombre: string } }[];
+}
+
+export interface FuncionalidadesDBResponse {
+  success: boolean;
+  items: FuncionalidadDB[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const apiFuncionalidadesDB = async (opts?: {
+  filtro?: string;
+  estado?: string;
+  aplicacionId?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<FuncionalidadesDBResponse> => {
+  const params = new URLSearchParams();
+  if (opts?.filtro) params.set("filtro", opts.filtro);
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.aplicacionId) params.set("aplicacionId", String(opts.aplicacionId));
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+  return dbFetch(`/api/db/funcionalidades?${params}`);
+};
+
+export const apiFuncionalidadDBById = async (id: number) =>
+  dbFetch(`/api/db/funcionalidades/${id}`);
+
+export const apiCrearFuncionalidadDB = async (data: {
+  aplicacionId: number;
+  nombre: string;
+  estado?: string;
+  esPublico?: string;
+  soloRoot?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  acciones?: { accionId: number }[];
+}) =>
+  dbFetch("/api/db/funcionalidades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiActualizarFuncionalidadDB = async (
+  id: number,
+  data: {
+    nombre?: string;
+    estado?: string;
+    esPublico?: string;
+    soloRoot?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+    acciones?: { accionId: number }[];
+  }
+) =>
+  dbFetch(`/api/db/funcionalidades/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiEliminarFuncionalidadDB = async (id: number) =>
+  dbFetch(`/api/db/funcionalidades/${id}`, { method: "DELETE" });
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Atributos (usuario_preferencias)
+// =====================================================================
+
+export interface AtributoDB {
+  id: number;
+  usuarioId: number;
+  atributo: string;
+  valor: string | null;
+}
+
+export const apiAtributosDB = async (usuarioId: number): Promise<AtributoDB[]> => {
+  const json = await dbFetch(`/api/db/usuarios/${usuarioId}/atributos`);
+  return json.atributos ?? [];
+};
+
+export const apiGuardarAtributosDB = async (
+  usuarioId: number,
+  atributos: { atributo: string; valor?: string }[]
+) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/atributos`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ atributos }),
+  });
+
+export const apiGuardarAtributoDB = async (
+  usuarioId: number,
+  atributo: string,
+  valor?: string
+) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/atributos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ atributo, valor }),
+  });
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Accesos (permisos directos usuario-funcionalidad)
+// =====================================================================
+
+export interface AccesoDB {
+  funcionalidadId: number;
+  usuarioId: number;
+  efecto: string;
+  creadoEn: string | null;
+  fechaDesde: string | null;
+  fechaHasta: string | null;
+  funcionalidad?: { id: number; nombre: string; aplicacion?: { id: number; nombre: string } };
+  usuario?: { id: number; username: string; nombre: string | null; apellido: string | null };
+}
+
+export const apiAccesosDB = async (opts: {
+  usuarioId?: number;
+  aplicacionId?: number;
+  funcionalidadId?: number;
+}): Promise<AccesoDB[]> => {
+  const params = new URLSearchParams();
+  if (opts.usuarioId) params.set("usuarioId", String(opts.usuarioId));
+  if (opts.aplicacionId) params.set("aplicacionId", String(opts.aplicacionId));
+  if (opts.funcionalidadId) params.set("funcionalidadId", String(opts.funcionalidadId));
+  const json = await dbFetch(`/api/db/accesos?${params}`);
+  return json.accesos ?? [];
+};
+
+export const apiGuardarAccesoDB = async (data: {
+  usuarioId: number;
+  funcionalidadId: number;
+  efecto?: string;
+  creadoEn?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}) =>
+  dbFetch("/api/db/accesos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiEliminarAccesoDB = async (usuarioId: number, funcionalidadId: number) =>
+  dbFetch(`/api/db/accesos?usuarioId=${usuarioId}&funcionalidadId=${funcionalidadId}`, {
+    method: "DELETE",
+  });
