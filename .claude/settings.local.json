@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls:*)",
+      "Skill(telegram:configure)",
+      "Read(//c/Users/jgomez/.claude/channels/telegram/**)",
+      "Bash(chmod 600:*)",
+      "Skill(telegram:access)",
+      "Bash(mkdir -p ~/.claude/channels/telegram/approved)"
+    ]
+  }
+}

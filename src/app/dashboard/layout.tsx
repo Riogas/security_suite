@@ -4,6 +4,7 @@ import { ReactNode, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Navbar } from "@/components/dashboard/Navbar";
 import { cn } from "@/lib/utils";
@@ -39,25 +40,25 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Breadcrumbs */}
         <div className="px-6 pt-4">
-          <nav className="mb-4 text-sm text-muted-foreground">
-            <ol className="flex items-center space-x-1.5">
+          <nav className="mb-4 text-xs text-muted-foreground">
+            <ol className="flex items-center gap-1">
               <li>
                 <Link
                   href="/dashboard"
-                  className="text-primary hover:underline"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Inicio
                 </Link>
               </li>
               {pathSegments.map((segment, index) => (
-                <li key={segment.href} className="flex items-center">
-                  <span className="mx-1.5 opacity-40">/</span>
+                <li key={segment.href} className="flex items-center gap-1">
+                  <ChevronRight className="w-3 h-3 opacity-40 shrink-0" />
                   {index === pathSegments.length - 1 ? (
                     <span className="text-foreground font-medium">{segment.label}</span>
                   ) : (
                     <Link
                       href={segment.href}
-                      className="text-primary hover:underline"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {segment.label}
                     </Link>

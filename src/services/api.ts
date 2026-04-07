@@ -1753,6 +1753,32 @@ export const apiGuardarAtributoDB = async (
   });
 
 // =====================================================================
+// 📦 SERVICIOS PRISMA — Sync masivo desde SGM
+// =====================================================================
+export interface SyncUsuariosResult {
+  success: boolean;
+  mensaje: string;
+  total: number;
+  creados: number;
+  actualizados: number;
+  errores: number;
+  detallesErrores: { username: string; error: string }[];
+}
+
+export const apiSyncUsuarios = async (
+  payload: { UserName?: string; Desde?: string } = {}
+): Promise<SyncUsuariosResult> => {
+  const res = await fetch("/api/db/usuarios/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+  return json;
+};
+
+// =====================================================================
 // 📦 SERVICIOS PRISMA — Accesos (permisos directos usuario-funcionalidad)
 // =====================================================================
 
@@ -1798,3 +1824,51 @@ export const apiEliminarAccesoDB = async (usuarioId: number, funcionalidadId: nu
   dbFetch(`/api/db/accesos?usuarioId=${usuarioId}&funcionalidadId=${funcionalidadId}`, {
     method: "DELETE",
   });
+
+// ─── Acciones DB ─────────────────────────────────────────────────────────────
+
+export const apiAccionesDB = async (opts?: { funcionalidadId?: number; estado?: string; search?: string }) => {
+  const params = new URLSearchParams();
+  if (opts?.funcionalidadId) params.set("funcionalidadId", String(opts.funcionalidadId));
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.search) params.set("search", opts.search);
+  return dbFetch(`/api/db/acciones?${params}`);
+};
+
+export const apiAccionDBById = async (id: number) =>
+  dbFetch(`/api/db/acciones/${id}`);
+
+export const apiCrearAccionDB = async (data: { nombre: string; descripcion?: string; estado?: string; funcionalidadIds?: number[] }) =>
+  dbFetch("/api/db/acciones", { method: "POST", body: JSON.stringify(data) });
+
+export const apiActualizarAccionDB = async (id: number, data: { nombre?: string; descripcion?: string; estado?: string }) =>
+  dbFetch(`/api/db/acciones/${id}`, { method: "PUT", body: JSON.stringify(data) });
+
+export const apiEliminarAccionDB = async (id: number) =>
+  dbFetch(`/api/db/acciones/${id}`, { method: "DELETE" });
+
+// Acciones de una funcionalidad específica
+export const apiAccionesFuncionalidadDB = async (funcionalidadId: number) =>
+  dbFetch(`/api/db/funcionalidades/${funcionalidadId}/acciones`);
+
+export const apiSetAccionesFuncionalidadDB = async (funcionalidadId: number, accionIds: number[]) =>
+  dbFetch(`/api/db/funcionalidades/${funcionalidadId}/acciones`, {
+    method: "PUT",
+    body: JSON.stringify({ accionIds }),
+  });
+
+// ─── Menú DB ─────────────────────────────────────────────────────────────────
+
+export const apiMenuDB = async (): Promise<{ success: boolean; menu: any[] }> =>
+  dbFetch("/api/db/menu");
+
+// ─── Permisos DB ─────────────────────────────────────────────────────────────
+
+export const apiPermisosDB = async (payload: {
+  AplicacionId?: number;
+  ObjetoKey?: string;
+  ObjetoPath?: string;
+  ObjetoTipo?: string;
+  AccionKey?: string;
+}) =>
+  dbFetch("/api/db/permisos", { method: "POST", body: JSON.stringify(payload) });

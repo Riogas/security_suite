@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  apiListarFuncionalidades,
-  type ListarFuncionalidadesItem,
+  apiFuncionalidadDBById,
+  apiAccionesFuncionalidadDB,
 } from "@/services/api";
 import FuncionalidadForm from "@/components/dashboard/funcionalidades/FuncionalidadForm";
 
@@ -14,8 +14,7 @@ export default function EditarFuncionalidadPage() {
   const id = params?.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [funcionalidad, setFuncionalidad] =
-    useState<ListarFuncionalidadesItem | null>(null);
+  const [funcionalidad, setFuncionalidad] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,20 +23,20 @@ export default function EditarFuncionalidadPage() {
 
       try {
         setLoading(true);
-        // Cargar todas las funcionalidades y buscar la específica
-        // TODO: Ideally habría una API getFuncionalidad(id) pero usaremos listar por ahora
-        const response = await apiListarFuncionalidades({ AplicacionId: 3 });
+        const [funcRes, accionesRes] = await Promise.all([
+          apiFuncionalidadDBById(parseInt(id)),
+          apiAccionesFuncionalidadDB(parseInt(id)),
+        ]);
 
-        const funcionalidadData = response.sdtFuncionalidades.find(
-          (f) => f.FuncionalidadId === parseInt(id),
-        );
-
-        if (!funcionalidadData) {
+        if (!funcRes?.funcionalidad) {
           setError(`Funcionalidad con ID ${id} no encontrada`);
           return;
         }
 
-        setFuncionalidad(funcionalidadData);
+        setFuncionalidad({
+          ...funcRes.funcionalidad,
+          acciones: accionesRes?.acciones ?? [],
+        });
       } catch (err) {
         console.error("Error cargando funcionalidad:", err);
         setError("Error cargando la funcionalidad");
@@ -88,15 +87,17 @@ export default function EditarFuncionalidadPage() {
     );
   }
 
-  // Convertir datos de la API al formato esperado por FuncionalidadForm
   const initialData = {
-    id: funcionalidad.FuncionalidadId.toString(),
-    aplicacion: funcionalidad.AplicacionId,
-    nombre: funcionalidad.FuncionalidadNombre,
-    estado: funcionalidad.FuncionalidadEstado as "A" | "I",
-    esPublico: funcionalidad.FuncionalidadEsPublico === "S",
-    soloRoot: funcionalidad.FuncionalidadSoloRoot === "S",
-    acciones: funcionalidad.Accion || [],
+    id: String(funcionalidad.id),
+    aplicacion: String(funcionalidad.aplicacionId),
+    nombre: funcionalidad.nombre,
+    estado: (funcionalidad.estado ?? "A") as "A" | "I",
+    esPublico: funcionalidad.esPublico === "S",
+    soloRoot: funcionalidad.soloRoot === "S",
+    acciones: (funcionalidad.acciones ?? []).map((a: any) => ({
+      AccionId: a.id,
+      ObjetoId: a.id,
+    })),
   };
 
   return (

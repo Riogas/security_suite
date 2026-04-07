@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu as MenuIcon, ChevronDown, ChevronRight, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { apiMenu } from "@/services/api"; // ← usamos tu función real
+import { apiMenu, apiMenuDB } from "@/services/api";
 import { iconMap } from "./iconMap";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppLoading } from "@/hooks/useAppLoading";
@@ -106,24 +106,34 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
 
     (async () => {
       try {
-        const data = await apiMenu();
-        // La API puede devolver { resp: "{ menu: [...] }" } o directamente { menu: [...] }
+        // Intentar GeneXus primero, con fallback a DB
         let rawMenu: ApiMenuItem[] | undefined;
-        if (data?.resp) {
-          try {
-            const inner = JSON.parse(String(data.resp));
-            rawMenu = inner?.menu ?? inner?.sdtPuntosMenu ?? [];
-          } catch (e) {
-            console.warn("No se pudo parsear resp de apiMenu", e);
+        try {
+          const data = await apiMenu();
+          if (data?.resp) {
+            try {
+              const inner = JSON.parse(String(data.resp));
+              rawMenu = inner?.menu ?? inner?.sdtPuntosMenu ?? [];
+            } catch {
+              rawMenu = [];
+            }
+          } else if (Array.isArray(data?.menu)) {
+            rawMenu = data.menu;
+          } else if (Array.isArray(data?.sdtPuntosMenu)) {
+            rawMenu = data.sdtPuntosMenu;
+          } else {
             rawMenu = [];
           }
-        } else if (Array.isArray(data?.menu)) {
-          rawMenu = data.menu;
-        } else if (Array.isArray(data?.sdtPuntosMenu)) {
-          // compat con forma anterior
-          rawMenu = data.sdtPuntosMenu;
-        } else {
-          rawMenu = [];
+        } catch {
+          // GeneXus no disponible → usar menú desde DB
+          console.warn("[Sidebar] GeneXus no disponible, usando menú desde DB");
+          try {
+            const dbData = await apiMenuDB();
+            rawMenu = Array.isArray(dbData?.menu) ? dbData.menu : [];
+          } catch (dbErr) {
+            console.error("[Sidebar] Error cargando menú desde DB:", dbErr);
+            rawMenu = [];
+          }
         }
 
         const normalized = normalizeTree(rawMenu);
@@ -206,7 +216,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
         {isActive && (
           <motion.div
             layoutId="sidebar-active"
-            className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-primary"
+            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-primary"
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
           />
         )}
@@ -214,14 +224,14 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           variant={isActive ? "secondary" : "ghost"}
           className={`justify-start gap-2 w-full rounded-lg ${
             depth ? "pl-8" : ""
-          } ${item.style ?? ""} ${isActive ? "font-medium" : ""}`}
+          } ${item.style ?? ""} ${isActive ? "font-medium bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary" : "hover:bg-sidebar-accent"}`}
           onClick={() => {
             loadingApp.showNavigating();
             router.push(item.path || "/");
           }}
           title={item.label}
         >
-          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
+          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "opacity-100" : "opacity-60"}`} />
           {!collapsed && item.label}
         </Button>
       </motion.div>
@@ -230,12 +240,12 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
 
   return (
     <aside
-      className={`h-screen border-r bg-card flex flex-col transition-all duration-300 ${
+      className={`h-screen border-r bg-sidebar flex flex-col transition-all duration-300 ${
         collapsed ? "w-16" : "w-64"
       }`}
     >
       {/* Logo / Header */}
-      <div className="flex items-center justify-between px-3 py-4 border-b border-border/40">
+      <div className="flex items-center justify-between px-3 py-4 border-b border-sidebar-border">
         {!collapsed && (
           <motion.div
             initial={{ opacity: 0, x: -8 }}
@@ -243,26 +253,26 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
             transition={{ duration: 0.3 }}
             className="flex items-center gap-2.5"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/15 shadow-sm">
               <Shield className="w-4 h-4 text-primary" />
             </div>
             <div className="leading-none">
-              <span className="font-bold text-sm tracking-tight block">Security</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+              <span className="font-semibold text-sm tracking-tight block">Security</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest opacity-70">
                 Suite
               </span>
             </div>
           </motion.div>
         )}
         {collapsed && (
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 mx-auto">
+          <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/15 shadow-sm mx-auto">
             <Shield className="w-4 h-4 text-primary" />
           </div>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-lg"
+          className="h-8 w-8 rounded-lg hover:bg-sidebar-accent"
           onClick={() => setCollapsed(!collapsed)}
         >
           <MenuIcon className="h-4 w-4" />
@@ -276,7 +286,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
             {[...Array(5)].map((_, i) => (
               <motion.div
                 key={i}
-                className="h-9 rounded-lg bg-muted/40 animate-pulse"
+                className="h-9 rounded-lg bg-muted/30 animate-pulse"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.07 }}

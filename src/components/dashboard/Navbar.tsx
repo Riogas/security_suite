@@ -97,7 +97,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="h-16 px-6 flex items-center justify-end border-b bg-card/80 backdrop-blur-sm gap-4">
+    <header className="sticky top-0 z-40 h-16 px-6 flex items-center justify-end border-b border-border/60 bg-card/75 backdrop-blur-md shadow-sm gap-4">
       {/* Nombre de usuario pill */}
       {mounted && user?.nombre && (
         <motion.div

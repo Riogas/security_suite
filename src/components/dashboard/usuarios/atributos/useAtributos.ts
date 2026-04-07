@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
-  apiGetAtributos,
-  apiABMAtributos,
-  UserPreference,
+  apiAtributosDB,
+  apiGuardarAtributosDB,
 } from "@/services/api";
 
 interface CampoValor {
@@ -103,23 +102,24 @@ export function useAtributos(userId: number, isOpen: boolean) {
     console.log("🎣 [useAtributos] ⏳ Iniciando carga de atributos - setLoading(true)");
     setLoading(true);
     try {
-      const atributosExistentes = await apiGetAtributos(userId);
+      const atributosExistentes = await apiAtributosDB(userId);
       console.log("Atributos recibidos de la API:", atributosExistentes);
 
       if (atributosExistentes.length > 0) {
-        // Convertir cada UserPreference a Atributo
+        // Convertir cada AtributoDB a Atributo
         const atributosConvertidos = atributosExistentes.map((pref) => {
-          const campos = parsearValorAtributo(pref.UserPreferenceValor);
-          console.log(`Procesando atributo "${pref.UserPreferenceAtributo}":`, {
-            valor: pref.UserPreferenceValor,
+          const valor = pref.valor ?? "";
+          const campos = parsearValorAtributo(valor);
+          console.log(`Procesando atributo "${pref.atributo}":`, {
+            valor,
             camposParseados: campos,
           });
 
           return {
-            id: pref.UserPreferenceId.toString(),
-            descripcion: pref.UserPreferenceAtributo,
+            id: pref.id.toString(),
+            descripcion: pref.atributo,
             campos: campos,
-            valor: pref.UserPreferenceValor, // Mantener el valor original
+            valor: valor, // Mantener el valor original
           };
         });
 
@@ -196,25 +196,15 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
       console.log("Atributos nuevos a guardar:", atributosNuevos);
 
-      // Convertir atributos nuevos a formato UserPreference[]
-      const userPreferences: UserPreference[] = atributosNuevos.map(
-        (atributo) => ({
-          UserPreferenceId: 0, // 0 para nuevos atributos
-          UserExtendedId: userId,
-          UserPreferenceAtributo: atributo.descripcion,
-          UserPreferenceValor: atributo.valor,
-        }),
-      );
+      // Convertir atributos nuevos a formato para la DB
+      const atributosParaDB = atributosNuevos.map((atributo) => ({
+        atributo: atributo.descripcion,
+        valor: atributo.valor,
+      }));
 
-      // Crear el payload con el nuevo formato
-      const payload = {
-        sdtAtributos: userPreferences,
-        UserId: userId,
-      };
+      console.log("Payload para API:", atributosParaDB);
 
-      console.log("Payload para API:", payload);
-
-      await apiABMAtributos(payload);
+      await apiGuardarAtributosDB(userId, atributosParaDB);
 
       toast.success(
         `${atributosNuevos.length} atributo(s) guardado(s) correctamente`,
