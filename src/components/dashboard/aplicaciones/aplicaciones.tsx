@@ -27,7 +27,7 @@ import {
 import { apiAplicacionesDB, apiEliminarAplicacionDB } from "@/services/api";
 import { Pencil, Trash, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export type FetcherParams = {
   FiltroTexto: string;

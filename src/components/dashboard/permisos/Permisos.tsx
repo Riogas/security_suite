@@ -26,7 +26,7 @@ import {
 import { apiAccesosDB, apiEliminarAccesoDB, type AccesoDB } from "@/services/api";
 import { Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function PermisosTable() {
   const [allRows, setAllRows] = useState<AccesoDB[]>([]);

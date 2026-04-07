@@ -31,7 +31,7 @@ import {
 } from "@/services/api";
 import { Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function FuncionalidadesTable() {
   const [rows, setRows] = useState<any[]>([]);

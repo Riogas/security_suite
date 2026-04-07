@@ -27,7 +27,7 @@ import {
 import { apiRolesDB, apiEliminarRolDB } from "@/services/api";
 import { Pencil, Trash, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 export default function RolesTable() {
   const [rows, setRows] = useState<any[]>([]);
