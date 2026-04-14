@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,7 +88,8 @@ export default function AplicacionesTable<T = any>({
   }, [search]);
 
   // Fetcher por defecto usando apiAplicacionesDB (PostgreSQL)
-  const defaultFetcher = async ({
+  // Wrapped in useCallback to keep a stable reference and avoid infinite re-render loops
+  const defaultFetcher = useCallback(async ({
     FiltroTexto,
     Pagesize,
     CurrentPage,
@@ -103,7 +104,7 @@ export default function AplicacionesTable<T = any>({
     const items = res?.items || [];
     const total = Number(res?.total ?? items.length);
     return { items, total };
-  };
+  }, []);
 
   // Columnas usando campos PostgreSQL
   const defaultColumns: any[] = [
@@ -141,7 +142,11 @@ export default function AplicacionesTable<T = any>({
 
   const columns =
     columnsProp && columnsProp.length > 0 ? columnsProp : defaultColumns;
-  const fetcher = fetcherProp || defaultFetcher;
+  // useMemo ensures fetcher reference is stable across renders
+  const fetcher = useMemo(
+    () => fetcherProp || defaultFetcher,
+    [fetcherProp, defaultFetcher],
+  );
 
   // Carga de datos (server-side pagination)
   useEffect(() => {
