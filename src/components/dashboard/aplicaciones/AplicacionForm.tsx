@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
-import { apiAplicaciones } from "@/services/api";
+import { apiAplicacionDBById, apiActualizarAplicacionDB, apiCrearAplicacionDB } from "@/services/api";
 
 interface AplicacionFormProps {
   mode: "create" | "edit";
@@ -26,10 +26,11 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [formData, setFormData] = useState({
-    AplicacionNombre: "",
-    AplicacionDescripcion: "",
-    AplicacionTecnologia: "",
-    AplicacionEstado: "A",
+    nombre: "",
+    descripcion: "",
+    tecnologia: "",
+    estado: "A",
+    url: "",
   });
 
   useEffect(() => {
@@ -37,30 +38,16 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
       const loadAppData = async () => {
         try {
           setInitialLoading(true);
-          const response = await apiAplicaciones({
-            FiltroTexto: "",
-            Estado: "",
-            sinMigrar: false,
-            Pagesize: "1000",
-            CurrentPage: "1",
-          });
-
-          const apps =
-            response?.sdtAplicaciones ||
-            response?.SdtAplicaciones ||
-            response?.items ||
-            [];
-          const app = apps.find(
-            (a: any) =>
-              String(a.AplicacionId) === String(appId),
-          );
+          const res = await apiAplicacionDBById(Number(appId));
+          const app = res?.aplicacion;
 
           if (app) {
             setFormData({
-              AplicacionNombre: app.AplicacionNombre || "",
-              AplicacionDescripcion: app.AplicacionDescripcion || "",
-              AplicacionTecnologia: app.AplicacionTecnologia || "",
-              AplicacionEstado: app.AplicacionEstado || "A",
+              nombre: app.nombre || "",
+              descripcion: app.descripcion || "",
+              tecnologia: app.tecnologia || "",
+              estado: app.estado || "A",
+              url: app.url || "",
             });
           } else {
             toast.error("Aplicación no encontrada");
@@ -83,22 +70,27 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
     setLoading(true);
 
     try {
-      if (!formData.AplicacionNombre.trim()) {
+      if (!formData.nombre.trim()) {
         toast.error("El nombre de la aplicación es obligatorio");
         setLoading(false);
         return;
       }
 
-      // TODO: Conectar con API de creación/edición cuando esté disponible
-      console.log(
-        mode === "create" ? "Creando aplicación:" : "Editando aplicación:",
-        formData,
-      );
-      toast.success(
-        mode === "create"
-          ? "Aplicación creada exitosamente"
-          : "Aplicación actualizada exitosamente",
-      );
+      const payload = {
+        nombre: formData.nombre.trim(),
+        descripcion: formData.descripcion.trim() || null,
+        tecnologia: formData.tecnologia.trim() || null,
+        estado: formData.estado,
+        url: formData.url.trim() || null,
+      };
+
+      if (mode === "create") {
+        await apiCrearAplicacionDB(payload);
+        toast.success("Aplicación creada exitosamente");
+      } else {
+        await apiActualizarAplicacionDB(Number(appId), payload);
+        toast.success("Aplicación actualizada exitosamente");
+      }
       router.push("/dashboard/aplicaciones");
     } catch (error) {
       console.error("Error guardando aplicación:", error);
@@ -125,45 +117,51 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="AplicacionNombre">Nombre *</Label>
+          <Label htmlFor="nombre">Nombre *</Label>
           <Input
-            id="AplicacionNombre"
-            value={formData.AplicacionNombre}
-            onChange={(e) => handleChange("AplicacionNombre", e.target.value)}
+            id="nombre"
+            value={formData.nombre}
+            onChange={(e) => handleChange("nombre", e.target.value)}
             placeholder="Nombre de la aplicación"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="AplicacionTecnologia">Tecnología</Label>
+          <Label htmlFor="tecnologia">Tecnología</Label>
           <Input
-            id="AplicacionTecnologia"
-            value={formData.AplicacionTecnologia}
-            onChange={(e) =>
-              handleChange("AplicacionTecnologia", e.target.value)
-            }
+            id="tecnologia"
+            value={formData.tecnologia}
+            onChange={(e) => handleChange("tecnologia", e.target.value)}
             placeholder="Ej: GeneXus, .NET, React..."
           />
         </div>
 
         <div className="md:col-span-2 space-y-2">
-          <Label htmlFor="AplicacionDescripcion">Descripción</Label>
+          <Label htmlFor="descripcion">Descripción</Label>
           <Input
-            id="AplicacionDescripcion"
-            value={formData.AplicacionDescripcion}
-            onChange={(e) =>
-              handleChange("AplicacionDescripcion", e.target.value)
-            }
+            id="descripcion"
+            value={formData.descripcion}
+            onChange={(e) => handleChange("descripcion", e.target.value)}
             placeholder="Descripción de la aplicación"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="AplicacionEstado">Estado</Label>
+          <Label htmlFor="url">URL</Label>
+          <Input
+            id="url"
+            value={formData.url}
+            onChange={(e) => handleChange("url", e.target.value)}
+            placeholder="https://..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="estado">Estado</Label>
           <Select
-            value={formData.AplicacionEstado}
-            onValueChange={(v) => handleChange("AplicacionEstado", v)}
+            value={formData.estado}
+            onValueChange={(v) => handleChange("estado", v)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar estado" />
