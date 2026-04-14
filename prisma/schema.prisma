@@ -17,6 +17,7 @@ model Aplicacion {
   fechaCreacion   DateTime        @default(now()) @map("fecha_creacion") @db.Timestamp(6)
   sistemaId       Int?            @map("sistema_id")
   funcionalidades Funcionalidad[]
+  objetos         Objeto[]
   roles           Rol[]
 
   @@map("aplicaciones")
@@ -152,6 +153,47 @@ model Acceso {
   @@id([funcionalidadId, usuarioId])
   @@index([usuarioId], map: "idx_accesos_usuario")
   @@map("accesos")
+}
+
+model Objeto {
+  id            Int            @id @default(autoincrement())
+  aplicacionId  Int            @map("aplicacion_id")
+  tipo          String         @db.VarChar(20)
+  key           String         @db.VarChar(120)
+  label         String?        @db.VarChar(120)
+  path          String?        @db.VarChar(255)
+  icon          String?        @db.VarChar(60)
+  orden         Int            @default(0)
+  estado        String         @default("A") @db.Char(1)
+  esPublico     String         @default("N") @map("es_publico") @db.Char(1)
+  parentId      Int?           @map("parent_id")
+  creadoEn      String?        @map("creado_en") @db.VarChar(60)
+  fechaCreacion DateTime       @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  aplicacion    Aplicacion     @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent        Objeto?        @relation("ObjetoHijos", fields: [parentId], references: [id])
+  hijos         Objeto[]       @relation("ObjetoHijos")
+  acciones      ObjetoAccion[]
+
+  @@index([aplicacionId], map: "idx_objetos_aplicacion")
+  @@index([estado], map: "idx_objetos_estado")
+  @@map("objetos")
+}
+
+model ObjetoAccion {
+  id          Int     @id @default(autoincrement())
+  objetoId    Int     @map("objeto_id")
+  key         String  @db.VarChar(120)
+  descripcion String? @db.VarChar(255)
+  codigo      String? @db.VarChar(20)
+  label       String? @db.VarChar(120)
+  path        String? @db.VarChar(255)
+  icon        String? @db.VarChar(60)
+  relacion    Int?
+  creadoEn    String? @map("creado_en") @db.VarChar(60)
+  objeto      Objeto  @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([objetoId], map: "idx_objeto_acciones_objeto")
+  @@map("objeto_acciones")
 }
 
 model RolFuncionalidad {

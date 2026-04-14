@@ -1537,6 +1537,79 @@ export const apiEliminarAplicacionDB = async (id: number) =>
   dbFetch(`/api/db/aplicaciones/${id}`, { method: "DELETE" });
 
 // =====================================================================
+// 📦 SERVICIOS PRISMA — Objetos
+// =====================================================================
+
+export interface ObjetoAccionDB {
+  id?: number;
+  objetoId?: number;
+  key: string;
+  descripcion?: string | null;
+  codigo?: string | null;
+  label?: string | null;
+  path?: string | null;
+  icon?: string | null;
+  relacion?: number | null;
+  creadoEn?: string | null;
+}
+
+export interface ObjetoDB {
+  id?: number;
+  aplicacionId: number;
+  tipo: string;
+  key: string;
+  label?: string | null;
+  path?: string | null;
+  icon?: string | null;
+  orden?: number;
+  estado?: string;
+  esPublico?: string;
+  parentId?: number | null;
+  creadoEn?: string | null;
+  acciones?: ObjetoAccionDB[];
+}
+
+export const apiObjetosDB = async (opts?: {
+  filtro?: string;
+  estado?: string;
+  esPublico?: string;
+  tipo?: string;
+  aplicacionId?: number;
+  page?: number;
+  pageSize?: number;
+}) => {
+  const params = new URLSearchParams();
+  if (opts?.filtro) params.set("filtro", opts.filtro);
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.esPublico) params.set("esPublico", opts.esPublico);
+  if (opts?.tipo) params.set("tipo", opts.tipo);
+  if (opts?.aplicacionId) params.set("aplicacionId", String(opts.aplicacionId));
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+  return dbFetch(`/api/db/objetos?${params}`);
+};
+
+export const apiObjetoDBById = async (id: number) =>
+  dbFetch(`/api/db/objetos/${id}`);
+
+export const apiCrearObjetoDB = async (data: ObjetoDB) =>
+  dbFetch("/api/db/objetos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiActualizarObjetoDB = async (id: number, data: Partial<ObjetoDB>) =>
+  dbFetch(`/api/db/objetos/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const apiEliminarObjetoDB = async (id: number) =>
+  dbFetch(`/api/db/objetos/${id}`, { method: "DELETE" });
+
+// =====================================================================
 // 📦 SERVICIOS PRISMA — Roles
 // =====================================================================
 

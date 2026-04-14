@@ -3,7 +3,7 @@
 import ObjetoForm from "@/components/dashboard/objetos/form/ObjetoForm";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFuncionalidadDBById, apiAccionesFuncionalidadDB } from "@/services/api";
+import { apiObjetoDBById } from "@/services/api";
 
 export default function EditarObjetoPage() {
   const params = useParams();
@@ -14,41 +14,34 @@ export default function EditarObjetoPage() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      if (!id) {
-        console.warn("[EditarObjeto] No hay id en params", { params });
-        return;
-      }
+      if (!id) return;
       try {
-        const [funcRes, accionesRes] = await Promise.all([
-          apiFuncionalidadDBById(parseInt(id)),
-          apiAccionesFuncionalidadDB(parseInt(id)),
-        ]);
-
-        const obj = funcRes?.funcionalidad;
+        const res = await apiObjetoDBById(parseInt(id));
+        const obj = res?.objeto;
         if (!obj) {
-          console.warn("[EditarObjeto] Funcionalidad no encontrada", { id });
+          console.warn("[EditarObjeto] Objeto no encontrado", { id });
           return;
         }
 
         const data = {
           objetoid: String(obj.id),
           aplicacionid: String(obj.aplicacionId),
-          objetotipo: "PAGE",
-          objetokey: obj.nombre?.toLowerCase().replace(/\s+/g, "-") ?? "",
+          objetotipo: obj.tipo as any,
+          objetokey: obj.key ?? "",
           objetoestado: obj.estado as any,
           objetoespublico: obj.esPublico === "S",
-          objetocreadoen: "",
-          acciones: (accionesRes?.acciones || []).map((a: any) => ({
+          objetocreadoen: obj.creadoEn ?? "",
+          acciones: (obj.acciones || []).map((a: any) => ({
             uid: crypto.randomUUID(),
             accionid: String(a.id),
-            accionkey: a.nombre?.toLowerCase().replace(/\s+/g, "-") ?? "",
+            accionkey: a.key ?? "",
             acciondescripcion: a.descripcion ?? "",
-            accioncreadoen: "",
-            accioncodigo: "",
-            accionlabel: a.nombre,
-            accionpath: "",
-            accionicon: "",
-            accionrelacion: "",
+            accioncreadoen: a.creadoEn ?? "",
+            accioncodigo: a.codigo ?? "",
+            accionlabel: a.label ?? "",
+            accionpath: a.path ?? "",
+            accionicon: a.icon ?? "",
+            accionrelacion: a.relacion ? String(a.relacion) : "",
           })),
         };
         if (mounted) setInitialData(data);
@@ -58,9 +51,7 @@ export default function EditarObjetoPage() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [id]);
 
   if (loading) return <div className="p-4">Cargando...</div>;

@@ -24,8 +24,9 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiObjetos } from "@/services/api";
-import { Pencil, Trash, Download } from "lucide-react";
+import { apiObjetosDB, apiEliminarObjetoDB } from "@/services/api";
+import { Pencil, Trash } from "lucide-react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 export default function ObjetosTable() {
@@ -33,7 +34,6 @@ export default function ObjetosTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [sinMigrar, setSinMigrar] = useState(true);
   // Nuevo: filtros adicionales
   const [esPublico, setEsPublico] = useState(false);
   const [tipo, setTipo] = useState("");
@@ -49,41 +49,25 @@ export default function ObjetosTable() {
   }, [search]);
 
   const fetcher = async (opts: {
-    FiltroTexto: string;
-    Estado: string;
-    sinMigrar: boolean;
-    ObjetoEsPublico: "S" | "N";
-    ObjetoTipo: string;
-    Pagesize: number;
-    CurrentPage: number;
+    filtro: string;
+    estado: string;
+    esPublico: string;
+    tipo: string;
+    page: number;
+    pageSize: number;
     signal?: AbortSignal;
   }) => {
-    const res = await apiObjetos(
-      {
-        FiltroTexto: opts.FiltroTexto,
-        Estado: opts.Estado,
-        sinMigrar: opts.sinMigrar,
-        ObjetoEsPublico: opts.ObjetoEsPublico,
-        ObjetoTipo: opts.ObjetoTipo,
-        Pagesize: String(opts.Pagesize),
-        CurrentPage: String(opts.CurrentPage),
-      },
-      { signal: opts.signal },
-    );
-    const items = res?.sdtObjetos || res?.SdtObjetos || res?.items || [];
-    const total = Number(
-      res?.MaxRegistros ??
-        res?.maxRegistros ??
-        res?.total ??
-        (items?.length || 0),
-    );
-    // Normalizar para que las columnas existentes funcionen
-    const normalized = (items as any[]).map((o: any) => ({
-      ...o,
-      ObjetoNombre: o?.ObjetoNombre ?? o?.ObjetoLabel ?? o?.ObjetoKey ?? "",
-      ObjetoDescripcion: o?.ObjetoDescripcion ?? o?.ObjetoPath ?? "",
-    }));
-    return { items: normalized, total };
+    const res = await apiObjetosDB({
+      filtro: opts.filtro,
+      estado: opts.estado || undefined,
+      esPublico: opts.esPublico || undefined,
+      tipo: opts.tipo || undefined,
+      page: opts.page,
+      pageSize: opts.pageSize,
+    });
+    const items = res?.items || [];
+    const total = Number(res?.total ?? items.length);
+    return { items, total };
   };
 
   // load
@@ -92,13 +76,12 @@ export default function ObjetosTable() {
     (async () => {
       try {
         const { items, total } = await fetcher({
-          FiltroTexto: debouncedSearch,
-          Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          sinMigrar,
-          ObjetoEsPublico: esPublico ? "S" : "N",
-          ObjetoTipo: tipo,
-          Pagesize: pageSize,
-          CurrentPage: pageIndex + 1,
+          filtro: debouncedSearch,
+          estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
+          esPublico: esPublico ? "S" : "",
+          tipo,
+          page: pageIndex + 1,
+          pageSize,
           signal: ac.signal,
         });
         setRows(items);
@@ -112,7 +95,6 @@ export default function ObjetosTable() {
   }, [
     debouncedSearch,
     estado,
-    sinMigrar,
     esPublico,
     tipo,
     pageIndex,
@@ -121,28 +103,26 @@ export default function ObjetosTable() {
 
   const columns: any[] = [
     {
-      id: "ObjetoNombre",
-      header: "Objeto",
-      cell: ({ row }: { row: { original: any } }) => {
-        const o = row.original || {};
-        return o?.ObjetoKey ?? o?.ObjetoLabel ?? "";
-      },
+      id: "key",
+      header: "Clave",
+      cell: ({ row }: { row: { original: any } }) => row.original?.key ?? "",
     },
     {
-      id: "ObjetoPath",
+      id: "label",
+      header: "Etiqueta",
+      cell: ({ row }: { row: { original: any } }) => row.original?.label ?? "",
+    },
+    {
+      id: "path",
       header: "Path",
-      cell: ({ row }: { row: { original: any } }) => {
-        const o = row.original || {};
-        return o?.ObjetoPath ?? "";
-      },
+      cell: ({ row }: { row: { original: any } }) => row.original?.path ?? "",
     },
-    { accessorKey: "ObjetoTipo", header: "Tipo" },
+    { accessorKey: "tipo", header: "Tipo" },
     {
-      accessorKey: "ObjetoEstado",
+      accessorKey: "estado",
       header: "Estado",
       cell: ({ row }: { row: { original: any } }) => {
-        const val = String(row.original?.ObjetoEstado ?? "").toUpperCase();
-        const activo = val === "A" || val === "S" || val === "ACTIVO";
+        const activo = row.original?.estado === "A";
         return (
           <Badge
             className={
@@ -159,23 +139,11 @@ export default function ObjetosTable() {
       header: "Acciones",
       cell: ({ row }: { row: { original: any } }) => (
         <div className="space-x-2">
-          {sinMigrar && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => console.log("Importar objeto", row.original)}
-            >
-              <Download className="w-4 h-4" />
-              <span className="ml-1">Importar</span>
-            </Button>
-          )}
           <Button
             variant="outline"
             size="sm"
             onClick={() =>
-              router.push(
-                `/dashboard/objetos/editar/${row.original?.ObjetoId || row.original?.id || ""}`,
-              )
+              router.push(`/dashboard/objetos/editar/${row.original?.id ?? ""}`)
             }
           >
             <Pencil className="w-4 h-4" />
@@ -183,7 +151,18 @@ export default function ObjetosTable() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => console.log("Eliminar objeto", row.original)}
+            onClick={async () => {
+              const obj = row.original;
+              if (!obj?.id) return;
+              if (!confirm(`¿Eliminar el objeto "${obj.key}"?`)) return;
+              try {
+                await apiEliminarObjetoDB(obj.id);
+                setRows((prev) => prev.filter((r: any) => r.id !== obj.id));
+                toast.success("Objeto eliminado");
+              } catch {
+                toast.error("Error al eliminar el objeto");
+              }
+            }}
           >
             <Trash className="w-4 h-4" />
           </Button>
@@ -224,17 +203,7 @@ export default function ObjetosTable() {
           className="w-1/2"
         />
         <div className="flex gap-4 items-end">
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={sinMigrar}
-              onCheckedChange={(v) => {
-                setSinMigrar(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Sin importar</span>
-          </div>
-          {/* Nuevo: Es publico */}
+          {/* Es publico */}
           <div className="flex items-center gap-2">
             <Switch
               checked={esPublico}

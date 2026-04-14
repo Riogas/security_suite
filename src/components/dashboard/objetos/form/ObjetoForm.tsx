@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  apiAbmObjetos,
-  apiListarObjetos,
-  type ListarObjetosItem,
+  apiCrearObjetoDB,
+  apiActualizarObjetoDB,
+  apiObjetosDB,
 } from "@/services/api";
 import { useEffect, useMemo, useState, memo, useRef } from "react";
 import {
@@ -295,7 +295,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   const [relationSearch, setRelationSearch] = useState("");
   const [relationPage, setRelationPage] = useState(1);
   const relationPageSize = 20;
-  const [relationAllItems, setRelationAllItems] = useState<ListarObjetosItem[]>([]);
+  const [relationAllItems, setRelationAllItems] = useState<any[]>([]);
   const [relationLoading, setRelationLoading] = useState(false);
 
   // Filtrado y paginado local
@@ -303,7 +303,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     const q = relationSearch.trim().toLowerCase();
     if (!q) return relationAllItems;
     return relationAllItems.filter((item) =>
-      (item.ObjetoKey || "").toLowerCase().includes(q)
+      (item.key || "").toLowerCase().includes(q)
     );
   }, [relationAllItems, relationSearch]);
 
@@ -526,51 +526,51 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     const toastId = toast.loading("Guardando objeto...");
     setSubmitting(true);
     try {
-      // Normalizar creadoen con la app elegida
       const creadoEn =
         APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label ??
         form.objetocreadoen;
 
-      // Fusionar cambios en buffer (rowEdits) a las acciones antes de armar el payload
       const accionesMerged = form.acciones.map((a) => ({
         ...a,
         ...(rowEdits[a.uid] || {}),
       }));
 
-      // Asegurar códigos de acciones si faltan
       const accionesPayload = await Promise.all(
         accionesMerged.map(async (a) => ({
-          AccionId: Number(a.accionid) || 0,
-          AccionKey: a.accionkey,
-          AccionDescripcion: a.acciondescripcion,
-          AccionCreadoEn: creadoEn,
-          AccionCodigo:
+          key: a.accionkey,
+          descripcion: a.acciondescripcion || null,
+          codigo:
             a.accioncodigo ||
             (a.accionkey && form.objetokey
               ? await generateActionCode(form.objetokey, a.accionkey)
-              : ""),
-          AccionRelacion: Number(a.accionrelacion) || 0,
-          AccionLabel: a.accionlabel || "",
-          AccionIcon: a.accionicon || "",
-          AccionPath: a.accionpath || "",
+              : null),
+          label: a.accionlabel || null,
+          path: a.accionpath || null,
+          icon: a.accionicon || null,
+          relacion: a.accionrelacion ? Number(a.accionrelacion) : null,
+          creadoEn,
         })),
       );
 
       const payload = {
-        ObjetoId: Number(form.objetoid) || 0,
-        AplicacionId: Number(form.aplicacionid) || 0,
-        ObjetoTipo: form.objetotipo,
-        ObjetoKey: form.objetokey,
-        ObjetoParentId: 0,
-        ObjetoEstado: form.objetoestado,
-        ObjetoEsPublico: form.objetoespublico ? "S" : "N",
-        ObjetoCreadoEn: creadoEn,
-        Acciones: accionesPayload,
+        aplicacionId: Number(form.aplicacionid),
+        tipo: form.objetotipo,
+        key: form.objetokey,
+        estado: form.objetoestado,
+        esPublico: form.objetoespublico ? "S" : "N",
+        creadoEn,
+        acciones: accionesPayload,
       };
 
-      const res = await apiAbmObjetos(payload);
-      console.log("ABM Objetos OK", res);
+      const objetoId = Number(form.objetoid);
+      if (objetoId > 0) {
+        await apiActualizarObjetoDB(objetoId, payload);
+      } else {
+        await apiCrearObjetoDB(payload);
+      }
+
       toast.success("Objeto guardado correctamente", { id: toastId });
+      history.back();
     } catch (err) {
       console.error("Error guardando objeto:", err);
       const message =
@@ -589,13 +589,11 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
   async function loadAllRelationItems() {
     try {
       setRelationLoading(true);
-      const res = await apiListarObjetos({
-        AplicacionId: Number(form.aplicacionid) || form.aplicacionid,
-        Page: 1,
-        PageSize: 9999,
-        sinMenu: true,
+      const res = await apiObjetosDB({
+        aplicacionId: Number(form.aplicacionid) || undefined,
+        pageSize: 9999,
       });
-      setRelationAllItems(res.sdtListaObjetos || []);
+      setRelationAllItems(res.items || []);
     } catch (e) {
       console.error("No se pudo listar objetos relacionados", e);
     } finally {
@@ -1192,12 +1190,12 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                           </TableRow>
                         ) : (
                           relationItems.map((item) => (
-                            <TableRow key={item.ObjetoId}>
+                            <TableRow key={item.id}>
                               <TableCell className="font-mono">
-                                {item.ObjetoKey}
+                                {item.key}
                               </TableCell>
-                              <TableCell>{item.ObjetoTipo}</TableCell>
-                              <TableCell>{item.ObjetoEstado}</TableCell>
+                              <TableCell>{item.tipo}</TableCell>
+                              <TableCell>{item.estado}</TableCell>
                               <TableCell className="text-right">
                                 <Button
                                   type="button"
@@ -1207,18 +1205,18 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                                       const uid =
                                         form.acciones[relationRow]?.uid;
                                       upsertAccion(relationRow, {
-                                        accionrelacion: String(item.ObjetoId),
+                                        accionrelacion: String(item.id),
                                       });
                                       if (uid) {
                                         setRelationLabels((prev) => ({
                                           ...prev,
-                                          [uid]: item.ObjetoKey,
+                                          [uid]: item.key,
                                         }));
                                       } else {
                                         // Fila libre
                                         setRelationLabels((prev) => ({
                                           ...prev,
-                                          ["free-row"]: item.ObjetoKey,
+                                          ["free-row"]: item.key,
                                         }));
                                       }
                                     }
