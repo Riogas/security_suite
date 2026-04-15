@@ -44,19 +44,12 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  apiListarObjetos,
+  apiAplicacionesDB,
+  apiObjetosDB,
   apiAbmFuncionalidades,
-  type ListarObjetosItem,
+  type AplicacionDB,
   type AbmFuncionalidadesReq,
 } from "@/services/api";
-
-// Opciones de aplicaciones
-const APP_OPTIONS = [
-  { value: "1", label: "1 - Security Suite" },
-  { value: "2", label: "2 - Gestión de Sistemas" },
-  { value: "3", label: "3 - GOYA" },
-  { value: "4", label: "4 - SGM" },
-] as const;
 
 // Basic types
 export type EstadoCode = "A" | "I";
@@ -112,8 +105,16 @@ export default function FuncionalidadForm({
   });
 
   // Estados para API y carga de datos
+  const [apps, setApps] = useState<AplicacionDB[]>([]);
   const [objetos, setObjetos] = useState<Objeto[]>([]);
   const [loadingObjetos, setLoadingObjetos] = useState(false);
+
+  // Cargar aplicaciones al montar
+  useEffect(() => {
+    apiAplicacionesDB({ estado: "A", pageSize: 999 })
+      .then((res) => setApps(res.items))
+      .catch(console.error);
+  }, []);
 
   // Estados para drag and drop
   const [selectedItems, setSelectedItems] = useState<
@@ -133,65 +134,35 @@ export default function FuncionalidadForm({
   const [searchAvailable, setSearchAvailable] = useState("");
   const [searchSelected, setSearchSelected] = useState("");
 
-  // Función para cargar objetos desde la API
+  // Función para cargar objetos desde la DB local
   const loadObjetos = async (aplicacionId: string) => {
     try {
       setLoadingObjetos(true);
-      const response = await apiListarObjetos({
-        AplicacionId: parseInt(aplicacionId),
-        sinMenu: false, // Para funcionalidades necesitamos incluir elementos MENU
-        Page: 1,
-        PageSize: 100, // Cargar todos los objetos
+      const response = await apiObjetosDB({
+        aplicacionId: parseInt(aplicacionId),
+        estado: "A",
+        pageSize: 999,
       });
 
-      // Convertir la respuesta de la API al formato interno
-      const objetosFromApi: Objeto[] = response.sdtListaObjetos.map(
-        (item: ListarObjetosItem) => ({
-          id: `obj-${item.ObjetoId}`,
-          nombre: item.ObjetoKey,
-          codigo: item.ObjetoKey,
-          ruta: `/${item.ObjetoKey.toLowerCase()}`,
-          acciones: item.Acciones.map((accion) => ({
-            id: `act-${accion.AccionId}`,
-            nombre: accion.AccionLabel || accion.AccionKey,
-            codigo: accion.AccionCodigo,
-            descripcion: accion.AccionDescripcion,
-            ruta: accion.AccionPath,
-          })),
-        }),
-      );
+      const objetosFromDb: Objeto[] = (response.items ?? []).map((item: any) => ({
+        id: `obj-${item.id}`,
+        nombre: item.label || item.key,
+        codigo: item.key,
+        ruta: item.path || `/${item.key}`,
+        acciones: (item.acciones ?? []).map((a: any) => ({
+          id: `act-${a.id}`,
+          nombre: a.label || a.key,
+          codigo: a.codigo || a.key,
+          descripcion: a.descripcion || "",
+          ruta: a.path || "",
+        })),
+      }));
 
-      setObjetos(objetosFromApi);
-
-      // Colapsar todos los objetos por defecto
-      setCollapsedObjects(new Set(objetosFromApi.map((obj) => obj.id)));
+      setObjetos(objetosFromDb);
+      setCollapsedObjects(new Set(objetosFromDb.map((obj) => obj.id)));
     } catch (error) {
       console.error("Error loading objetos:", error);
-      // Mantener objetos por defecto en caso de error
-      setObjetos([
-        {
-          id: "obj-1",
-          nombre: "Usuarios",
-          codigo: "USERS",
-          ruta: "/usuarios",
-          acciones: [
-            {
-              id: "act-1",
-              nombre: "Ver",
-              codigo: "VIEW",
-              descripcion: "Visualizar usuarios",
-              ruta: "/usuarios/view",
-            },
-            {
-              id: "act-2",
-              nombre: "Crear",
-              codigo: "CREATE",
-              descripcion: "Crear nuevos usuarios",
-              ruta: "/usuarios/create",
-            },
-          ],
-        },
-      ]);
+      setObjetos([]);
     } finally {
       setLoadingObjetos(false);
     }
@@ -589,9 +560,9 @@ export default function FuncionalidadForm({
                       <SelectValue placeholder="Seleccionar aplicación" />
                     </SelectTrigger>
                     <SelectContent>
-                      {APP_OPTIONS.map((app) => (
-                        <SelectItem key={app.value} value={app.value}>
-                          {app.label}
+                      {apps.map((app) => (
+                        <SelectItem key={String(app.id)} value={String(app.id)}>
+                          {app.id} - {app.nombre}
                         </SelectItem>
                       ))}
                     </SelectContent>
