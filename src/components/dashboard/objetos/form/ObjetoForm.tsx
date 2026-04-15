@@ -4,6 +4,7 @@ import {
   apiCrearObjetoDB,
   apiActualizarObjetoDB,
   apiObjetosDB,
+  apiAplicacionesDB,
 } from "@/services/api";
 import { useEffect, useMemo, useState, memo, useRef } from "react";
 import {
@@ -146,13 +147,6 @@ async function generateActionCode(objectKey: string, actionKey: string) {
 export type EstadoCode = "A" | "I";
 export type TipoCode = "MENU" | "SUBMENU" | "PAGE" | "FEATURE";
 
-const APP_OPTIONS = [
-  { value: "1", label: "Security Suite" },
-  { value: "2", label: "Gestión de Sistemas" },
-  { value: "3", label: "GOYA" },
-  { value: "4", label: "SGM" },
-] as const;
-
 export type Accion = {
   uid: string;
   accionid: string;
@@ -195,7 +189,32 @@ export type ObjetoFormProps = {
 };
 
 export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
-  const initialApp = APP_OPTIONS[0];
+  // Aplicaciones dinámicas desde DB
+  const [appOptions, setAppOptions] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    apiAplicacionesDB({ pageSize: 999 })
+      .then((res) => {
+        const opts = (res.items || []).map((a: any) => ({
+          value: String(a.id),
+          label: a.nombre,
+        }));
+        setAppOptions(opts);
+      })
+      .catch(console.error);
+  }, []);
+
+  // Cuando cargan las apps, setear default para crear
+  useEffect(() => {
+    if (appOptions.length > 0 && !initialData?.aplicacionid) {
+      const first = appOptions[0];
+      setForm((prev) =>
+        prev.aplicacionid ? prev : { ...prev, aplicacionid: first.value, objetocreadoen: first.label },
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appOptions]);
+
+  const initialApp = appOptions[0] ?? { value: "", label: "" };
   const defaults: ObjetoFormState = {
     objetoid: "",
     aplicacionid: initialApp.value,
@@ -216,7 +235,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     ...(initialData ?? {}),
     objetocreadoen:
       initialData?.objetocreadoen ??
-      APP_OPTIONS.find(
+      appOptions.find(
         (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
       )?.label ??
       initialApp.label,
@@ -227,7 +246,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       acciondescripcion: a.acciondescripcion ?? "",
       accioncreadoen:
         a.accioncreadoen ??
-        APP_OPTIONS.find(
+        appOptions.find(
           (x) => x.value === (initialData?.aplicacionid ?? initialApp.value),
         )?.label ??
         initialApp.label,
@@ -246,7 +265,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
       ...initialData,
       objetocreadoen:
         initialData.objetocreadoen ??
-        APP_OPTIONS.find(
+        appOptions.find(
           (a) => a.value === (initialData.aplicacionid ?? prev.aplicacionid),
         )?.label ??
         prev.objetocreadoen,
@@ -257,7 +276,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
         acciondescripcion: a.acciondescripcion ?? "",
         accioncreadoen:
           a.accioncreadoen ??
-          APP_OPTIONS.find(
+          appOptions.find(
             (x) => x.value === (initialData.aplicacionid ?? prev.aplicacionid),
           )?.label ??
           prev.objetocreadoen,
@@ -322,7 +341,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     accionkey: "",
     acciondescripcion: "",
     accioncreadoen:
-      APP_OPTIONS.find(
+      appOptions.find(
         (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
       )?.label ?? initialApp.label,
     accioncodigo: "",
@@ -424,7 +443,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
           ...draft,
           uid: newUid,
           accioncreadoen:
-            APP_OPTIONS.find((a) => a.value === prev.aplicacionid)?.label ??
+            appOptions.find((a) => a.value === prev.aplicacionid)?.label ??
             prev.objetocreadoen,
         } as Accion;
         const acciones = [...prev.acciones, newAction];
@@ -442,7 +461,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
         accionkey: "",
         acciondescripcion: "",
         accioncreadoen:
-          APP_OPTIONS.find(
+          appOptions.find(
             (a) => a.value === (initialData?.aplicacionid ?? initialApp.value),
           )?.label ?? initialApp.label,
         accioncodigo: "",
@@ -527,7 +546,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
     setSubmitting(true);
     try {
       const creadoEn =
-        APP_OPTIONS.find((a) => a.value === form.aplicacionid)?.label ??
+        appOptions.find((a) => a.value === form.aplicacionid)?.label ??
         form.objetocreadoen;
 
       const accionesMerged = form.acciones.map((a) => ({
@@ -652,7 +671,7 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 value={form.aplicacionid}
                 onValueChange={(v) => {
                   const app =
-                    APP_OPTIONS.find((a) => a.value === v) ?? APP_OPTIONS[0];
+                    appOptions.find((a) => a.value === v) ?? appOptions[0] ?? { value: "", label: "" };
                   setForm((prev) => ({
                     ...prev,
                     aplicacionid: v,
@@ -671,13 +690,13 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                 <SelectTrigger id="aplicacionid">
                   <SelectValue placeholder="Aplicación">
                     {
-                      APP_OPTIONS.find((a) => a.value === form.aplicacionid)
+                      appOptions.find((a) => a.value === form.aplicacionid)
                         ?.label
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {APP_OPTIONS.map((opt) => (
+                  {appOptions.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.value} - {opt.label}
                     </SelectItem>
