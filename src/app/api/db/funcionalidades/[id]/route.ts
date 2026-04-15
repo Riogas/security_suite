@@ -26,13 +26,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const funcId = parseInt(id);
     const body = await request.json();
-    const { nombre, estado, esPublico, soloRoot, fechaDesde, fechaHasta, acciones } = body;
+    const { nombre, estado, esPublico, soloRoot, objetoKey, accionKey, fechaDesde, fechaHasta, acciones } = body;
 
     const data: any = {};
     if (nombre !== undefined) data.nombre = nombre;
     if (estado !== undefined) data.estado = estado;
     if (esPublico !== undefined) data.esPublico = esPublico;
     if (soloRoot !== undefined) data.soloRoot = soloRoot;
+    if (objetoKey !== undefined) data.objetoKey = objetoKey;
+    if (accionKey !== undefined) data.accionKey = accionKey;
     if (fechaDesde !== undefined) data.fechaDesde = fechaDesde ? new Date(fechaDesde) : null;
     if (fechaHasta !== undefined) data.fechaHasta = fechaHasta ? new Date(fechaHasta) : null;
 

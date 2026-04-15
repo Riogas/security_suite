@@ -1771,6 +1771,8 @@ export const apiCrearFuncionalidadDB = async (data: {
   estado?: string;
   esPublico?: string;
   soloRoot?: string;
+  objetoKey?: string;
+  accionKey?: string;
   fechaDesde?: string;
   fechaHasta?: string;
   acciones?: { accionId: number }[];
@@ -1788,6 +1790,8 @@ export const apiActualizarFuncionalidadDB = async (
     estado?: string;
     esPublico?: string;
     soloRoot?: string;
+    objetoKey?: string;
+    accionKey?: string;
     fechaDesde?: string;
     fechaHasta?: string;
     acciones?: { accionId: number }[];

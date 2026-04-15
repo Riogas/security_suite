@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { aplicacionId, nombre, estado, esPublico, soloRoot, fechaDesde, fechaHasta, acciones } = body;
+    const { aplicacionId, nombre, estado, esPublico, soloRoot, objetoKey, accionKey, fechaDesde, fechaHasta, acciones } = body;
 
     if (!aplicacionId || !nombre) {
       return NextResponse.json({ success: false, error: "aplicacionId y nombre son requeridos" }, { status: 400 });
@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
         estado: estado || "A",
         esPublico: esPublico || "N",
         soloRoot: soloRoot || "N",
+        objetoKey: objetoKey || null,
+        accionKey: accionKey || null,
         fechaDesde: fechaDesde ? new Date(fechaDesde) : null,
         fechaHasta: fechaHasta ? new Date(fechaHasta) : null,
         acciones: acciones?.length

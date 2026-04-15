@@ -46,9 +46,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   apiAplicacionesDB,
   apiObjetosDB,
-  apiAbmFuncionalidades,
+  apiCrearFuncionalidadDB,
+  apiActualizarFuncionalidadDB,
   type AplicacionDB,
-  type AbmFuncionalidadesReq,
 } from "@/services/api";
 
 // Basic types
@@ -230,63 +230,56 @@ export default function FuncionalidadForm({
     try {
       setSaving(true);
 
-      // Construir array de acciones desde los elementos seleccionados
-      const acciones: Array<{ ObjetoId: number; AccionId: number }> = [];
-
-      selectedItems.forEach((item) => {
-        // Si es un objeto, agregar todas sus acciones
-        if ("acciones" in item) {
-          const objeto = item as Objeto;
-          objeto.acciones.forEach((accion) => {
-            const objetoId = parseInt(objeto.id.replace("obj-", ""));
-            const accionId = parseInt(accion.id.replace("act-", ""));
-            acciones.push({ ObjetoId: objetoId, AccionId: accionId });
-          });
+      // Derivar objetoKey / accionKey del primer item seleccionado
+      let objetoKey: string | undefined;
+      let accionKey: string | undefined;
+      if (selectedItems.length > 0) {
+        const first = selectedItems[0];
+        if ("acciones" in first) {
+          // Es un Objeto completo
+          objetoKey = (first as Objeto).codigo;
         } else {
-          // Si es una acción individual
-          const accion = item as SortableAction;
-          const accionId = parseInt(accion.id.replace("act-", ""));
-          // Buscar el objeto padre de esta acción
-          const objetoPadre = objetos.find((obj) =>
-            obj.acciones.some((acc) => acc.id === accion.id),
+          // Es una acción individual — buscar su objeto padre
+          const padre = objetos.find((obj) =>
+            obj.acciones.some((acc) => acc.id === (first as SortableAction).id),
           );
-          if (objetoPadre) {
-            const objetoId = parseInt(objetoPadre.id.replace("obj-", ""));
-            acciones.push({ ObjetoId: objetoId, AccionId: accionId });
-          }
+          if (padre) objetoKey = padre.codigo;
+          accionKey = (first as SortableAction).codigo;
         }
-      });
+      }
 
-      const payload: AbmFuncionalidadesReq = {
-        FuncionalidadId: initialData?.id ? parseInt(initialData.id) : 0,
-        AplicacionId: parseInt(formData.aplicacion),
-        FuncionalidadNombre: formData.nombre,
-        FuncionalidadEstado: formData.estado,
-        FuncionalidadFchIns: new Date().toISOString(),
-        FuncionalidadEsPublico: formData.esPublico ? "S" : "N",
-        FuncionalidadSoloRoot: formData.soloRoot ? "S" : "N",
-        FuncionalidadFchDesde: new Date().toISOString().split("T")[0],
-        FuncionalidadFchHasta: new Date().toISOString().split("T")[0],
-        Accion: acciones,
+      const base = {
+        nombre: formData.nombre,
+        estado: formData.estado,
+        esPublico: formData.esPublico ? "S" : "N",
+        soloRoot: formData.soloRoot ? "S" : "N",
+        ...(objetoKey ? { objetoKey } : {}),
+        ...(accionKey ? { accionKey } : {}),
       };
 
-      console.log("Guardando funcionalidad:", payload);
-      const result = await apiAbmFuncionalidades(payload);
+      let result;
+      if (mode === "edit" && initialData?.id) {
+        result = await apiActualizarFuncionalidadDB(parseInt(initialData.id), base);
+      } else {
+        result = await apiCrearFuncionalidadDB({
+          aplicacionId: parseInt(formData.aplicacion),
+          ...base,
+        });
+      }
 
       if (result.success) {
         if (onSave) {
           onSave({
             ...formData,
             selectedItems,
-            id: result.FuncionalidadId || initialData?.id,
+            id: result.funcionalidad?.id || initialData?.id,
           });
         }
       } else {
-        throw new Error(result.message || "Error al guardar la funcionalidad");
+        throw new Error(result.error || "Error al guardar la funcionalidad");
       }
     } catch (error) {
       console.error("Error guardando funcionalidad:", error);
-      // Aquí podrías agregar un toast o mensaje de error
     } finally {
       setSaving(false);
     }
