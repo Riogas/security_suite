@@ -1938,14 +1938,23 @@ export const apiActualizarAccionDB = async (id: number, data: { nombre?: string;
 export const apiEliminarAccionDB = async (id: number) =>
   dbFetch(`/api/db/acciones/${id}`, { method: "DELETE" });
 
-// Acciones de una funcionalidad específica
+// Objetos+Acciones seleccionados de una funcionalidad (nueva tabla funcionalidad_objeto_acciones)
 export const apiAccionesFuncionalidadDB = async (funcionalidadId: number) =>
   dbFetch(`/api/db/funcionalidades/${funcionalidadId}/acciones`);
 
-export const apiSetAccionesFuncionalidadDB = async (funcionalidadId: number, accionIds: number[]) =>
+export interface FuncionalidadObjetoAccionItem {
+  objetoId: number;
+  objetoAccionId?: number | null;
+}
+
+export const apiSetAccionesFuncionalidadDB = async (
+  funcionalidadId: number,
+  items: FuncionalidadObjetoAccionItem[]
+) =>
   dbFetch(`/api/db/funcionalidades/${funcionalidadId}/acciones`, {
     method: "PUT",
-    body: JSON.stringify({ accionIds }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
   });
 
 // ─── Menú DB ─────────────────────────────────────────────────────────────────

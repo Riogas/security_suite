@@ -94,9 +94,10 @@ export default function EditarFuncionalidadPage() {
     estado: (funcionalidad.estado ?? "A") as "A" | "I",
     esPublico: funcionalidad.esPublico === "S",
     soloRoot: funcionalidad.soloRoot === "S",
-    acciones: (funcionalidad.acciones ?? []).map((a: any) => ({
-      AccionId: a.id,
-      ObjetoId: a.id,
+    // items del nuevo endpoint: [{ objetoId, objetoAccionId }]
+    selectedItems: (funcionalidad.acciones ?? []).map((item: any) => ({
+      objetoId: item.objetoId,
+      objetoAccionId: item.objetoAccionId ?? null,
     })),
   };
 

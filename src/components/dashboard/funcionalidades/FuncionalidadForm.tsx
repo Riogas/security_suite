@@ -48,6 +48,7 @@ import {
   apiObjetosDB,
   apiCrearFuncionalidadDB,
   apiActualizarFuncionalidadDB,
+  apiSetAccionesFuncionalidadDB,
   type AplicacionDB,
 } from "@/services/api";
 
@@ -79,7 +80,8 @@ interface FuncionalidadFormProps {
     estado?: EstadoCode;
     esPublico?: boolean;
     soloRoot?: boolean;
-    acciones?: Array<{ AccionId: number; ObjetoId: number }>;
+    // items de FuncionalidadObjetoAccion para restaurar la selección
+    selectedItems?: Array<{ objetoId: number; objetoAccionId: number | null }>;
   };
   onSave?: (data: any) => void;
   onCancel?: () => void;
@@ -175,47 +177,28 @@ export default function FuncionalidadForm({
 
   // Efecto para pre-seleccionar elementos en modo edición
   useEffect(() => {
-    if (mode === "edit" && initialData?.acciones && objetos.length > 0) {
-      const elementosASeleccionar: (Objeto | SortableAction)[] = [];
+    if (mode !== "edit" || !initialData?.selectedItems?.length || !objetos.length) return;
 
-      // Agrupar acciones por objeto
-      const accionesPorObjeto = new Map<number, number[]>();
-      initialData.acciones.forEach((accion) => {
-        const objetoId = accion.ObjetoId;
-        if (!accionesPorObjeto.has(objetoId)) {
-          accionesPorObjeto.set(objetoId, []);
-        }
-        accionesPorObjeto.get(objetoId)!.push(accion.AccionId);
-      });
+    const elementos: (Objeto | SortableAction)[] = [];
 
-      // Para cada objeto, verificar si seleccionar el objeto completo o acciones individuales
-      accionesPorObjeto.forEach((accionIds, objetoId) => {
-        const objeto = objetos.find(
-          (obj) => parseInt(obj.id.replace("obj-", "")) === objetoId,
+    for (const item of initialData.selectedItems) {
+      const objeto = objetos.find((o) => parseInt(o.id.replace("obj-", "")) === item.objetoId);
+      if (!objeto) continue;
+
+      if (item.objetoAccionId === null) {
+        // Objeto entero seleccionado
+        elementos.push(objeto);
+      } else {
+        // Acción individual
+        const accion = objeto.acciones.find(
+          (a) => parseInt(a.id.replace("act-", "")) === item.objetoAccionId,
         );
-        if (!objeto) return;
-
-        // Si todas las acciones del objeto están seleccionadas, seleccionar el objeto completo
-        const todasLasAccionesSeleccionadas = objeto.acciones.every((accion) =>
-          accionIds.includes(parseInt(accion.id.replace("act-", ""))),
-        );
-
-        if (todasLasAccionesSeleccionadas) {
-          elementosASeleccionar.push(objeto);
-        } else {
-          // Seleccionar acciones individuales
-          objeto.acciones.forEach((accion) => {
-            const accionId = parseInt(accion.id.replace("act-", ""));
-            if (accionIds.includes(accionId)) {
-              elementosASeleccionar.push(accion);
-            }
-          });
-        }
-      });
-
-      setSelectedItems(elementosASeleccionar);
+        if (accion) elementos.push(accion);
+      }
     }
-  }, [mode, initialData?.acciones, objetos]);
+
+    setSelectedItems(elementos);
+  }, [mode, initialData?.selectedItems, objetos]);
 
   // Sensores para el drag and drop
   const sensors = useSensors(useSensor(PointerSensor));
@@ -230,23 +213,36 @@ export default function FuncionalidadForm({
     try {
       setSaving(true);
 
-      // Derivar objetoKey / accionKey del primer item seleccionado
+      // Construir el array de items para FuncionalidadObjetoAccion
+      const objetoItems: { objetoId: number; objetoAccionId: number | null }[] = [];
+
+      // También derivar objetoKey / accionKey del primer item
       let objetoKey: string | undefined;
       let accionKey: string | undefined;
-      if (selectedItems.length > 0) {
-        const first = selectedItems[0];
-        if ("acciones" in first) {
-          // Es un Objeto completo
-          objetoKey = (first as Objeto).codigo;
+
+      selectedItems.forEach((item) => {
+        if ("acciones" in item) {
+          // Es un Objeto completo: una entrada por cada una de sus acciones
+          const objeto = item as Objeto;
+          const objetoId = parseInt(objeto.id.replace("obj-", ""));
+          objeto.acciones.forEach((a) => {
+            objetoItems.push({ objetoId, objetoAccionId: parseInt(a.id.replace("act-", "")) });
+          });
+          if (!objetoKey) objetoKey = objeto.codigo;
         } else {
-          // Es una acción individual — buscar su objeto padre
+          // Es una acción individual
+          const accion = item as SortableAction;
+          const accionId = parseInt(accion.id.replace("act-", ""));
           const padre = objetos.find((obj) =>
-            obj.acciones.some((acc) => acc.id === (first as SortableAction).id),
+            obj.acciones.some((acc) => acc.id === accion.id),
           );
-          if (padre) objetoKey = padre.codigo;
-          accionKey = (first as SortableAction).codigo;
+          if (padre) {
+            const objetoId = parseInt(padre.id.replace("obj-", ""));
+            objetoItems.push({ objetoId, objetoAccionId: accionId });
+            if (!objetoKey) { objetoKey = padre.codigo; accionKey = accion.codigo; }
+          }
         }
-      }
+      });
 
       const base = {
         nombre: formData.nombre,
@@ -267,16 +263,19 @@ export default function FuncionalidadForm({
         });
       }
 
-      if (result.success) {
-        if (onSave) {
-          onSave({
-            ...formData,
-            selectedItems,
-            id: result.funcionalidad?.id || initialData?.id,
-          });
-        }
-      } else {
-        throw new Error(result.error || "Error al guardar la funcionalidad");
+      if (!result.success) throw new Error(result.error || "Error al guardar la funcionalidad");
+
+      const funcId = result.funcionalidad?.id
+        ? result.funcionalidad.id
+        : initialData?.id ? parseInt(initialData.id) : null;
+
+      // Guardar los items seleccionados en FuncionalidadObjetoAccion
+      if (funcId !== null) {
+        await apiSetAccionesFuncionalidadDB(funcId, objetoItems);
+      }
+
+      if (onSave) {
+        onSave({ ...formData, selectedItems, id: funcId });
       }
     } catch (error) {
       console.error("Error guardando funcionalidad:", error);

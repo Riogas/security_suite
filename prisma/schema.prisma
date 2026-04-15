@@ -115,6 +115,7 @@ model Funcionalidad {
   accionKey     String?               @map("accion_key") @db.VarChar(60)
   accesos       Acceso[]
   acciones      FuncionalidadAccion[]
+  objetoAcciones FuncionalidadObjetoAccion[]
   aplicacion    Aplicacion            @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   roles         RolFuncionalidad[]
 
@@ -176,6 +177,7 @@ model Objeto {
   parent        Objeto?        @relation("ObjetoHijos", fields: [parentId], references: [id])
   hijos         Objeto[]       @relation("ObjetoHijos")
   acciones      ObjetoAccion[]
+  funcionalidades FuncionalidadObjetoAccion[]
 
   @@index([aplicacionId], map: "idx_objetos_aplicacion")
   @@index([estado], map: "idx_objetos_estado")
@@ -194,9 +196,25 @@ model ObjetoAccion {
   relacion    Int?
   creadoEn    String? @map("creado_en") @db.VarChar(60)
   objeto      Objeto  @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  funcionalidades FuncionalidadObjetoAccion[]
 
   @@index([objetoId], map: "idx_objeto_acciones_objeto")
   @@map("objeto_acciones")
+}
+
+// Relación entre Funcionalidad y los ObjetoAccion seleccionados en el formulario
+model FuncionalidadObjetoAccion {
+  id              Int           @id @default(autoincrement())
+  funcionalidadId Int           @map("funcionalidad_id")
+  objetoId        Int           @map("objeto_id")
+  objetoAccionId  Int?          @map("objeto_accion_id")
+  funcionalidad   Funcionalidad @relation(fields: [funcionalidadId], references: [id], onDelete: Cascade)
+  objeto          Objeto        @relation(fields: [objetoId], references: [id], onDelete: Cascade)
+  objetoAccion    ObjetoAccion? @relation(fields: [objetoAccionId], references: [id], onDelete: Cascade)
+
+  @@unique([funcionalidadId, objetoId, objetoAccionId])
+  @@index([funcionalidadId], map: "idx_func_obj_acc_func")
+  @@map("funcionalidad_objeto_acciones")
 }
 
 model RolFuncionalidad {
