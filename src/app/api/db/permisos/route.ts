@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // =====================================================================
@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 //   { Permitido: boolean, permitido: boolean, allowed: boolean, ok: boolean, reason?: string }
 // =====================================================================
 
-/** Decodifica JWT sin verificar firma — igual que el middleware Edge */
+/** Decodifica JWT sin verificar firma â€” igual que el middleware Edge */
 function decodeJwt(token: string): Record<string, any> | null {
   try {
     const parts = token.split(".");
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const objetoKey = String(ObjetoKey).trim();
     const accionKey = String(AccionKey).trim().toLowerCase();
 
-    // ── 1. JWT ────────────────────────────────────────────────────────
+    // â”€â”€ 1. JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const token = extractToken(request);
     if (!token) return denyWith("NO_TOKEN", 401);
 
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     const usernameStr = String(rawUsername).trim();
 
-    // ── 2. Usuario ────────────────────────────────────────────────────
+    // â”€â”€ 2. Usuario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
@@ -89,17 +89,17 @@ export async function POST(request: NextRequest) {
 
     if (!usuario) return denyWith("USER_NOT_FOUND");
 
-    // ── 3. Root siempre permite ───────────────────────────────────────
+    // â”€â”€ 3. Root siempre permite â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (usuario.esRoot === "S") return allowWith("ROOT");
 
-    // ── 4. Objeto público → permite sin más checks ────────────────────
+    // â”€â”€ 4. Objeto pÃºblico â†’ permite sin mÃ¡s checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const objeto = await prisma.objeto.findFirst({
       where: { key: objetoKey, aplicacionId, estado: "A" },
       select: { esPublico: true },
     });
     if (objeto?.esPublico === "S") return allowWith("PUBLIC_OBJECT");
 
-    // ── 5. Buscar funcionalidades que cubran este objeto+acción ───────
+    // â”€â”€ 5. Buscar funcionalidades que cubran este objeto+acciÃ³n â”€â”€â”€â”€â”€â”€â”€
     const now = new Date();
     const funcionalidades = await prisma.funcionalidad.findMany({
       where: {
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, esPublico: true, soloRoot: true },
     });
 
-    // Funcionalidad pública
+    // Funcionalidad pÃºblica
     if (funcionalidades.some((f) => f.esPublico === "S")) return allowWith("PUBLIC_FUNCIONALIDAD");
 
     if (funcionalidades.length === 0) return denyWith("NO_FUNCIONALIDAD_DEFINED");
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     const funcIds = funcionalidades.filter((f) => f.soloRoot !== "S").map((f) => f.id);
 
-    // ── 6. Acceso directo (usuario → funcionalidad) ───────────────────
+    // â”€â”€ 6. Acceso directo (usuario â†’ funcionalidad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const accesoDirecto = await prisma.acceso.findFirst({
       where: {
         usuarioId:       usuario.id,
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     });
     if (accesoDirecto) return allowWith("DIRECT_ACCESO");
 
-    // ── 7. Acceso vía rol (usuario → rol → funcionalidad) ─────────────
+    // â”€â”€ 7. Acceso vÃ­a rol (usuario â†’ rol â†’ funcionalidad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const rolesActivos = await prisma.usuarioRol.findMany({
       where: {
         usuarioId: usuario.id,
@@ -159,190 +159,11 @@ export async function POST(request: NextRequest) {
       if (rolFuncionalidad) return allowWith("ROL_FUNCIONALIDAD");
     }
 
-    // ── 8. Sin acceso ─────────────────────────────────────────────────
+    // â”€â”€ 8. Sin acceso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     return denyWith("ACCESS_DENIED");
 
   } catch (error) {
     console.error("[API/db/permisos POST]", error);
     return denyWith("SERVER_ERROR", 500);
-  }
-}
-
-
-const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
-
-// Mapeo path → funcionalidad key (igual que en el sidebar)
-const PATH_TO_FUNC: Record<string, string> = {
-  "/usuarios":        "usuarios",
-  "/roles":           "roles",
-  "/aplicaciones":    "aplicaciones",
-  "/funcionalidades": "funcionalidades",
-  "/accesos":         "accesos",
-  "/objetos":         "objetos",
-};
-
-function pathToFuncKey(objetoPath: string): string | null {
-  // "/dashboard/usuarios" → "/usuarios" → "usuarios"
-  const clean = objetoPath.startsWith("/dashboard")
-    ? objetoPath.slice("/dashboard".length)
-    : objetoPath;
-  // tomar el primer segmento
-  const firstSegment = "/" + (clean.split("/").filter(Boolean)[0] || "");
-  return PATH_TO_FUNC[firstSegment] ?? null;
-}
-
-/**
- * POST /api/db/permisos
- * Verifica si el usuario tiene acceso a un path/funcionalidad.
- *
- * Body (compatible con el formato que envía el middleware):
- * {
- *   AplicacionId?: number,
- *   ObjetoKey?: string,
- *   ObjetoPath?: string,   // e.g. "/usuarios" o "/dashboard/usuarios"
- *   ObjetoTipo?: string,
- *   AccionKey?: string,
- *   AccionCodigo?: string
- * }
- *
- * Auth: Bearer <JWT> en Authorization header
- *
- * Respuesta: { Permitido: boolean, allowed: boolean, via: string }
- */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { AplicacionId, ObjetoKey, ObjetoPath } = body;
-
-    // Extraer token del header o cookie
-    const authHeader = request.headers.get("authorization") || "";
-    const cookieToken = request.cookies.get("token")?.value;
-    const rawToken = authHeader.replace("Bearer ", "") || cookieToken || "";
-
-    if (!rawToken) {
-      return NextResponse.json(
-        { Permitido: false, allowed: false, message: "Sin autenticación" },
-        { status: 401 },
-      );
-    }
-
-    // Verificar y decodificar JWT
-    let decoded: any;
-    try {
-      decoded = jwt.verify(rawToken, JWT_SECRET);
-    } catch {
-      return NextResponse.json(
-        { Permitido: false, allowed: false, message: "Token inválido" },
-        { status: 401 },
-      );
-    }
-
-    const userId: number = decoded.userId;
-    const isRoot = decoded.isRoot === "S";
-
-    // Root siempre tiene acceso
-    if (isRoot) {
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "root" });
-    }
-
-    // Verificar si el usuario existe y está activo
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: userId },
-      select: { estado: true, esRoot: true },
-    });
-
-    if (!usuario || usuario.estado !== "A") {
-      return NextResponse.json({ Permitido: false, allowed: false, message: "Usuario inactivo" });
-    }
-
-    if (usuario.esRoot === "S") {
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "root" });
-    }
-
-    // Determinar la funcionalidad a chequear
-    const funcKey = pathToFuncKey(ObjetoPath || `/${ObjetoKey || ""}`) || ObjetoKey;
-
-    if (!funcKey) {
-      // Path no mapeado → permitir (ruta sin restricción)
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "unmapped" });
-    }
-
-    const aplicacionId = Number(
-      AplicacionId || process.env.NEXT_PUBLIC_APLICACION_ID || process.env.APLICACION_ID || 0,
-    );
-
-    // Buscar la funcionalidad por nombre
-    const funcionalidad = await prisma.funcionalidad.findFirst({
-      where: {
-        nombre: { equals: funcKey, mode: "insensitive" },
-        estado: "A",
-        ...(aplicacionId ? { aplicacionId } : {}),
-      },
-      select: { id: true, esPublico: true, soloRoot: true },
-    });
-
-    if (!funcionalidad) {
-      // Funcionalidad no registrada en DB → permitir (no bloqueamos lo que no conocemos)
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "not-registered" });
-    }
-
-    // Funcionalidad pública → siempre permitida
-    if (funcionalidad.esPublico === "S") {
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "public" });
-    }
-
-    // soloRoot → deniega si no es root
-    if (funcionalidad.soloRoot === "S") {
-      return NextResponse.json({ Permitido: false, allowed: false, message: "Solo root" });
-    }
-
-    // Chequear acceso directo
-    const accesoDirecto = await prisma.acceso.findFirst({
-      where: {
-        usuarioId: userId,
-        funcionalidadId: funcionalidad.id,
-        efecto: "ALLOW",
-        OR: [
-          { fechaHasta: null },
-          { fechaHasta: { gte: new Date() } },
-        ],
-      },
-    });
-
-    if (accesoDirecto) {
-      return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "direct-access" });
-    }
-
-    // Chequear acceso vía roles
-    const rolesUsuario = await prisma.usuarioRol.findMany({
-      where: {
-        usuarioId: userId,
-        OR: [
-          { fechaHasta: null },
-          { fechaHasta: { gte: new Date() } },
-        ],
-      },
-      select: { rolId: true },
-    });
-
-    if (rolesUsuario.length > 0) {
-      const rolIds = rolesUsuario.map((r) => r.rolId);
-      const rolConAcceso = await prisma.rolFuncionalidad.findFirst({
-        where: {
-          funcionalidadId: funcionalidad.id,
-          rolId: { in: rolIds },
-        },
-      });
-
-      if (rolConAcceso) {
-        return NextResponse.json({ Permitido: true, allowed: true, ok: true, via: "role" });
-      }
-    }
-
-    // Sin acceso
-    return NextResponse.json({ Permitido: false, allowed: false, message: "Sin permisos" });
-  } catch (error) {
-    console.error("[API/db/permisos POST]", error);
-    return NextResponse.json({ success: false, error: "Error al verificar permisos" }, { status: 500 });
   }
 }
