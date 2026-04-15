@@ -41,9 +41,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Users, Shield, Lock, Save } from "lucide-react";
 import {
-  apiAbmRoles,
-  apiListarFuncionalidades,
-  AbmRolesReq,
+  apiAplicacionesDB,
+  apiFuncionalidadesDB,
+  apiCrearRolDB,
+  apiActualizarRolDB,
 } from "@/services/api";
 
 export type EstadoCode = "A" | "I";
@@ -74,11 +75,6 @@ export type RoleFormProps = {
   onSubmit?: (data: RolFormState) => void | Promise<void>;
 };
 
-const APP_OPTIONS = [
-  { value: "2", label: "Security Suite" },
-  { value: "3", label: "GOYA" },
-] as const;
-
 export default function RoleForm({
   initialData,
   initialFuncionalidades,
@@ -86,7 +82,20 @@ export default function RoleForm({
 }: RoleFormProps) {
   const router = useRouter();
 
-  const initialApp = APP_OPTIONS[0];
+  // Aplicaciones dinámicas desde DB
+  const [appOptions, setAppOptions] = useState<{ value: string; label: string }[]>([]);
+  useEffect(() => {
+    apiAplicacionesDB({ pageSize: 999, estado: "A" })
+      .then((res) =>
+        setAppOptions(
+          (res.items || []).map((a: any) => ({ value: String(a.id), label: a.nombre }))
+        )
+      )
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initialApp = appOptions[0] ?? { value: "", label: "" };
 
   const defaults: RolFormState = {
     rolid: "",
@@ -101,7 +110,7 @@ export default function RoleForm({
 
   const computeCreatedEn = (aplicacionid?: string, rolcreadoen?: string) =>
     rolcreadoen ??
-    APP_OPTIONS.find((a) => a.value === (aplicacionid ?? initialApp.value))
+    appOptions.find((a) => a.value === (aplicacionid ?? initialApp.value))
       ?.label ??
     initialApp.label;
 
@@ -126,143 +135,37 @@ export default function RoleForm({
   const [isLoadingFuncionalidades, setIsLoadingFuncionalidades] =
     useState(true);
 
-  // Cargar funcionalidades desde la API
+  // Cargar funcionalidades desde PostgreSQL, filtradas por aplicación seleccionada
   useEffect(() => {
+    if (!form.aplicacionid) return;
     const cargarFuncionalidades = async () => {
       try {
         setIsLoadingFuncionalidades(true);
-        const response = await apiListarFuncionalidades({
-          AplicacionId: parseInt(form.aplicacionid) || 2,
+        const response = await apiFuncionalidadesDB({
+          aplicacionId: parseInt(form.aplicacionid),
+          estado: "A",
+          pageSize: 999,
         });
-
-        if (
-          response.sdtFuncionalidades &&
-          Array.isArray(response.sdtFuncionalidades)
-        ) {
-          const funcionalidades: FuncionalidadItem[] =
-            response.sdtFuncionalidades.map((func) => ({
-              id: func.FuncionalidadId.toString(),
-              nombre: func.FuncionalidadNombre,
-              descripcion: "", // La API no tiene descripción disponible
-              objetosCount: func.Accion?.length || 0,
-              accionesCount: func.Accion?.length || 0,
-            }));
-
-          // Filtrar las funcionalidades que ya están asignadas
-          const funcionalidadesAsignadasIds = new Set(
-            (initialFuncionalidades || []).map((f) => f.id),
-          );
-          const funcionalidadesFiltradas = funcionalidades.filter(
-            (func) => !funcionalidadesAsignadasIds.has(func.id),
-          );
-
-          setFuncionalidadesDisponibles(funcionalidadesFiltradas);
-        } else {
-          // Usar datos mock como fallback
-          const mockFuncionalidades = [
-            {
-              id: "1",
-              nombre: "Gestión de Usuarios",
-              descripcion: "Administración completa de usuarios del sistema",
-              objetosCount: 8,
-              accionesCount: 24,
-            },
-            {
-              id: "2",
-              nombre: "Control de Acceso",
-              descripcion: "Configuración de permisos y roles",
-              objetosCount: 5,
-              accionesCount: 15,
-            },
-            {
-              id: "3",
-              nombre: "Auditoría y Logs",
-              descripcion: "Monitoreo y seguimiento de actividades",
-              objetosCount: 3,
-              accionesCount: 9,
-            },
-            {
-              id: "4",
-              nombre: "Configuración Sistema",
-              descripcion: "Parámetros generales del sistema",
-              objetosCount: 6,
-              accionesCount: 18,
-            },
-            {
-              id: "5",
-              nombre: "Reportes de Seguridad",
-              descripcion: "Generación de informes y estadísticas",
-              objetosCount: 4,
-              accionesCount: 12,
-            },
-          ];
-
-          // Filtrar las funcionalidades que ya están asignadas
-          const funcionalidadesAsignadasIds = new Set(
-            (initialFuncionalidades || []).map((f) => f.id),
-          );
-          const funcionalidadesFiltradas = mockFuncionalidades.filter(
-            (func) => !funcionalidadesAsignadasIds.has(func.id),
-          );
-
-          setFuncionalidadesDisponibles(funcionalidadesFiltradas);
-        }
+        const asignadasIds = new Set((initialFuncionalidades || []).map((f) => f.id));
+        const disponibles: FuncionalidadItem[] = (response.items || [])
+          .filter((f) => !asignadasIds.has(String(f.id)))
+          .map((f) => ({
+            id: String(f.id),
+            nombre: f.nombre,
+            descripcion: f.objetoKey ? `${f.objetoKey} · ${f.accionKey ?? ""}` : "",
+            objetosCount: 0,
+            accionesCount: f.acciones?.length ?? 0,
+          }));
+        setFuncionalidadesDisponibles(disponibles);
       } catch (error) {
         console.error("Error al cargar funcionalidades:", error);
-        // En caso de error, usar datos mock como fallback
-        const mockFuncionalidades = [
-          {
-            id: "1",
-            nombre: "Gestión de Usuarios",
-            descripcion: "Administración completa de usuarios del sistema",
-            objetosCount: 8,
-            accionesCount: 24,
-          },
-          {
-            id: "2",
-            nombre: "Control de Acceso",
-            descripcion: "Configuración de permisos y roles",
-            objetosCount: 5,
-            accionesCount: 15,
-          },
-          {
-            id: "3",
-            nombre: "Auditoría y Logs",
-            descripcion: "Monitoreo y seguimiento de actividades",
-            objetosCount: 3,
-            accionesCount: 9,
-          },
-          {
-            id: "4",
-            nombre: "Configuración Sistema",
-            descripcion: "Parámetros generales del sistema",
-            objetosCount: 6,
-            accionesCount: 18,
-          },
-          {
-            id: "5",
-            nombre: "Reportes de Seguridad",
-            descripcion: "Generación de informes y estadísticas",
-            objetosCount: 4,
-            accionesCount: 12,
-          },
-        ];
-
-        // Filtrar las funcionalidades que ya están asignadas
-        const funcionalidadesAsignadasIds = new Set(
-          (initialFuncionalidades || []).map((f) => f.id),
-        );
-        const funcionalidadesFiltradas = mockFuncionalidades.filter(
-          (func) => !funcionalidadesAsignadasIds.has(func.id),
-        );
-
-        setFuncionalidadesDisponibles(funcionalidadesFiltradas);
+        setFuncionalidadesDisponibles([]);
       } finally {
         setIsLoadingFuncionalidades(false);
       }
     };
-
     cargarFuncionalidades();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.aplicacionid]);
 
   // Configuración del sensor para drag
@@ -295,39 +198,27 @@ export default function RoleForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
-      // Construir el payload para la API
-      const payload: AbmRolesReq = {
-        RolId: parseInt(form.rolid) || 0,
-        AplicacionId: parseInt(form.aplicacionid),
-        RolNombre: form.rolnombre,
-        RolDescripcion: form.roldescripcion,
-        RolEstado: form.rolestado,
-        RolNivel: form.rolnivel,
-        RolFchIns: form.rolfchins,
-        RolCreadoEn: form.rolcreadoen,
-        Funcionalidad: funcionalidadesAsignadas.map((func) => ({
-          FuncionalidadId: parseInt(func.id),
-          RolFuncionalidadFchIns: new Date().toISOString(),
+      const rolId = parseInt(form.rolid) || 0;
+      const dbPayload = {
+        aplicacionId: parseInt(form.aplicacionid),
+        nombre: form.rolnombre,
+        descripcion: form.roldescripcion || undefined,
+        estado: form.rolestado,
+        nivel: form.rolnivel,
+        creadoEn: form.rolcreadoen,
+        funcionalidades: funcionalidadesAsignadas.map((func) => ({
+          funcionalidadId: parseInt(func.id),
         })),
       };
-
-      console.log("Enviando datos del rol:", payload);
-
-      const response = await apiAbmRoles(payload);
-
-      if (response.success) {
-        console.log("Rol guardado exitosamente:", response);
-        // Opcional: mostrar mensaje de éxito y redirigir
-        router.push("/dashboard/roles");
+      if (rolId > 0) {
+        await apiActualizarRolDB(rolId, dbPayload);
       } else {
-        console.error("Error al guardar el rol:", response.message);
-        // Aquí podrías mostrar un toast de error
+        await apiCrearRolDB(dbPayload);
       }
+      router.push("/dashboard/roles");
     } catch (error) {
       console.error("Error en handleSubmit:", error);
-      // Aquí podrías mostrar un toast de error
     }
   };
 
@@ -623,7 +514,7 @@ export default function RoleForm({
                   value={form.aplicacionid}
                   onValueChange={(v) => {
                     const app =
-                      APP_OPTIONS.find((a) => a.value === v) ?? initialApp;
+                      appOptions.find((a) => a.value === v) ?? initialApp;
                     setForm((prev) => ({
                       ...prev,
                       aplicacionid: v,
@@ -634,13 +525,13 @@ export default function RoleForm({
                   <SelectTrigger id="aplicacionid">
                     <SelectValue placeholder="Aplicación">
                       {
-                        APP_OPTIONS.find((a) => a.value === form.aplicacionid)
+                        appOptions.find((a) => a.value === form.aplicacionid)
                           ?.label
                       }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {APP_OPTIONS.map((opt) => (
+                    {appOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.value} - {opt.label}
                       </SelectItem>

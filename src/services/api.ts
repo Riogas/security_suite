@@ -1726,6 +1726,8 @@ export interface FuncionalidadDB {
   estado: string;
   esPublico: string;
   soloRoot: string;
+  objetoKey: string | null;
+  accionKey: string | null;
   fechaDesde: string | null;
   fechaHasta: string | null;
   fechaCreacion: string;
