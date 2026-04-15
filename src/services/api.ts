@@ -180,15 +180,14 @@ export const apiLoginUser = async (body: {
 };
 
 // =====================
-// ✅ Validación de permisos (POST /Permisos)
+// ✅ Validación de permisos — usa endpoint interno PostgreSQL (/api/db/permisos)
 // Body requerido:
 // { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey, ObjetoPath? }
-// Nota: ObjetoPath se deriva de la URL actual si no se provee, quitando el prefijo /dashboard
 // =====================
 
 export type ValidarPermisoReq = {
   AplicacionId: string | number;
-  ObjetoKey: string; // ej: "page.dashboard.usuarios.add"
+  ObjetoKey: string; // ej: "estadistica"
   ObjetoTipo: "MENU" | "PAGE" | "FEATURE" | string;
   AccionKey:
     | "view"
@@ -221,6 +220,19 @@ function deriveObjetoPath(input?: string): string | undefined {
   return undefined;
 }
 
+/** Lee el JWT desde cookie o localStorage — igual que el interceptor de axios */
+function getAuthToken(): string | null {
+  if (typeof document !== "undefined") {
+    const match = document.cookie.match(/(?:^|; )token=([^;]*)/);
+    if (match?.[1]) return match[1];
+  }
+  if (typeof window !== "undefined") {
+    const ls = localStorage.getItem("token");
+    if (ls) return ls;
+  }
+  return null;
+}
+
 export const apiValidarPermiso = async (
   payload: ValidarPermisoReq,
   opts?: { signal?: AbortSignal },
@@ -229,32 +241,24 @@ export const apiValidarPermiso = async (
     const body = {
       ...payload,
       ObjetoPath: deriveObjetoPath(payload.ObjetoPath),
-    } as Record<string, unknown>;
+    };
 
-    const res = await api.post(
-      "/Permisos", // ⬅️ endpoint solicitado
-      body, // ⬅️ { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey, ObjetoPath }
-      { signal: opts?.signal, withCredentials: true },
-    );
+    const token = getAuthToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const permitido =
-      (res.data as any)?.permitido === true ||
-      (res.data as any)?.ok === true ||
-      (res.data as any)?.success === true;
+    const res = await fetch("/api/db/permisos", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: opts?.signal,
+      credentials: "include", // envía también la cookie token como fallback
+    });
 
-    return {
-      permitido,
-      redirect: (res.data as any)?.redirect,
-      reason: (res.data as any)?.reason,
-      ...(res.data as any),
-    } as ValidarPermisoResp;
-  } catch (error: any) {
-    const status = error?.response?.status;
+    const data = await res.json();
 
-    if (status === 401) {
-      try {
-        clearSentryUser();
-      } catch {}
+    if (res.status === 401) {
+      try { clearSentryUser(); } catch {}
       try {
         if (typeof window !== "undefined") {
           localStorage.removeItem("user");
@@ -269,14 +273,22 @@ export const apiValidarPermiso = async (
       throw e;
     }
 
-    if (status === 403) {
-      return {
-        permitido: false,
-        reason: error?.response?.data?.reason || "FORBIDDEN",
-      } as ValidarPermisoResp;
-    }
+    const permitido =
+      data?.Permitido === true ||
+      data?.permitido === true ||
+      data?.allowed === true ||
+      data?.ok === true;
 
-    throw error;
+    return {
+      permitido,
+      redirect: data?.redirect,
+      reason: data?.reason,
+      ...data,
+    } as ValidarPermisoResp;
+  } catch (error: any) {
+    if (error?.message === "UNAUTHORIZED") throw error;
+    // En caso de error de red → denegar conservadoramente
+    return { permitido: false, reason: "FETCH_ERROR" } as ValidarPermisoResp;
   }
 };
 
