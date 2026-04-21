@@ -6,12 +6,39 @@ const router = express.Router();
 
 const ENCRYPT_KEY = process.env.AS400_ENCRYPT_KEY || 'e57bfc8ea91ab3e2f1201b5b3612eea2';
 
-// GeneXus Encrypt64: AES-256-ECB, key como UTF-8, resultado en Base64
 function encrypt64(text, key) {
   const keyBuf = Buffer.alloc(32);
   Buffer.from(key, 'utf8').copy(keyBuf);
   const cipher = crypto.createCipheriv('aes-256-ecb', keyBuf, null);
   return Buffer.concat([cipher.update(Buffer.from(text, 'utf8')), cipher.final()]).toString('base64');
+}
+
+function encrypt64Variants(text, key) {
+  const input = Buffer.from(text, 'utf8');
+  const results = {};
+
+  // V1 (actual): AES-256, key como UTF-8 (32 bytes)
+  try {
+    const k = Buffer.alloc(32); Buffer.from(key, 'utf8').copy(k);
+    const c = crypto.createCipheriv('aes-256-ecb', k, null);
+    results.v1_aes256_utf8 = Buffer.concat([c.update(input), c.final()]).toString('base64');
+  } catch {}
+
+  // V2: AES-128, key como hex (16 bytes)
+  try {
+    const k = Buffer.from(key, 'hex');
+    const c = crypto.createCipheriv('aes-128-ecb', k, null);
+    results.v2_aes128_hex = Buffer.concat([c.update(input), c.final()]).toString('base64');
+  } catch {}
+
+  // V3: AES-256, key como hex (16 bytes) + 16 zeros
+  try {
+    const k = Buffer.alloc(32); Buffer.from(key, 'hex').copy(k);
+    const c = crypto.createCipheriv('aes-256-ecb', k, null);
+    results.v3_aes256_hex = Buffer.concat([c.update(input), c.final()]).toString('base64');
+  } catch {}
+
+  return results;
 }
 
 /**
@@ -53,8 +80,12 @@ router.post('/as400', async (req, res) => {
     const storedPassword = (row.USUMOBILEPASSWORD || '').trim();
     const encryptedInput = encrypt64(password, ENCRYPT_KEY);
 
+    const variants = encrypt64Variants(password, ENCRYPT_KEY);
     console.log(`[AS400 Auth DEBUG] stored(${storedPassword.length}): ${storedPassword.substring(0, 12)}...`);
-    console.log(`[AS400 Auth DEBUG] computed(${encryptedInput.length}): ${encryptedInput.substring(0, 12)}...`);
+    Object.entries(variants).forEach(([k, v]) => {
+      const match = v === storedPassword ? ' ✅ MATCH' : '';
+      console.log(`[AS400 Auth DEBUG] ${k}(${v.length}): ${v.substring(0, 12)}...${match}`);
+    });
 
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
