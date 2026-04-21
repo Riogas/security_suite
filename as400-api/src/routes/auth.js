@@ -56,17 +56,18 @@ router.post('/as400', async (req, res) => {
     const storedPassword = (row.USUMOBILEPASSWORD || '').trim();
     const encryptedInput = encrypt64(password, ENCRYPT_KEY);
 
-    console.log(`[DEBUG] stored:   ${storedPassword.substring(0, 12)}...`);
-    console.log(`[DEBUG] computed: ${encryptedInput.substring(0, 12)}...`);
-    try {
-      const tf2 = twofish();
-      const kArr = Array.from(Buffer.from(ENCRYPT_KEY, 'hex'));
-      const sBytes = Array.from(Buffer.from(storedPassword, 'base64'));
-      const dec = tf2.decrypt(kArr, sBytes);
-      const pad = dec[dec.length - 1];
-      const plain = Buffer.from(dec.slice(0, dec.length - pad)).toString('utf8');
-      console.log(`[DEBUG] stored decrypts to: "${plain}"`);
-    } catch(e) { console.log(`[DEBUG] decrypt err: ${e}`); }
+    // Twofish-256 con clave como UTF-8 (32 bytes)
+    const tf256 = twofish();
+    const key256 = Array.from(Buffer.from(ENCRYPT_KEY, 'utf8')); // 32 bytes
+    const input256 = Array.from(Buffer.from(password, 'utf8'));
+    const pad256 = 16 - (input256.length % 16);
+    const padded256 = [...input256, ...Array(pad256).fill(pad256)];
+    const enc256 = tf256.encrypt(key256, padded256);
+    const computed256 = Buffer.from(enc256).toString('base64');
+
+    console.log(`[DEBUG] stored:         ${storedPassword.substring(0, 12)}...`);
+    console.log(`[DEBUG] twofish128-hex: ${encryptedInput.substring(0, 12)}...`);
+    console.log(`[DEBUG] twofish256-utf: ${computed256.substring(0, 12)}...`);
 
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
