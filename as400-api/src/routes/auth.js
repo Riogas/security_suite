@@ -48,6 +48,16 @@ function encrypt64Variants(text, key) {
   // V7: AES-128, key MD5 of utf8 key
   results.v7_aes128_md5utf8 = tryEnc('aes-128-ecb', md5(Buffer.from(key, 'utf8')), input);
 
+  // V8: DOBLE Encrypt64 — Encrypt64(Encrypt64(password, key), key) AES-256 UTF-8
+  if (results.v1_aes256_utf8) {
+    results.v8_double_aes256_utf8 = tryEnc('aes-256-ecb', k256utf8, Buffer.from(results.v1_aes256_utf8, 'utf8'));
+  }
+
+  // V9: DOBLE Encrypt64 — AES-128 hex
+  if (results.v2_aes128_hex) {
+    results.v9_double_aes128_hex = tryEnc('aes-128-ecb', Buffer.from(key, 'hex'), Buffer.from(results.v2_aes128_hex, 'utf8'));
+  }
+
   return results;
 }
 
