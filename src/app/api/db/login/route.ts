@@ -166,10 +166,13 @@ export async function POST(request: NextRequest) {
     const password = Password.trim();
     const sistema = (Sistema || "").trim();
 
+    console.log(`[Login] Intento: ${username}`);
+
     // ── Nivel 1: usuario en PostgreSQL local ──────────────────────────────────
     const usuarioLocal = await prisma.usuario.findUnique({ where: { username } });
 
     if (usuarioLocal) {
+      console.log(`[Login] ${username} en DB local — estado=${usuarioLocal.estado} esExterno=${usuarioLocal.esExterno} desdeSistema=${usuarioLocal.desdeSistema}`);
       if (usuarioLocal.estado === "I") {
         return NextResponse.json(
           { success: false, message: "Usuario inactivo", token: "", user: null, expiresIn: "0", requireIdentity: false, verifiedBy: "" },
