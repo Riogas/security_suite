@@ -56,6 +56,9 @@ router.post('/as400', async (req, res) => {
     const storedPassword = (row.USUMOBILEPASSWORD || '').trim();
     const encryptedInput = encrypt64(password, ENCRYPT_KEY);
 
+    console.log(`[DEBUG] stored:   ${storedPassword.substring(0, 12)}...`);
+    console.log(`[DEBUG] computed: ${encryptedInput.substring(0, 12)}...`);
+
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
       return res.json({ success: false, message: 'Credenciales inválidas' });
