@@ -1,64 +1,20 @@
 const express = require('express');
 const ldap = require('ldapjs');
-const crypto = require('crypto');
+const { twofish } = require('twofish');
 const { query } = require('../db/as400');
 const router = express.Router();
 
 const ENCRYPT_KEY = process.env.AS400_ENCRYPT_KEY || 'e57bfc8ea91ab3e2f1201b5b3612eea2';
 
-function encrypt64(text, key) {
-  const keyBuf = Buffer.alloc(32);
-  Buffer.from(key, 'utf8').copy(keyBuf);
-  const cipher = crypto.createCipheriv('aes-256-ecb', keyBuf, null);
-  return Buffer.concat([cipher.update(Buffer.from(text, 'utf8')), cipher.final()]).toString('base64');
-}
-
-function encrypt64Variants(text, key) {
-  const input = Buffer.from(text, 'utf8');
-  const results = {};
-  const md5 = s => crypto.createHash('md5').update(s).digest();
-  const sha256 = s => crypto.createHash('sha256').update(s).digest();
-  const tryEnc = (algo, k, inp) => {
-    try {
-      const c = crypto.createCipheriv(algo, k, null);
-      return Buffer.concat([c.update(inp), c.final()]).toString('base64');
-    } catch { return null; }
-  };
-
-  // V1: AES-256, key UTF-8 padded (actual)
-  const k256utf8 = Buffer.alloc(32); Buffer.from(key, 'utf8').copy(k256utf8);
-  results.v1_aes256_utf8 = tryEnc('aes-256-ecb', k256utf8, input);
-
-  // V2: AES-128, key hex (16 bytes)
-  results.v2_aes128_hex = tryEnc('aes-128-ecb', Buffer.from(key, 'hex'), input);
-
-  // V3: AES-256, key hex padded (16+16 zeros)
-  const k256hex = Buffer.alloc(32); Buffer.from(key, 'hex').copy(k256hex);
-  results.v3_aes256_hex = tryEnc('aes-256-ecb', k256hex, input);
-
-  // V4: AES-128, key MD5-hashed
-  results.v4_aes128_md5key = tryEnc('aes-128-ecb', md5(key), input);
-
-  // V5: AES-256, key SHA256-hashed
-  results.v5_aes256_sha256key = tryEnc('aes-256-ecb', sha256(key), input);
-
-  // V6: AES-128, key UTF-8 truncated to 16 bytes
-  results.v6_aes128_utf8 = tryEnc('aes-128-ecb', Buffer.from(key, 'utf8').slice(0, 16), input);
-
-  // V7: AES-128, key MD5 of utf8 key
-  results.v7_aes128_md5utf8 = tryEnc('aes-128-ecb', md5(Buffer.from(key, 'utf8')), input);
-
-  // V8: DOBLE Encrypt64 — Encrypt64(Encrypt64(password, key), key) AES-256 UTF-8
-  if (results.v1_aes256_utf8) {
-    results.v8_double_aes256_utf8 = tryEnc('aes-256-ecb', k256utf8, Buffer.from(results.v1_aes256_utf8, 'utf8'));
-  }
-
-  // V9: DOBLE Encrypt64 — AES-128 hex
-  if (results.v2_aes128_hex) {
-    results.v9_double_aes128_hex = tryEnc('aes-128-ecb', Buffer.from(key, 'hex'), Buffer.from(results.v2_aes128_hex, 'utf8'));
-  }
-
-  return results;
+// GeneXus Encrypt64: Twofish-128-ECB, key en hex (16 bytes), PKCS7 padding, resultado en Base64
+function encrypt64(text, hexKey) {
+  const tf = twofish();
+  const key = Array.from(Buffer.from(hexKey, 'hex'));
+  const input = Array.from(Buffer.from(text, 'utf8'));
+  const pad = 16 - (input.length % 16);
+  const padded = [...input, ...Array(pad).fill(pad)];
+  const enc = tf.encrypt(key, padded);
+  return Buffer.from(enc).toString('base64');
 }
 
 /**
@@ -99,13 +55,6 @@ router.post('/as400', async (req, res) => {
 
     const storedPassword = (row.USUMOBILEPASSWORD || '').trim();
     const encryptedInput = encrypt64(password, ENCRYPT_KEY);
-
-    const variants = encrypt64Variants(password, ENCRYPT_KEY);
-    console.log(`[AS400 Auth DEBUG] stored(${storedPassword.length}): ${storedPassword.substring(0, 12)}...`);
-    Object.entries(variants).forEach(([k, v]) => {
-      const match = v === storedPassword ? ' ✅ MATCH' : '';
-      console.log(`[AS400 Auth DEBUG] ${k}(${v.length}): ${v.substring(0, 12)}...${match}`);
-    });
 
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
@@ -185,7 +134,6 @@ function authenticateLDAP(username, password) {
         return resolve({ success: false, message: 'Credenciales inválidas' });
       }
 
-      // Bind exitoso — buscar datos del usuario en AD
       client.search(LDAP_BASE_DN, {
         filter: `(sAMAccountName=${username})`,
         scope: 'sub',
@@ -193,7 +141,6 @@ function authenticateLDAP(username, password) {
       }, (searchErr, searchRes) => {
         if (searchErr) {
           client.unbind();
-          // Bind fue exitoso aunque el search falló — devolver datos mínimos
           return resolve({
             success: true,
             user: { username, email: '', nombre: username, department: '', title: '', groups: [], isDespacho: false },
@@ -223,7 +170,7 @@ function authenticateLDAP(username, password) {
           };
         });
 
-        searchRes.on('error', () => { /* ignorar — ya tenemos el bind exitoso */ });
+        searchRes.on('error', () => {});
 
         searchRes.on('end', () => {
           client.unbind();
