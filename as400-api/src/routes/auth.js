@@ -6,15 +6,19 @@ const router = express.Router();
 
 const ENCRYPT_KEY = process.env.AS400_ENCRYPT_KEY || 'e57bfc8ea91ab3e2f1201b5b3612eea2';
 
-// GeneXus Encrypt64: Twofish-128-ECB, key en hex (16 bytes), PKCS7 padding, resultado en Base64
+// GeneXus Encrypt64: Twofish-128-ECB, key en hex (16 bytes), space padding (0x20), resultado en Base64
 function encrypt64(text, hexKey) {
   const tf = twofish();
   const key = Array.from(Buffer.from(hexKey, 'hex'));
-  const input = Array.from(Buffer.from(text, 'utf8'));
-  const pad = 16 - (input.length % 16);
-  const padded = [...input, ...Array(pad).fill(pad)];
-  const enc = tf.encrypt(key, padded);
-  return Buffer.from(enc).toString('base64');
+  const input = Array.from(Buffer.from(text.trim(), 'utf8'));
+  const blockSize = 16;
+  const paddedLen = Math.max(blockSize, Math.ceil(input.length / blockSize) * blockSize);
+  const padded = [...input, ...Array(paddedLen - input.length).fill(0x20)];
+  const output = [];
+  for (let i = 0; i < padded.length; i += blockSize) {
+    output.push(...tf.encrypt(key, padded.slice(i, i + blockSize)));
+  }
+  return Buffer.from(output).toString('base64').trim();
 }
 
 /**
@@ -55,19 +59,6 @@ router.post('/as400', async (req, res) => {
 
     const storedPassword = (row.USUMOBILEPASSWORD || '').trim();
     const encryptedInput = encrypt64(password, ENCRYPT_KEY);
-
-    // Twofish-256 con clave como UTF-8 (32 bytes)
-    const tf256 = twofish();
-    const key256 = Array.from(Buffer.from(ENCRYPT_KEY, 'utf8')); // 32 bytes
-    const input256 = Array.from(Buffer.from(password, 'utf8'));
-    const pad256 = 16 - (input256.length % 16);
-    const padded256 = [...input256, ...Array(pad256).fill(pad256)];
-    const enc256 = tf256.encrypt(key256, padded256);
-    const computed256 = Buffer.from(enc256).toString('base64');
-
-    console.log(`[DEBUG] stored:         ${storedPassword.substring(0, 12)}...`);
-    console.log(`[DEBUG] twofish128-hex: ${encryptedInput.substring(0, 12)}...`);
-    console.log(`[DEBUG] twofish256-utf: ${computed256.substring(0, 12)}...`);
 
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
