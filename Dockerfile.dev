@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1.6
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache libc6-compat
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install
+
+# No copiamos el código todavía, porque lo montaremos como volumen
+EXPOSE 3000
+
+CMD ["pnpm", "dev", "-p", "3000"]

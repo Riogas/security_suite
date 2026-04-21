@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Aplicacion {
+  id              Int             @id @default(autoincrement())
+  nombre          String          @db.VarChar(60)
+  descripcion     String?         @db.VarChar(120)
+  estado          String          @default("A") @db.Char(1)
+  url             String?         @db.VarChar(120)
+  tecnologia      String?         @db.VarChar(60)
+  fechaCreacion   DateTime        @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  sistemaId       Int?            @map("sistema_id")
+  funcionalidades Funcionalidad[]
+  objetos         Objeto[]
+  roles           Rol[]
+
+  @@map("aplicaciones")
+}
+
+model Usuario {
+  id                 Int                  @id @default(autoincrement())
+  username           String               @unique @db.VarChar(60)
+  password           String               @db.VarChar(255)
+  email              String?              @unique @db.VarChar(120)
+  nombre             String?              @db.VarChar(60)
+  apellido           String?              @db.VarChar(60)
+  estado             String               @default("A") @db.Char(1)
+  fechaCreacion      DateTime             @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  fechaBaja          DateTime?            @map("fecha_baja") @db.Timestamp(6)
+  fechaUltimoLogin   DateTime?            @map("fecha_ultimo_login") @db.Timestamp(6)
+  esExterno          String               @default("N") @map("es_externo") @db.Char(1)
+  usuarioExterno     String?              @map("usuario_externo") @db.VarChar(60)
+  tipoUsuario        String               @default("L") @map("tipo_usuario") @db.Char(1)
+  modificaPermisos   String               @default("N") @map("modifica_permisos") @db.Char(1)
+  cambioPassword     String               @default("N") @map("cambio_password") @db.Char(1)
+  intentosFallidos   Int                  @default(0) @map("intentos_fallidos")
+  fechaUltimoBloqueo DateTime?            @map("fecha_ultimo_bloqueo") @db.Timestamp(6)
+  telefono           String?              @db.VarChar(40)
+  creadoPor          String?              @map("creado_por") @db.VarChar(60)
+  desdeSistema       String               @default("N") @map("desde_sistema") @db.Char(1)
+  esRoot             String               @default("N") @map("es_root") @db.Char(1)
+  fechaUltimoPermiso DateTime?            @map("fecha_ultimo_permiso") @db.Timestamp(6)
+  observacion        String?
+  observacion2       String?
+  accesos            Acceso[]
+  preferencias       UsuarioPreferencia[]
+  roles              UsuarioRol[]
+
+  @@index([email], map: "idx_usuarios_email")
+  @@index([estado], map: "idx_usuarios_estado")
+  @@map("usuarios")
+}
+
+model UsuarioPreferencia {
+  id        Int     @id @default(autoincrement())
+  usuarioId Int     @map("usuario_id")
+  atributo  String  @db.VarChar(60)
+  valor     String? @db.VarChar(255)
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuarioId], map: "idx_usuario_preferencias_usuario")
+  @@map("usuario_preferencias")
+}
+
+model Rol {
+  id              Int                @id @default(autoincrement())
+  aplicacionId    Int                @map("aplicacion_id")
+  nombre          String             @db.VarChar(60)
+  descripcion     String?            @db.VarChar(120)
+  estado          String             @default("A") @db.Char(1)
+  nivel           Int                @default(0)
+  fechaCreacion   DateTime           @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  creadoEn        String?            @map("creado_en") @db.VarChar(60)
+  funcionalidades RolFuncionalidad[]
+  aplicacion      Aplicacion         @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios        UsuarioRol[]
+
+  @@unique([aplicacionId, nombre], map: "unique_rol_aplicacion_nombre")
+  @@index([aplicacionId], map: "idx_roles_aplicacion")
+  @@index([estado], map: "idx_roles_estado")
+  @@map("roles")
+}
+
+model UsuarioRol {
+  usuarioId  Int       @map("usuario_id")
+  rolId      Int       @map("rol_id")
+  fechaDesde DateTime? @map("fecha_desde") @db.Date
+  fechaHasta DateTime? @map("fecha_hasta") @db.Date
+  rol        Rol       @relation(fields: [rolId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([usuarioId, rolId])
+  @@index([rolId], map: "idx_usuario_roles_rol")
+  @@map("usuario_roles")
+}
+
+model Funcionalidad {
+  id            Int                   @id @default(autoincrement())
+  aplicacionId  Int                   @map("aplicacion_id")
+  nombre        String                @db.VarChar(60)
+  estado        String                @default("A") @db.Char(1)
+  fechaCreacion DateTime              @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  esPublico     String                @default("N") @map("es_publico") @db.Char(1)
+  soloRoot      String                @default("N") @map("solo_root") @db.Char(1)
+  fechaDesde    DateTime?             @map("fecha_desde") @db.Date
+  fechaHasta    DateTime?             @map("fecha_hasta") @db.Date
+  // Link explícito al Objeto y AccionKey que esta funcionalidad otorga
+  objetoKey     String?               @map("objeto_key") @db.VarChar(120)
+  accionKey     String?               @map("accion_key") @db.VarChar(60)
+  accesos       Acceso[]
+  acciones      FuncionalidadAccion[]
+  objetoAcciones FuncionalidadObjetoAccion[]
+  aplicacion    Aplicacion            @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         RolFuncionalidad[]
+
+  @@index([aplicacionId], map: "idx_funcionalidades_aplicacion")
+  @@index([estado], map: "idx_funcionalidades_estado")
+  @@map("funcionalidades")
+}
+
+model Accion {
+  id              Int                   @id @default(autoincrement())
+  nombre          String                @db.VarChar(60)
+  descripcion     String?               @db.VarChar(120)
+  estado          String                @default("A") @db.Char(1)
+  funcionalidades FuncionalidadAccion[]
+
+  @@map("acciones")
+}
+
+model FuncionalidadAccion {
+  funcionalidadId Int           @map("funcionalidad_id")
+  accionId        Int           @map("accion_id")
+  accion          Accion        @relation(fields: [accionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  funcionalidad   Funcionalidad @relation(fields: [funcionalidadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([funcionalidadId, accionId])
+  @@map("funcionalidad_acciones")
+}
+
+model Acceso {
+  funcionalidadId Int           @map("funcionalidad_id")
+  usuarioId       Int           @map("usuario_id")
+  efecto          String        @default("ALLOW") @db.VarChar(20)
+  creadoEn        String?       @map("creado_en") @db.VarChar(40)
+  fechaDesde      DateTime?     @map("fecha_desde") @db.Timestamp(6)
+  fechaHasta      DateTime?     @map("fecha_hasta") @db.Timestamp(6)
+  funcionalidad   Funcionalidad @relation(fields: [funcionalidadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuario         Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([funcionalidadId, usuarioId])
+  @@index([usuarioId], map: "idx_accesos_usuario")
+  @@map("accesos")
+}
+
+model Objeto {
+  id            Int            @id @default(autoincrement())
+  aplicacionId  Int            @map("aplicacion_id")
+  tipo          String         @db.VarChar(20)
+  key           String         @db.VarChar(120)
+  label         String?        @db.VarChar(120)
+  path          String?        @db.VarChar(255)
+  icon          String?        @db.VarChar(60)
+  orden         Int            @default(0)
+  estado        String         @default("A") @db.Char(1)
+  esPublico     String         @default("N") @map("es_publico") @db.Char(1)
+  parentId      Int?           @map("parent_id")
+  creadoEn      String?        @map("creado_en") @db.VarChar(60)
+  fechaCreacion DateTime       @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  aplicacion    Aplicacion     @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent        Objeto?        @relation("ObjetoHijos", fields: [parentId], references: [id])
+  hijos         Objeto[]       @relation("ObjetoHijos")
+  acciones      ObjetoAccion[]
+  funcionalidades FuncionalidadObjetoAccion[]
+
+  @@index([aplicacionId], map: "idx_objetos_aplicacion")
+  @@index([estado], map: "idx_objetos_estado")
+  @@map("objetos")
+}
+
+model ObjetoAccion {
+  id          Int     @id @default(autoincrement())
+  objetoId    Int     @map("objeto_id")
+  key         String  @db.VarChar(120)
+  descripcion String? @db.VarChar(255)
+  codigo      String? @db.VarChar(20)
+  label       String? @db.VarChar(120)
+  path        String? @db.VarChar(255)
+  icon        String? @db.VarChar(60)
+  relacion    Int?
+  creadoEn    String? @map("creado_en") @db.VarChar(60)
+  objeto      Objeto  @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  funcionalidades FuncionalidadObjetoAccion[]
+
+  @@index([objetoId], map: "idx_objeto_acciones_objeto")
+  @@map("objeto_acciones")
+}
+
+// Relación entre Funcionalidad y los ObjetoAccion seleccionados en el formulario
+model FuncionalidadObjetoAccion {
+  id              Int           @id @default(autoincrement())
+  funcionalidadId Int           @map("funcionalidad_id")
+  objetoId        Int           @map("objeto_id")
+  objetoAccionId  Int?          @map("objeto_accion_id")
+  funcionalidad   Funcionalidad @relation(fields: [funcionalidadId], references: [id], onDelete: Cascade)
+  objeto          Objeto        @relation(fields: [objetoId], references: [id], onDelete: Cascade)
+  objetoAccion    ObjetoAccion? @relation(fields: [objetoAccionId], references: [id], onDelete: Cascade)
+
+  @@unique([funcionalidadId, objetoId, objetoAccionId])
+  @@index([funcionalidadId], map: "idx_func_obj_acc_func")
+  @@map("funcionalidad_objeto_acciones")
+}
+
+model RolFuncionalidad {
+  rolId           Int           @map("rol_id")
+  funcionalidadId Int           @map("funcionalidad_id")
+  fechaCreacion   DateTime      @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  funcionalidad   Funcionalidad @relation(fields: [funcionalidadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  rol             Rol           @relation(fields: [rolId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([rolId, funcionalidadId])
+  @@index([funcionalidadId], map: "idx_rol_funcionalidades_funcionalidad")
+  @@map("rol_funcionalidades")
+}
