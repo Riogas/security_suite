@@ -16,27 +16,37 @@ function encrypt64(text, key) {
 function encrypt64Variants(text, key) {
   const input = Buffer.from(text, 'utf8');
   const results = {};
+  const md5 = s => crypto.createHash('md5').update(s).digest();
+  const sha256 = s => crypto.createHash('sha256').update(s).digest();
+  const tryEnc = (algo, k, inp) => {
+    try {
+      const c = crypto.createCipheriv(algo, k, null);
+      return Buffer.concat([c.update(inp), c.final()]).toString('base64');
+    } catch { return null; }
+  };
 
-  // V1 (actual): AES-256, key como UTF-8 (32 bytes)
-  try {
-    const k = Buffer.alloc(32); Buffer.from(key, 'utf8').copy(k);
-    const c = crypto.createCipheriv('aes-256-ecb', k, null);
-    results.v1_aes256_utf8 = Buffer.concat([c.update(input), c.final()]).toString('base64');
-  } catch {}
+  // V1: AES-256, key UTF-8 padded (actual)
+  const k256utf8 = Buffer.alloc(32); Buffer.from(key, 'utf8').copy(k256utf8);
+  results.v1_aes256_utf8 = tryEnc('aes-256-ecb', k256utf8, input);
 
-  // V2: AES-128, key como hex (16 bytes)
-  try {
-    const k = Buffer.from(key, 'hex');
-    const c = crypto.createCipheriv('aes-128-ecb', k, null);
-    results.v2_aes128_hex = Buffer.concat([c.update(input), c.final()]).toString('base64');
-  } catch {}
+  // V2: AES-128, key hex (16 bytes)
+  results.v2_aes128_hex = tryEnc('aes-128-ecb', Buffer.from(key, 'hex'), input);
 
-  // V3: AES-256, key como hex (16 bytes) + 16 zeros
-  try {
-    const k = Buffer.alloc(32); Buffer.from(key, 'hex').copy(k);
-    const c = crypto.createCipheriv('aes-256-ecb', k, null);
-    results.v3_aes256_hex = Buffer.concat([c.update(input), c.final()]).toString('base64');
-  } catch {}
+  // V3: AES-256, key hex padded (16+16 zeros)
+  const k256hex = Buffer.alloc(32); Buffer.from(key, 'hex').copy(k256hex);
+  results.v3_aes256_hex = tryEnc('aes-256-ecb', k256hex, input);
+
+  // V4: AES-128, key MD5-hashed
+  results.v4_aes128_md5key = tryEnc('aes-128-ecb', md5(key), input);
+
+  // V5: AES-256, key SHA256-hashed
+  results.v5_aes256_sha256key = tryEnc('aes-256-ecb', sha256(key), input);
+
+  // V6: AES-128, key UTF-8 truncated to 16 bytes
+  results.v6_aes128_utf8 = tryEnc('aes-128-ecb', Buffer.from(key, 'utf8').slice(0, 16), input);
+
+  // V7: AES-128, key MD5 of utf8 key
+  results.v7_aes128_md5utf8 = tryEnc('aes-128-ecb', md5(Buffer.from(key, 'utf8')), input);
 
   return results;
 }
