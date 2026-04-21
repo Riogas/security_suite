@@ -37,7 +37,7 @@ All API traffic flows through two distinct paths:
 
 ### Middleware permission system
 
-`src/middleware.ts` intercepts every request before it reaches a page:
+`src/proxy.ts` intercepts every request before it reaches a page (Next 16 renamed the former `middleware.ts` convention to `proxy.ts`):
 - Extracts JWT from cookies
 - Generates a route permission code (SHA-256, `XXXX-XXXX` format using a salt `'s'`) via `src/lib/routeCode.ts`
 - Calls `NEXT_PUBLIC_PERMISOS_API_URL` (proxied to GeneXus) to verify access
@@ -52,7 +52,7 @@ src/
 │   ├── api/db/           # Direct Prisma DB endpoints
 │   ├── dashboard/        # Protected pages (usuarios, roles, aplicaciones, etc.)
 │   ├── login/
-│   └── middleware.ts     # Permission guard (root level)
+│   └── proxy.ts          # Permission guard (Next 16 "proxy" convention)
 ├── components/           # Radix UI + custom components
 ├── hooks/                # useAuth, useUser, useApiCall, useAppLoading
 ├── services/api.ts       # All API wrapper functions (~1800 lines)
