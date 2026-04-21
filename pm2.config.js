@@ -59,5 +59,44 @@ module.exports = {
       // Gestión de errores
       exp_backoff_restart_delay: 100,
     },
+
+    {
+      name: 'as400-api',
+      script: 'as400-api/server.js',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000,
+
+        // AS400 / DB2
+        AS400_HOST: '192.168.1.8',
+        AS400_USER: 'qsecofr',
+        AS400_PASSWORD: 'wwm868',
+        AS400_LIBRARIES: 'GXICAGEO,QGPL',
+        AS400_ENCRYPT_KEY: 'e57bfc8ea91ab3e2f1201b5b3612eea2',
+
+        // LDAP / Active Directory
+        LDAP_HOST: '192.168.1.7',
+        LDAP_PORT: '389',
+        LDAP_DOMAIN: 'glp',
+        LDAP_BASE_DN: 'DC=glp,DC=riogas,DC=com,DC=uy',
+        LDAP_GROUP_DESPACHO: '52',
+      },
+
+      error_file: './logs/as400-api-error.log',
+      out_file: './logs/as400-api-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 4000,
+      exp_backoff_restart_delay: 100,
+    },
   ],
 };
