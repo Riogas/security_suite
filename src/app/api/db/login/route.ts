@@ -32,11 +32,12 @@ const DESPACHO_ROL_ID = parseInt(process.env.DESPACHO_ROL_ID || "49", 10);
 async function callAS400Auth(username: string, password: string): Promise<{ success: boolean; message?: string; user?: any } | null> {
   if (!AS400_API_URL) return null;
   try {
+    console.log(`[AS400 Auth] Autenticando usuario: ${username}`);
     const res = await fetch(`${AS400_API_URL}/api/auth/as400`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
     return await res.json();
