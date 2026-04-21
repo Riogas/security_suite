@@ -34,9 +34,14 @@ module.exports = {
         // Database (Prisma)
         DATABASE_URL: 'postgresql://postgres:CVRY,m7r:dHy@192.168.2.117:5432/securitysuite?schema=public',
         
+        // AS400 API (auth fallback: SGM y LDAP)
+        AS400_API_URL: 'http://localhost:5000',
+        DESPACHO_ROL_ID: '49',
+        DESPACHO_APLICACION_ID: '5',
+
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
-        
+
         // Route Salt
         ROUTE_SALT: 's',
       },
