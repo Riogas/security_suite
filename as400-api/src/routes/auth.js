@@ -58,6 +58,15 @@ router.post('/as400', async (req, res) => {
 
     console.log(`[DEBUG] stored:   ${storedPassword.substring(0, 12)}...`);
     console.log(`[DEBUG] computed: ${encryptedInput.substring(0, 12)}...`);
+    try {
+      const tf2 = twofish();
+      const kArr = Array.from(Buffer.from(ENCRYPT_KEY, 'hex'));
+      const sBytes = Array.from(Buffer.from(storedPassword, 'base64'));
+      const dec = tf2.decrypt(kArr, sBytes);
+      const pad = dec[dec.length - 1];
+      const plain = Buffer.from(dec.slice(0, dec.length - pad)).toString('utf8');
+      console.log(`[DEBUG] stored decrypts to: "${plain}"`);
+    } catch(e) { console.log(`[DEBUG] decrypt err: ${e}`); }
 
     if (encryptedInput !== storedPassword) {
       console.log(`❌ [AS400 Auth] Contraseña incorrecta para ${username}`);
