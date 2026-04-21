@@ -1,4 +1,7 @@
-// src/middleware.ts
+// src/proxy.ts
+// Next 16 renombró el convention "middleware" a "proxy".
+// Este archivo sigue siendo el guard de permisos: intercepta cada request,
+// genera el code de pantalla, consulta PERMISOS_API_URL e inyecta headers/cookies.
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -37,7 +40,7 @@ const APP_ID = Number(
 // Utils (scope de módulo)
 // =========================
 function log(...args: any[]) {
-  if (DEBUG) console.log("[MW]", ...args);
+  if (DEBUG) console.log("[Proxy]", ...args);
 }
 
 function routeName(pathname: string): string {
@@ -116,9 +119,9 @@ async function apiCheckPermisoEdge(
       ObjetoPath: getObjetoPath(pathname), // "/funcionalidades/crear"
     };
 
-    console.log("[MW] → Checando permiso");
-    console.log("[MW] URL:", PERMISOS_API_URL);
-    console.log("[MW] Body enviado:", body);
+    console.log("[Proxy] → Checando permiso");
+    console.log("[Proxy] URL:", PERMISOS_API_URL);
+    console.log("[Proxy] Body enviado:", body);
 
     const resp = await fetch(PERMISOS_API_URL, {
       method: "POST",
@@ -129,11 +132,11 @@ async function apiCheckPermisoEdge(
       body: JSON.stringify(body),
     });
 
-    console.log("[MW] Status:", resp.status, resp.statusText);
-    console.log("[MW] Headers:", Object.fromEntries(resp.headers.entries()));
+    console.log("[Proxy] Status:", resp.status, resp.statusText);
+    console.log("[Proxy] Headers:", Object.fromEntries(resp.headers.entries()));
 
     const raw = await resp.text();
-    console.log("[MW] Raw body:", raw);
+    console.log("[Proxy] Raw body:", raw);
 
     if (!resp.ok) return false;
 
@@ -151,20 +154,20 @@ async function apiCheckPermisoEdge(
       json.ok === true ||
       json.Permitido === "S";
 
-    console.log("[MW] → permitido?", permitido);
+    console.log("[Proxy] → permitido?", permitido);
     return permitido;
   } catch (err) {
-    console.error("[MW] Error checando permiso:", err);
+    console.error("[Proxy] Error checando permiso:", err);
     return false;
   }
 }
 
 // =========================
-// Middleware
+// Proxy (antes "middleware")
 // =========================
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   try {
-    console.log("[MW] DEBUG_MW =", process.env.DEBUG_MW);
+    console.log("[Proxy] DEBUG_MW =", process.env.DEBUG_MW);
 
     const { pathname } = request.nextUrl;
     log("→ request", pathname);
@@ -203,7 +206,7 @@ export async function middleware(request: NextRequest) {
   let userName = "";
   const payload = decodeJwtPayload(token);
   if (payload) {
-    const rawName = 
+    const rawName =
       payload.name ||
       payload.username ||
       payload.email ||
@@ -229,12 +232,12 @@ export async function middleware(request: NextRequest) {
 
   // 5) Permiso OK → Inyectar headers y cookies espejo
   const reqHeaders = new Headers(request.headers);
-  
+
   // Sanitizar y validar valores antes de setear headers
   const safeCode = String(code || "").slice(0, 100);
   const safeName = String(name || "").slice(0, 200);
   const safeUserName = userName ? String(userName).slice(0, 200) : "";
-  
+
   if (safeCode) reqHeaders.set("x-route-code", safeCode);
   if (safeName) reqHeaders.set("x-route-name", safeName);
   if (safeUserName) reqHeaders.set("x-user-name", safeUserName);
@@ -262,16 +265,15 @@ export async function middleware(request: NextRequest) {
 
   return res;
   } catch (error) {
-    // Capturar cualquier error del middleware
-    console.error("[MW] Error en middleware:", {
+    // Capturar cualquier error del proxy
+    console.error("[Proxy] Error:", {
       pathname: request.nextUrl.pathname,
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       headers: Object.fromEntries(request.headers.entries()),
     });
-    
+
     // En caso de error, permitir continuar sin bloquear
-    // Puedes cambiar esto a redirect login si prefieres
     const res = NextResponse.next();
     res.headers.set("x-mw-error", "1");
     return res;
