@@ -111,10 +111,30 @@ async function migrateExternalUser(opts: {
 // ─── Respuesta de éxito ───────────────────────────────────────────────────────
 
 async function buildSuccessResponse(usuario: any, sistema: string, verifiedBy: string) {
-  await prisma.usuario.update({
-    where: { id: usuario.id },
-    data: { fechaUltimoLogin: new Date() },
-  });
+  const [, roles, preferencias, accesos] = await Promise.all([
+    prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { fechaUltimoLogin: new Date() },
+    }),
+    prisma.usuarioRol.findMany({
+      where: { usuarioId: usuario.id },
+      include: {
+        rol: {
+          include: {
+            funcionalidades: { select: { funcionalidadId: true } },
+          },
+        },
+      },
+    }),
+    prisma.usuarioPreferencia.findMany({
+      where: { usuarioId: usuario.id },
+      select: { atributo: true, valor: true },
+    }),
+    prisma.acceso.findMany({
+      where: { usuarioId: usuario.id },
+      select: { funcionalidadId: true, efecto: true },
+    }),
+  ]);
 
   const token = jwt.sign(
     { iss: "security-suite", username: usuario.username, userId: usuario.id, sistema },
@@ -138,6 +158,14 @@ async function buildSuccessResponse(usuario: any, sistema: string, verifiedBy: s
       email: usuario.email || "",
       isRoot: usuario.esRoot || "N",
     },
+    roles: roles.map(ur => ({
+      rolId: ur.rolId,
+      rolNombre: ur.rol.nombre,
+      aplicacionId: ur.rol.aplicacionId,
+      funcionalidades: ur.rol.funcionalidades.map(rf => rf.funcionalidadId),
+    })),
+    preferencias: preferencias.map(p => ({ atributo: p.atributo, valor: p.valor })),
+    accesos: accesos.map(a => ({ funcionalidadId: a.funcionalidadId, efecto: a.efecto })),
   });
 }
 
