@@ -34,9 +34,14 @@ module.exports = {
         // Database (Prisma)
         DATABASE_URL: 'postgresql://postgres:CVRY,m7r:dHy@192.168.2.117:5432/securitysuite?schema=public',
         
+        // AS400 API (auth fallback: SGM y LDAP)
+        AS400_API_URL: 'http://localhost:5000',
+        DESPACHO_ROL_ID: '49',
+        DESPACHO_APLICACION_ID: '5',
+
         // Middleware Debug (0 = off, 1 = on)
         DEBUG_MW: '0',
-        
+
         // Route Salt
         ROUTE_SALT: 's',
       },
@@ -57,6 +62,45 @@ module.exports = {
       kill_timeout: 5000,
       
       // Gestión de errores
+      exp_backoff_restart_delay: 100,
+    },
+
+    {
+      name: 'as400-api',
+      script: 'as400-api/server.js',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000,
+
+        // AS400 / DB2
+        AS400_HOST: '192.168.1.8',
+        AS400_USER: 'qsecofr',
+        AS400_PASSWORD: 'wwm868',
+        AS400_LIBRARIES: 'GXICAGEO,QGPL',
+        AS400_ENCRYPT_KEY: 'e57bfc8ea91ab3e2f1201b5b3612eea2',
+
+        // LDAP / Active Directory
+        LDAP_HOST: '192.168.1.7',
+        LDAP_PORT: '389',
+        LDAP_DOMAIN: 'glp',
+        LDAP_BASE_DN: 'DC=glp,DC=riogas,DC=com,DC=uy',
+        LDAP_GROUP_DESPACHO: '52',
+      },
+
+      error_file: './logs/as400-api-error.log',
+      out_file: './logs/as400-api-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 4000,
       exp_backoff_restart_delay: 100,
     },
   ],

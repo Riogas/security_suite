@@ -2,23 +2,182 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
-const BACKEND_BASE_URL =
-  process.env.BACKEND_BASE_URL ||
-  "https://sgm.glp.riogas.com.uy/servicios/SecuritySuite";
-
 /**
  * POST /api/db/login
  *
- * Endpoint de autenticación unificado.
- * 1. Busca el usuario en PostgreSQL (tabla usuarios).
- * 2. Si existe y la contraseña coincide → responde OK.
- * 3. Si NO existe localmente → reenvía a GeneXus loginUser.
- *    Si GeneXus responde success → responde OK con los datos de GeneXus.
+ * Flujo de autenticación (3 niveles):
  *
- * Body esperado: { "UserName": "...", "Password": "...", "Sistema": "..." }
- * Respuesta compatible con el formato de GeneXus loginUser.
+ * 1. Busca usuario en PostgreSQL local (tabla usuarios).
+ *    a. Si es_externo = 'N' → valida password localmente.
+ *    b. Si es_externo = 'S' → valida password contra el sistema externo
+ *       indicado en desde_sistema ('SGM' → AS400, 'LDAP' → Active Directory).
+ *       Si el externo no responde → fallback a la clave local.
+ *
+ * 2. Si el usuario NO existe en PostgreSQL:
+ *    a. Intenta AS400 (GXICAGEO.USUMOBILE, clave encriptada con GeneXus Encrypt64).
+ *       Si la clave está mal (usuario encontrado pero contraseña incorrecta) → 401 sin ir a LDAP.
+ *    b. Si el usuario no existe en AS400 o el AS400 está caído → intenta LDAP.
+ *    c. Al validar → crea el usuario en PostgreSQL y asigna rol Despacho si corresponde.
+ *
+ * Body: { UserName, Password, Sistema? }
+ * Respuesta: { success, token, user: { id, username, nombre, email, isRoot }, verifiedBy }
  */
+
+const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
+const AS400_API_URL = process.env.AS400_API_URL || "";
+const DESPACHO_ROL_ID = parseInt(process.env.DESPACHO_ROL_ID || "49", 10);
+
+// ─── Llamadas a AS400 API ─────────────────────────────────────────────────────
+
+async function callAS400Auth(username: string, password: string): Promise<{ success: boolean; message?: string; user?: any } | null> {
+  if (!AS400_API_URL) return null;
+  try {
+    console.log(`[AS400 Auth] Autenticando usuario: ${username}`);
+    const res = await fetch(`${AS400_API_URL}/api/auth/as400`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null; // timeout o servicio caído
+  }
+}
+
+async function callLDAPAuth(username: string, password: string): Promise<{ success: boolean; user?: any } | null> {
+  if (!AS400_API_URL) return null;
+  try {
+    const res = await fetch(`${AS400_API_URL}/api/auth/ldap`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null; // timeout o servicio caído
+  }
+}
+
+// ─── Migración de usuario externo a PostgreSQL ────────────────────────────────
+
+async function migrateExternalUser(opts: {
+  username: string;
+  nombre: string;
+  email: string;
+  password: string;
+  desdeSistema: "SGM" | "LDAP";
+  assignDespacho: boolean;
+}) {
+  const { username, nombre, email, password, desdeSistema, assignDespacho } = opts;
+
+  const parts = nombre.trim().split(/\s+/);
+  const nombreDb = parts[0] || username;
+  const apellidoDb = parts.slice(1).join(" ") || null;
+
+  const usuario = await prisma.usuario.create({
+    data: {
+      username,
+      password,
+      email: email || null,
+      nombre: nombreDb,
+      apellido: apellidoDb,
+      estado: "A",
+      esExterno: "S",
+      usuarioExterno: username,
+      tipoUsuario: "E",
+      desdeSistema,
+      creadoPor: "auto-migration",
+    },
+  });
+
+  if (assignDespacho) {
+    await prisma.usuarioRol.upsert({
+      where: { usuarioId_rolId: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID } },
+      create: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID },
+      update: {},
+    }).catch((err: Error) => {
+      console.error(`⚠️ [Login] No se pudo asignar rol Despacho (rolId=${DESPACHO_ROL_ID}):`, err.message);
+    });
+  }
+
+  console.log(`✅ [Login] Usuario ${username} migrado desde ${desdeSistema}. Despacho: ${assignDespacho}`);
+  return usuario;
+}
+
+// ─── Respuesta de éxito ───────────────────────────────────────────────────────
+
+async function buildSuccessResponse(usuario: any, sistema: string, verifiedBy: string) {
+  const [, roles, preferencias, accesos] = await Promise.all([
+    prisma.usuario.update({
+      where: { id: usuario.id },
+      data: { fechaUltimoLogin: new Date() },
+    }),
+    prisma.usuarioRol.findMany({
+      where: { usuarioId: usuario.id },
+      include: {
+        rol: {
+          include: {
+            funcionalidades: { select: { funcionalidadId: true } },
+          },
+        },
+      },
+    }),
+    prisma.usuarioPreferencia.findMany({
+      where: { usuarioId: usuario.id },
+      select: { atributo: true, valor: true },
+    }),
+    prisma.acceso.findMany({
+      where: { usuarioId: usuario.id },
+      select: { funcionalidadId: true, efecto: true },
+    }),
+  ]);
+
+  const token = jwt.sign(
+    { iss: "security-suite", username: usuario.username, userId: usuario.id, sistema },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  const nombre = [usuario.nombre, usuario.apellido].filter(Boolean).join(" ").trim() || usuario.username;
+
+  return NextResponse.json({
+    success: true,
+    message: "",
+    token,
+    expiresIn: "604800",
+    requireIdentity: false,
+    verifiedBy,
+    user: {
+      id: String(usuario.id),
+      username: usuario.username.trim(),
+      nombre,
+      email: usuario.email || "",
+      isRoot: usuario.esRoot || "N",
+    },
+    roles: roles.map(ur => ({
+      rolId: ur.rolId,
+      rolNombre: ur.rol.nombre,
+      aplicacionId: ur.rol.aplicacionId,
+      funcionalidades: ur.rol.funcionalidades.map(rf => rf.funcionalidadId),
+    })),
+    preferencias: preferencias.map(p => ({ atributo: p.atributo, valor: p.valor })),
+    accesos: accesos.map(a => ({ funcionalidadId: a.funcionalidadId, efecto: a.efecto })),
+  });
+}
+
+function unauthorized(message = "Credenciales inválidas") {
+  return NextResponse.json(
+    { success: false, message, token: "", user: null, expiresIn: "0", requireIdentity: false, verifiedBy: "" },
+    { status: 401 }
+  );
+}
+
+// ─── Handler principal ────────────────────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -26,15 +185,7 @@ export async function POST(request: NextRequest) {
 
     if (!UserName || !Password) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "UserName y Password son requeridos",
-          token: "",
-          user: null,
-          expiresIn: "0",
-          requireIdentity: false,
-          verifiedBy: "",
-        },
+        { success: false, message: "UserName y Password son requeridos", token: "", user: null, expiresIn: "0", requireIdentity: false, verifiedBy: "" },
         { status: 400 }
       );
     }
@@ -43,131 +194,99 @@ export async function POST(request: NextRequest) {
     const password = Password.trim();
     const sistema = (Sistema || "").trim();
 
-    // ─── 1. Buscar usuario en PostgreSQL ───
-    const usuarioLocal = await prisma.usuario.findUnique({
-      where: { username },
-    });
+    console.log(`[Login] Intento: ${username}`);
+
+    // ── Nivel 1: usuario en PostgreSQL local ──────────────────────────────────
+    const usuarioLocal = await prisma.usuario.findUnique({ where: { username } });
 
     if (usuarioLocal) {
-      // Usuario encontrado en PostgreSQL → validar password
-      // TODO: cuando se implemente bcrypt, usar bcrypt.compare()
-      if (usuarioLocal.password !== password) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Contraseña incorrecta",
-            token: "",
-            user: null,
-            expiresIn: "0",
-            requireIdentity: false,
-            verifiedBy: "",
-          },
-          { status: 401 }
-        );
-      }
-
-      // Verificar que el usuario esté activo
+      console.log(`[Login] ${username} en DB local — estado=${usuarioLocal.estado} esExterno=${usuarioLocal.esExterno} desdeSistema=${usuarioLocal.desdeSistema}`);
       if (usuarioLocal.estado === "I") {
         return NextResponse.json(
-          {
-            success: false,
-            message: "Usuario inactivo",
-            token: "",
-            user: null,
-            expiresIn: "0",
-            requireIdentity: false,
-            verifiedBy: "",
-          },
+          { success: false, message: "Usuario inactivo", token: "", user: null, expiresIn: "0", requireIdentity: false, verifiedBy: "" },
           { status: 403 }
         );
       }
 
-      // Generar JWT
-      const token = jwt.sign(
-        {
-          iss: "security-suite",
-          username: usuarioLocal.username,
-          userId: usuarioLocal.id,
-          sistema,
-        },
-        JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      if (usuarioLocal.esExterno === "S") {
+        // Usuario externo: validar contra sistema de origen; fallback a clave local si está caído
+        const origen = usuarioLocal.desdeSistema as "SGM" | "LDAP";
+        let externalOk = false;
+        let externalDown = false;
 
-      // Actualizar fecha_ultimo_login
-      await prisma.usuario.update({
-        where: { id: usuarioLocal.id },
-        data: { fechaUltimoLogin: new Date() },
-      });
+        const result = origen === "SGM"
+          ? await callAS400Auth(username, password)
+          : await callLDAPAuth(username, password);
 
-      const nombreCompleto = [usuarioLocal.nombre, usuarioLocal.apellido]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
+        if (result === null) {
+          externalDown = true;
+          console.warn(`⚠️ [Login] ${origen} no disponible — fallback a clave local para ${username}`);
+        } else {
+          externalOk = result.success;
+        }
 
-      return NextResponse.json({
-        success: true,
-        message: "",
-        token,
-        expiresIn: "604800", // 7 días en segundos
-        requireIdentity: false,
-        verifiedBy: "local-db",
-        user: {
-          id: String(usuarioLocal.id),
-          username: usuarioLocal.username.trim(),
-          nombre: nombreCompleto || usuarioLocal.username.trim(),
-          email: usuarioLocal.email || "",
-          isRoot: usuarioLocal.esRoot || "N",
-        },
-      });
+        if (externalDown) {
+          if (usuarioLocal.password !== password) return unauthorized();
+        } else if (!externalOk) {
+          return unauthorized();
+        }
+
+        return buildSuccessResponse(usuarioLocal, sistema, externalDown ? "local-fallback" : origen.toLowerCase());
+      }
+
+      // Usuario local normal
+      if (usuarioLocal.password !== password) return unauthorized();
+      return buildSuccessResponse(usuarioLocal, sistema, "local-db");
     }
 
-    // ─── 2. No existe localmente → Reenviar a GeneXus ───
-    console.log(
-      `[Login] Usuario "${username}" no encontrado en DB local, reenviando a GeneXus...`
-    );
+    // ── Nivel 2: no existe → buscar en AS400 ─────────────────────────────────
+    console.log(`[Login] ${username} no en DB local. Probando AS400...`);
+    const as400Result = await callAS400Auth(username, password);
 
-    const gxResponse = await fetch(`${BACKEND_BASE_URL}/loginUser`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ UserName: username, Password: password, Sistema: sistema }),
-    });
-
-    const gxData = await gxResponse.json();
-
-    if (gxData.success) {
-      // GeneXus validó OK → devolvemos su respuesta tal cual
-      return NextResponse.json({
-        ...gxData,
-        verifiedBy: "genexus",
+    if (as400Result?.success) {
+      const nuevo = await migrateExternalUser({
+        username,
+        nombre: as400Result.user.nombre || username,
+        email: as400Result.user.email || "",
+        password,
+        desdeSistema: "SGM",
+        assignDespacho: !!as400Result.user.hasRoleDespacho,
       });
+      return buildSuccessResponse(nuevo, sistema, "sgm");
     }
 
-    // GeneXus también rechazó
-    return NextResponse.json(
-      {
-        success: false,
-        message: gxData.message || "Credenciales inválidas",
-        token: "",
-        user: null,
-        expiresIn: "0",
-        requireIdentity: false,
-        verifiedBy: "",
-      },
-      { status: 401 }
-    );
+    // Si AS400 encontró el usuario pero la clave era incorrecta → 401 directo (no ir a LDAP)
+    const as400WrongPassword = as400Result !== null && !as400Result.success && as400Result.message !== "Usuario no encontrado";
+    if (as400WrongPassword) {
+      return unauthorized();
+    }
+
+    // ── Nivel 3: no existe en AS400 (o AS400 caído) → buscar en LDAP ─────────
+    const as400Down = as400Result === null;
+    console.log(`[Login] ${username} no en AS400${as400Down ? " (caído)" : ""}. Probando LDAP...`);
+    const ldapResult = await callLDAPAuth(username, password);
+
+    if (ldapResult?.success) {
+      const nuevo = await migrateExternalUser({
+        username,
+        nombre: ldapResult.user.nombre || username,
+        email: ldapResult.user.email || "",
+        password,
+        desdeSistema: "LDAP",
+        assignDespacho: !!ldapResult.user.isDespacho,
+      });
+      return buildSuccessResponse(nuevo, sistema, "ldap");
+    }
+
+    if (ldapResult === null) {
+      console.warn(`⚠️ [Login] LDAP también caído. Sin acceso para ${username}`);
+    }
+
+    return unauthorized();
   } catch (error) {
     console.error("[Login] Error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Error interno del servidor",
-        token: "",
-        user: null,
-        expiresIn: "0",
-        requireIdentity: false,
-        verifiedBy: "",
-      },
+      { success: false, message: "Error interno del servidor", token: "", user: null, expiresIn: "0", requireIdentity: false, verifiedBy: "" },
       { status: 500 }
     );
   }

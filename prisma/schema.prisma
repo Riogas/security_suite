@@ -43,7 +43,7 @@ model Usuario {
   fechaUltimoBloqueo DateTime?            @map("fecha_ultimo_bloqueo") @db.Timestamp(6)
   telefono           String?              @db.VarChar(40)
   creadoPor          String?              @map("creado_por") @db.VarChar(60)
-  desdeSistema       String               @default("N") @map("desde_sistema") @db.Char(1)
+  desdeSistema       String               @default("LOCAL") @map("desde_sistema") @db.VarChar(10)
   esRoot             String               @default("N") @map("es_root") @db.Char(1)
   fechaUltimoPermiso DateTime?            @map("fecha_ultimo_permiso") @db.Timestamp(6)
   observacion        String?
