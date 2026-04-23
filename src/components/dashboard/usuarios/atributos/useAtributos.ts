@@ -54,18 +54,26 @@ export function useAtributos(userId: number, isOpen: boolean) {
   // Parsear valor de atributo (puede venir como "{16: Rivera}" o JSON válido)
   const parsearValorAtributo = (valor: string): CampoValor[] => {
     try {
-      // Intentar parsear como JSON estándar
       const valorParseado = JSON.parse(valor);
+
+      // Si es un array de objetos (ej. [{"Nombre": "X", "Valor": 70}])
+      if (Array.isArray(valorParseado)) {
+        return valorParseado.map((item, idx) => ({
+          id: String(idx),
+          valor: typeof item === "object" ? JSON.stringify(item) : String(item),
+        }));
+      }
+
+      // Si es un objeto plano { clave: valor }
       if (typeof valorParseado === "object" && valorParseado !== null) {
         return Object.entries(valorParseado).map(([id, val]) => ({
           id,
-          valor: String(val),
+          valor: typeof val === "object" ? JSON.stringify(val) : String(val),
         }));
       }
     } catch {
       // Si falla el parse estándar, intentar parsear formato "{16: Rivera}"
       try {
-        // Remover llaves externas y separar por comas
         const contenido = valor.replace(/^\{|\}$/g, "").trim();
         const pares = contenido.split(",").map((par) => par.trim());
 
@@ -80,9 +88,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
           }
         }
 
-        if (campos.length > 0) {
-          return campos;
-        }
+        if (campos.length > 0) return campos;
       } catch (e) {
         console.log("Error parseando formato alternativo:", e);
       }
@@ -176,7 +182,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
     toast.success("Atributo eliminado");
   };
 
-  // Guardar todos los atributos (solo guarda los nuevos creados localmente)
+  // Guardar todos los atributos (reemplaza completamente en BD)
   const guardarAtributos = async () => {
     try {
       setSaving(true);
@@ -184,20 +190,13 @@ export function useAtributos(userId: number, isOpen: boolean) {
       console.log("Guardando atributos para usuario:", userId);
       console.log("Atributos totales:", atributos);
 
-      // Filtrar solo los atributos nuevos (con ID que empieza con "nuevo-")
-      const atributosNuevos = atributos.filter((attr) =>
-        attr.id.startsWith("nuevo-"),
-      );
-
-      if (atributosNuevos.length === 0) {
-        toast.info("No hay atributos nuevos para guardar");
+      if (atributos.length === 0) {
+        toast.info("No hay atributos para guardar");
         return true;
       }
 
-      console.log("Atributos nuevos a guardar:", atributosNuevos);
-
-      // Convertir atributos nuevos a formato para la DB
-      const atributosParaDB = atributosNuevos.map((atributo) => ({
+      // Enviar TODOS los atributos (existentes + nuevos) — la ruta hace replace completo
+      const atributosParaDB = atributos.map((atributo) => ({
         atributo: atributo.descripcion,
         valor: atributo.valor,
       }));
@@ -206,11 +205,14 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
       await apiGuardarAtributosDB(userId, atributosParaDB);
 
+      const nuevos = atributos.filter((a) => a.id.startsWith("nuevo-")).length;
       toast.success(
-        `${atributosNuevos.length} atributo(s) guardado(s) correctamente`,
+        nuevos > 0
+          ? `${nuevos} atributo(s) guardado(s) correctamente`
+          : "Atributos actualizados correctamente",
       );
 
-      // Recargar atributos desde la BD para obtener los IDs reales
+      // Recargar desde BD para obtener IDs reales
       await cargarAtributos();
 
       return true;
