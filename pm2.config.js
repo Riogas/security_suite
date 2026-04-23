@@ -78,6 +78,11 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 5000,
 
+        // JAVA_HOME: el paquete `java` (dep transitiva de node-jt400)
+        // necesita esta env var para encontrar la JVM tanto al compilar
+        // los bindings nativos como en runtime. pm2 no hereda /etc/environment.
+        JAVA_HOME: '/usr/lib/jvm/java-17-openjdk-amd64',
+
         // AS400 / DB2
         AS400_HOST: '192.168.1.8',
         AS400_USER: 'qsecofr',
