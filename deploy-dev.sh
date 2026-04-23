@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Script de despliegue para el entorno DEV de secapi (security_suite).
 # Maneja las DOS apps pm2 del proyecto:
@@ -14,6 +14,13 @@
 # - Usa "describe + restart / start" para cubrir el caso en que algún
 #   proceso fue eliminado de pm2 (como pasó con goya).
 # - pm2 restart con --update-env para que tome cambios del .env.
+
+# Asegurar que estamos corriendo bajo bash (no sh/dash).
+# Si alguien ejecuta "sh deploy-dev.sh" el shebang se ignora y `set -o pipefail`
+# falla con "Illegal option". Este check evita ese error críptico.
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
 
 set -euo pipefail
 
