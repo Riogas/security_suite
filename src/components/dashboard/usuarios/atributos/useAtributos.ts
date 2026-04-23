@@ -24,17 +24,9 @@ export function useAtributos(userId: number, isOpen: boolean) {
   const [descripcionAtributo, setDescripcionAtributo] = useState("");
   const [camposActuales, setCamposActuales] = useState<CampoValor[]>([]);
   const [nuevoCampo, setNuevoCampo] = useState({ id: "", valor: "" });
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // 🔍 DEBUG: Rastrear cambios de loading
-  console.log("🎣 [useAtributos] Estados:", {
-    userId,
-    isOpen,
-    loading,
-    saving,
-    atributosCount: atributos.length,
-  });
 
   // Generar JSON a partir de los campos
   const generarJsonValor = (campos: CampoValor[]): string => {
@@ -100,26 +92,17 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
   // Cargar atributos existentes del usuario
   const cargarAtributos = async () => {
-    if (!isOpen) {
-      console.log("🎣 [useAtributos] cargarAtributos: Modal cerrado, no cargar");
-      return;
-    }
+    if (!isOpen) return;
 
-    console.log("🎣 [useAtributos] ⏳ Iniciando carga de atributos - setLoading(true)");
     setLoading(true);
     try {
       const atributosExistentes = await apiAtributosDB(userId);
-      console.log("Atributos recibidos de la API:", atributosExistentes);
 
       if (atributosExistentes.length > 0) {
         // Convertir cada AtributoDB a Atributo
         const atributosConvertidos = atributosExistentes.map((pref) => {
           const valor = pref.valor ?? "";
           const campos = parsearValorAtributo(valor);
-          console.log(`Procesando atributo "${pref.atributo}":`, {
-            valor,
-            camposParseados: campos,
-          });
 
           return {
             id: pref.id.toString(),
@@ -129,22 +112,29 @@ export function useAtributos(userId: number, isOpen: boolean) {
           };
         });
 
-        console.log("Atributos convertidos:", atributosConvertidos);
         setAtributos(atributosConvertidos);
       } else {
-        console.log("No hay atributos existentes");
         setAtributos([]);
       }
     } catch (error) {
-      console.error("🎣 [useAtributos] ❌ Error al cargar atributos:", error);
+      console.error("Error al cargar atributos:", error);
       toast.error("Error al cargar los atributos del usuario");
     } finally {
-      console.log("🎣 [useAtributos] ✅ Carga completada - setLoading(false)");
       setLoading(false);
     }
   };
 
-  // Crear nuevo atributo (se agrega a los existentes cargados de BD)
+  // Iniciar edición de un atributo existente (carga sus datos en el formulario)
+  const editarAtributo = (id: string) => {
+    const atributo = atributos.find((a) => a.id === id);
+    if (!atributo) return;
+    setEditandoId(id);
+    setDescripcionAtributo(atributo.descripcion);
+    setCamposActuales([...atributo.campos]);
+    setNuevoCampo({ id: "", valor: "" });
+  };
+
+  // Crear o actualizar atributo en el estado local
   const crearAtributo = () => {
     if (!descripcionAtributo.trim()) {
       toast.error("Por favor ingresa una descripción para el atributo");
@@ -158,27 +148,45 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
     const valorJson = generarJsonValor(camposActuales);
 
-    const nuevoAtributo: Atributo = {
-      id: `nuevo-${Date.now()}`, // ID temporal para nuevos atributos
-      descripcion: descripcionAtributo.trim(),
-      campos: [...camposActuales],
-      valor: valorJson,
-    };
-
-    // Agregar al array existente (que incluye los de BD + los nuevos locales)
-    setAtributos((prev) => [...prev, nuevoAtributo]);
+    if (editandoId !== null) {
+      // Actualizar atributo existente en el estado local
+      setAtributos((prev) =>
+        prev.map((a) =>
+          a.id === editandoId
+            ? { ...a, descripcion: descripcionAtributo.trim(), campos: [...camposActuales], valor: valorJson }
+            : a
+        )
+      );
+      toast.success(`Atributo "${descripcionAtributo.trim()}" actualizado`);
+    } else {
+      // Agregar nuevo atributo
+      const nuevoAtributo: Atributo = {
+        id: `nuevo-${Date.now()}`,
+        descripcion: descripcionAtributo.trim(),
+        campos: [...camposActuales],
+        valor: valorJson,
+      };
+      setAtributos((prev) => [...prev, nuevoAtributo]);
+      toast.success(`Atributo "${nuevoAtributo.descripcion}" agregado`);
+    }
 
     // Limpiar formulario
+    setEditandoId(null);
     setDescripcionAtributo("");
     setCamposActuales([]);
     setNuevoCampo({ id: "", valor: "" });
-
-    toast.success(`Atributo "${nuevoAtributo.descripcion}" creado localmente`);
   };
 
   // Eliminar atributo
   const eliminarAtributo = (id: string) => {
     setAtributos((prev) => prev.filter((attr) => attr.id !== id));
+    // Si se eliminó el que estaba en edición, limpiar formulario
+    if (editandoId === id) {
+      setEditandoId(null);
+      setDescripcionAtributo("");
+      setCamposActuales([]);
+      setNuevoCampo({ id: "", valor: "" });
+    }
     toast.success("Atributo eliminado");
   };
 
@@ -187,33 +195,19 @@ export function useAtributos(userId: number, isOpen: boolean) {
     try {
       setSaving(true);
 
-      console.log("Guardando atributos para usuario:", userId);
-      console.log("Atributos totales:", atributos);
-
       if (atributos.length === 0) {
         toast.info("No hay atributos para guardar");
         return true;
       }
 
-      // Enviar TODOS los atributos (existentes + nuevos) — la ruta hace replace completo
       const atributosParaDB = atributos.map((atributo) => ({
         atributo: atributo.descripcion,
         valor: atributo.valor,
       }));
 
-      console.log("Payload para API:", atributosParaDB);
-
       await apiGuardarAtributosDB(userId, atributosParaDB);
 
-      const nuevos = atributos.filter((a) => a.id.startsWith("nuevo-")).length;
-      toast.success(
-        nuevos > 0
-          ? `${nuevos} atributo(s) guardado(s) correctamente`
-          : "Atributos actualizados correctamente",
-      );
-
-      // Recargar desde BD para obtener IDs reales
-      await cargarAtributos();
+      toast.success(`${atributosParaDB.length} atributo(s) guardado(s) correctamente`);
 
       return true;
     } catch (error) {
@@ -225,8 +219,9 @@ export function useAtributos(userId: number, isOpen: boolean) {
     }
   };
 
-  // Limpiar estado al cerrar (solo limpia el formulario, no los atributos)
+  // Limpiar estado al cerrar
   const limpiarEstado = () => {
+    setEditandoId(null);
     setDescripcionAtributo("");
     setCamposActuales([]);
     setNuevoCampo({ id: "", valor: "" });
@@ -251,11 +246,13 @@ export function useAtributos(userId: number, isOpen: boolean) {
     setCamposActuales,
     nuevoCampo,
     setNuevoCampo,
+    editandoId,
     saving,
     loading,
 
     // Funciones
     crearAtributo,
+    editarAtributo,
     eliminarAtributo,
     guardarAtributos,
     limpiarEstado,

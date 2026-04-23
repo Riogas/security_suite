@@ -4,7 +4,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Type, Trash2, Hash } from "lucide-react";
+import { Settings, Type, Trash2, Hash, Pencil } from "lucide-react";
 
 interface CampoValor {
   id: string;
@@ -21,22 +21,17 @@ interface Atributo {
 interface ListaAtributosPanelProps {
   atributos: Atributo[];
   loading: boolean;
+  onEditarAtributo: (id: string) => void;
   onEliminarAtributo: (id: string) => void;
 }
 
 export default function ListaAtributosPanel({
   atributos,
   loading,
+  onEditarAtributo,
   onEliminarAtributo,
 }: ListaAtributosPanelProps) {
-  // 🔍 DEBUG: Rastrear prop loading
-  console.log("📋 [ListaAtributosPanel] Props:", {
-    loading,
-    atributosCount: atributos.length,
-  });
-
   if (loading) {
-    console.log("📋 [ListaAtributosPanel] ⏳ Mostrando spinner de carga");
     return (
       <div className="w-[52%] space-y-6">
         <Card className="h-full">
@@ -113,14 +108,26 @@ export default function ListaAtributosPanel({
                           {atributo.campos.length} campos configurados
                         </p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEliminarAtributo(atributo.id)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEditarAtributo(atributo.id)}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          title="Editar atributo"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEliminarAtributo(atributo.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Eliminar atributo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                   {/* Mostrar campos */}

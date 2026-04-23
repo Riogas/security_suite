@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Tag, Hash } from "lucide-react";
+import { Plus, Trash2, Tag, Hash, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 interface CampoValor {
@@ -21,6 +21,7 @@ interface CrearAtributoPanelProps {
   setCamposActuales: React.Dispatch<React.SetStateAction<CampoValor[]>>;
   nuevoCampo: CampoValor;
   setNuevoCampo: React.Dispatch<React.SetStateAction<CampoValor>>;
+  editandoId: string | null;
   onCrearAtributo: () => void;
 }
 
@@ -31,8 +32,10 @@ export default function CrearAtributoPanel({
   setCamposActuales,
   nuevoCampo,
   setNuevoCampo,
+  editandoId,
   onCrearAtributo,
 }: CrearAtributoPanelProps) {
+  const modoEdicion = editandoId !== null;
   // 🔍 DEBUG: Rastrear props
   console.log("➕ [CrearAtributoPanel] Props:", {
     descripcionAtributo,
@@ -78,8 +81,8 @@ export default function CrearAtributoPanel({
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Crear Nuevo Atributo
+            {modoEdicion ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {modoEdicion ? "Editar Atributo" : "Crear Nuevo Atributo"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 px-6 xl:px-8 pb-8 flex-1 overflow-y-auto">
@@ -170,7 +173,7 @@ export default function CrearAtributoPanel({
             )}
           </div>
 
-          {/* Botón para crear atributo */}
+          {/* Botón para crear/actualizar atributo */}
           <Button
             type="button"
             onClick={onCrearAtributo}
@@ -179,9 +182,13 @@ export default function CrearAtributoPanel({
             }
             className="w-full h-12 text-base"
             size="lg"
+            variant={modoEdicion ? "default" : "default"}
           >
-            <Tag className="w-5 h-5 mr-2" />
-            Crear Atributo
+            {modoEdicion ? (
+              <><Pencil className="w-5 h-5 mr-2" />Actualizar Atributo</>
+            ) : (
+              <><Tag className="w-5 h-5 mr-2" />Crear Atributo</>
+            )}
           </Button>
         </CardContent>
       </Card>
