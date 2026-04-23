@@ -36,24 +36,20 @@ export default function AtributosModal({
     setCamposActuales,
     nuevoCampo,
     setNuevoCampo,
+    editandoId,
     saving,
     loading,
     crearAtributo,
+    editarAtributo,
     eliminarAtributo,
     guardarAtributos,
     limpiarEstado,
   } = useAtributos(userId, isOpen);
 
-  // 🔍 DEBUG: Rastrear estados de loading
-  console.log("🔷 [AtributosModal] Estados:", {
-    isOpen,
-    loading,
-    saving,
-    atributosCount: atributos.length,
-  });
+  // Debug
+  console.log("[AtributosModal] atributos:", atributos.length, "saving:", saving);
 
   const handleClose = () => {
-    console.log("🔷 [AtributosModal] handleClose llamado");
     limpiarEstado();
     onClose();
   };
@@ -89,12 +85,14 @@ export default function AtributosModal({
             setCamposActuales={setCamposActuales}
             nuevoCampo={nuevoCampo}
             setNuevoCampo={setNuevoCampo}
+            editandoId={editandoId}
             onCrearAtributo={crearAtributo}
           />
 
           <ListaAtributosPanel
             atributos={atributos}
             loading={false}
+            onEditarAtributo={editarAtributo}
             onEliminarAtributo={eliminarAtributo}
           />
         </div>
