@@ -2,6 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'securitySuite',
+      cwd: '/var/www/secapi',   // Path absoluto: evita que pm2 resuelva rutas
+                                // relativas contra el dir de quien invoca.
       script: 'node_modules/next/dist/bin/next',
       args: 'start',
       instances: 1,
@@ -67,6 +69,9 @@ module.exports = {
 
     {
       name: 'as400-api',
+      cwd: '/var/www/secapi',   // Path absoluto: pm2 resuelve script y logs
+                                // contra este dir, no contra $PWD de quien
+                                // ejecuta `pm2 start`.
       script: 'as400-api/server.js',
       instances: 1,
       exec_mode: 'fork',
