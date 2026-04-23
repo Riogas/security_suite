@@ -205,19 +205,51 @@ else
     fi
 fi
 
+# ─── Persistir estado de pm2 ───────────────────────────────────
+# Sin esto, al reiniciar el server pm2 levanta lo que tenía guardado
+# antes (no el estado actual). Silencia el warning recurrente
+# "Current process list is not synchronized with saved list".
+echo
+echo "===== PM2 SAVE ====="
+sudo -u "$APP_USER" pm2 save >/dev/null 2>&1 && echo "pm2 state guardado." || echo "⚠️  pm2 save falló."
+
 # ─── Healthcheck final ─────────────────────────────────────────
 echo
 echo "===== HEALTHCHECK ====="
 sleep 2
 
-echo -n "securitySuite (pm2): "
-sudo -u "$APP_USER" pm2 describe "$PM2_APP_NAME" 2>/dev/null | grep -E "^\s*status\s*:" | head -1 || echo "no info"
+# Parseo robusto de status via pm2 jlist (JSON). Fallback sin jq.
+get_pm2_status() {
+    local name="$1"
+    if command -v jq >/dev/null 2>&1; then
+        sudo -u "$APP_USER" pm2 jlist 2>/dev/null \
+            | jq -r ".[] | select(.name==\"$name\") | .pm2_env.status" 2>/dev/null
+    else
+        # Fallback: buscar con python si está, sino grep del JSON raw.
+        if command -v python3 >/dev/null 2>&1; then
+            sudo -u "$APP_USER" pm2 jlist 2>/dev/null \
+                | python3 -c "import sys,json;
+d=json.load(sys.stdin)
+for p in d:
+    if p.get('name')=='$name': print(p.get('pm2_env',{}).get('status','')); break" 2>/dev/null
+        else
+            sudo -u "$APP_USER" pm2 jlist 2>/dev/null \
+                | tr ',' '\n' \
+                | grep -A1 "\"name\":\"$name\"" \
+                | grep -oE '"status":"[^"]+"' \
+                | head -1 | sed 's/"status":"//;s/"$//'
+        fi
+    fi
+}
 
-echo -n "as400-api (pm2): "
-sudo -u "$APP_USER" pm2 describe "$AS400_API_NAME" 2>/dev/null | grep -E "^\s*status\s*:" | head -1 || echo "no registrado"
+SUITE_STATUS=$(get_pm2_status "$PM2_APP_NAME")
+echo "securitySuite (pm2): ${SUITE_STATUS:-no info}"
 
-echo -n "as400-api (:5000): "
-curl -sf -m 3 http://localhost:5000/api/health && echo "" || echo "no responde"
+AS400_STATUS=$(get_pm2_status "$AS400_API_NAME")
+echo "as400-api     (pm2): ${AS400_STATUS:-no registrado}"
+
+echo -n "as400-api     (:5000): "
+curl -sf -m 3 http://localhost:5000/api/health 2>/dev/null && echo "" || echo "no responde"
 
 # ─── Fin ───────────────────────────────────────────────────────
 echo
