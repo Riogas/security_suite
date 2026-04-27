@@ -15,6 +15,7 @@ app.use('/api/db',       require('./src/routes/db'));
 app.use('/api/clientes', require('./src/routes/clientes'));
 app.use('/api/pedidos',  require('./src/routes/pedidos'));
 app.use('/api/auth',     require('./src/routes/auth'));
+app.use('/api/auth',     require('./src/routes/auth-admsec'));
 
 app.get('/api/health', async (req, res) => {
   const ok = await testConexion();
@@ -37,6 +38,8 @@ app.get('/', (req, res) => res.json({
     'PUT  /api/pedidos/:nro/estado',
     'POST /api/auth/as400',
     'POST /api/auth/ldap',
+    'POST /api/auth/admsec/lookup',
+    'POST /api/auth/admsec/validate',
   ],
 }));
 
