@@ -108,6 +108,33 @@ async function migrateExternalUser(opts: {
   return usuario;
 }
 
+// ─── Asignación condicional de rol Despacho a usuario LDAP existente (Escenario B) ─────
+
+async function assignDespachoIfEligible(opts: {
+  usuario: { id: number; desdeSistema: string | null; esExterno: string | null; username: string };
+  ldapResult: { success: boolean; user?: any } | null;
+}): Promise<void> {
+  const { usuario, ldapResult } = opts;
+
+  if (!ldapResult || !ldapResult.success) return;
+  if (usuario.desdeSistema?.trim() !== "LDAP") return;
+  if (usuario.esExterno?.trim() !== "S") return;
+  if (!ldapResult.user?.isDespacho) return;
+
+  const rolesCount = await prisma.usuarioRol.count({ where: { usuarioId: usuario.id } });
+  if (rolesCount > 0) return;
+
+  await prisma.usuarioRol.upsert({
+    where: { usuarioId_rolId: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID } },
+    create: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID },
+    update: {},
+  }).then(() => {
+    console.log(`✅ [Login] Rol Despacho asignado a ${usuario.username} (existente LDAP, sin roles, grupo 52)`);
+  }).catch((err: Error) => {
+    console.error(`⚠️ [Login] No se pudo asignar rol Despacho a ${usuario.username} (rolId=${DESPACHO_ROL_ID}):`, err.message);
+  });
+}
+
 // ─── Respuesta de éxito ───────────────────────────────────────────────────────
 
 async function buildSuccessResponse(usuario: any, sistema: string, verifiedBy: string) {
@@ -229,6 +256,11 @@ export async function POST(request: NextRequest) {
           if (usuarioLocal.password !== password) return unauthorized();
         } else if (!externalOk) {
           return unauthorized();
+        }
+
+        // Escenario B: solo si LDAP autenticó OK (no fallback) y el origen es LDAP
+        if (!externalDown && origen === "LDAP") {
+          await assignDespachoIfEligible({ usuario: usuarioLocal, ldapResult: result });
         }
 
         return buildSuccessResponse(usuarioLocal, sistema, externalDown ? "local-fallback" : origen.toLowerCase());
