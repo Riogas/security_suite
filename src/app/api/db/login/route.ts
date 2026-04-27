@@ -77,34 +77,76 @@ async function migrateExternalUser(opts: {
   const parts = nombre.trim().split(/\s+/);
   const nombreDb = parts[0] || username;
   const apellidoDb = parts.slice(1).join(" ") || null;
+  const emailDb = email || null;
 
-  const usuario = await prisma.usuario.create({
-    data: {
-      username,
-      password,
-      email: email || null,
-      nombre: nombreDb,
-      apellido: apellidoDb,
-      estado: "A",
-      esExterno: "S",
-      usuarioExterno: username,
-      tipoUsuario: "E",
-      desdeSistema,
-      creadoPor: "auto-migration",
-    },
-  });
-
-  if (assignDespacho) {
-    await prisma.usuarioRol.upsert({
-      where: { usuarioId_rolId: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID } },
-      create: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID },
-      update: {},
-    }).catch((err: Error) => {
-      console.error(`⚠️ [Login] No se pudo asignar rol Despacho (rolId=${DESPACHO_ROL_ID}):`, err.message);
+  let usuario;
+  try {
+    usuario = await prisma.usuario.create({
+      data: {
+        username,
+        password,
+        email: emailDb,
+        nombre: nombreDb,
+        apellido: apellidoDb,
+        estado: "A",
+        esExterno: "S",
+        usuarioExterno: username,
+        tipoUsuario: "E",
+        desdeSistema,
+        creadoPor: "auto-migration",
+      },
     });
+    console.log(`✅ [Login] Usuario ${username} migrado desde ${desdeSistema}. Despacho: ${assignDespacho}`);
+  } catch (err) {
+    // P2002 = unique constraint. Puede dispararse por email (usuario migrado de un sistema viejo
+    // con otro username, ej. CI). Buscamos por email y re-vinculamos esa fila al nuevo username.
+    const code = (err as { code?: string })?.code;
+    const target = (err as { meta?: { target?: string[] } })?.meta?.target ?? [];
+    const isEmailConflict = code === "P2002" && target.includes("email") && !!emailDb;
+
+    if (!isEmailConflict) throw err;
+
+    const existing = await prisma.usuario.findUnique({ where: { email: emailDb } });
+    if (!existing) throw err;
+
+    if (existing.estado === "I") {
+      console.log(`❌ [Login] Email ${emailDb} pertenece a usuario inactivo id=${existing.id} (${existing.username}). No se re-vincula.`);
+      throw err;
+    }
+
+    usuario = await prisma.usuario.update({
+      where: { id: existing.id },
+      data: {
+        username,
+        password,
+        esExterno: "S",
+        usuarioExterno: username,
+        tipoUsuario: "E",
+        desdeSistema,
+        // Preservamos nombre/apellido si ya estaban completos; si no, usamos los del LDAP/SGM.
+        nombre: existing.nombre || nombreDb,
+        apellido: existing.apellido || apellidoDb,
+      },
+    });
+    console.log(`🔁 [Login] Usuario re-vinculado: id=${existing.id} username "${existing.username}" → "${username}" (email=${emailDb}, origen=${desdeSistema})`);
   }
 
-  console.log(`✅ [Login] Usuario ${username} migrado desde ${desdeSistema}. Despacho: ${assignDespacho}`);
+  if (assignDespacho) {
+    // Solo asignamos Despacho si no tiene roles previos (no pisamos asignaciones manuales del re-vinculado).
+    const rolesCount = await prisma.usuarioRol.count({ where: { usuarioId: usuario.id } });
+    if (rolesCount === 0) {
+      await prisma.usuarioRol.upsert({
+        where: { usuarioId_rolId: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID } },
+        create: { usuarioId: usuario.id, rolId: DESPACHO_ROL_ID },
+        update: {},
+      }).catch((err: Error) => {
+        console.error(`⚠️ [Login] No se pudo asignar rol Despacho (rolId=${DESPACHO_ROL_ID}):`, err.message);
+      });
+    } else {
+      console.log(`ℹ️ [Login] ${username} ya tenía ${rolesCount} rol(es), no se asigna Despacho.`);
+    }
+  }
+
   return usuario;
 }
 
