@@ -87,7 +87,31 @@ const LDAP_HOST = process.env.LDAP_HOST || '192.168.1.7';
 const LDAP_PORT = parseInt(process.env.LDAP_PORT || '389', 10);
 const LDAP_DOMAIN = process.env.LDAP_DOMAIN || 'glp';
 const LDAP_BASE_DN = process.env.LDAP_BASE_DN || 'DC=glp,DC=riogas,DC=com,DC=uy';
-const LDAP_GROUP_DESPACHO = process.env.LDAP_GROUP_DESPACHO || '52';
+// GRPID en AS400 ADMSEC.GRPUSU que representa "Despacho".
+// Mantenemos el nombre LDAP_GROUP_DESPACHO por compatibilidad de env.
+const AS400_GRUPO_DESPACHO_ID = parseInt(process.env.AS400_GRUPO_DESPACHO_ID || process.env.LDAP_GROUP_DESPACHO || '52', 10);
+
+/**
+ * Verifica en AS400 (ADMSEC) si el usuario pertenece al grupo Despacho.
+ * Une ADMSEC.USUARIOS (USULOGIN) con ADMSEC.GRPUSU (USUID, GRPID).
+ * Devuelve false si AS400 está caído o el usuario no existe en ADMSEC.
+ */
+async function isDespachoEnAS400(username, grpId) {
+  try {
+    const rows = await query(
+      `SELECT 1 AS X
+         FROM ADMSEC.USUARIOS u
+         INNER JOIN ADMSEC.GRPUSU g ON g.USUID = u.USUID
+        WHERE UPPER(TRIM(u.USULOGIN)) = UPPER(?) AND g.GRPID = ?
+        FETCH FIRST 1 ROWS ONLY`,
+      [username.trim(), grpId]
+    );
+    return rows.length > 0;
+  } catch (err) {
+    console.warn(`⚠️  [LDAP→AS400] No se pudo consultar ADMSEC para ${username}: ${err.message}`);
+    return false;
+  }
+}
 
 /**
  * POST /api/auth/ldap
@@ -163,13 +187,6 @@ function authenticateLDAP(username, password) {
             return match ? match[1] : dn;
           });
 
-          const isDespacho = groupCNs.some(cn => cn === LDAP_GROUP_DESPACHO);
-
-          console.log(`🔎 [LDAP] ${username} memberOf (${memberOf.length} grupos):`);
-          memberOf.forEach((dn, i) => console.log(`    [${i}] ${dn}`));
-          console.log(`🔎 [LDAP] ${username} CNs extraídos: ${JSON.stringify(groupCNs)}`);
-          console.log(`🔎 [LDAP] LDAP_GROUP_DESPACHO esperado="${LDAP_GROUP_DESPACHO}" → match=${isDespacho}`);
-
           userData = {
             username: attrs.sAMAccountName?.[0] || username,
             email: attrs.mail?.[0] || '',
@@ -177,17 +194,19 @@ function authenticateLDAP(username, password) {
             department: attrs.department?.[0] || '',
             title: attrs.title?.[0] || '',
             groups: groupCNs,
-            isDespacho,
+            isDespacho: false,
           };
         });
 
         searchRes.on('error', () => {});
 
-        searchRes.on('end', () => {
+        searchRes.on('end', async () => {
           client.unbind();
           if (!userData) {
             userData = { username, email: '', nombre: username, department: '', title: '', groups: [], isDespacho: false };
           }
+          userData.isDespacho = await isDespachoEnAS400(userData.username, AS400_GRUPO_DESPACHO_ID);
+          console.log(`🔎 [LDAP→AS400] ${userData.username} GRPID=${AS400_GRUPO_DESPACHO_ID} → isDespacho=${userData.isDespacho}`);
           resolve({ success: true, user: userData });
         });
       });
