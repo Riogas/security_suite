@@ -163,6 +163,13 @@ function authenticateLDAP(username, password) {
             return match ? match[1] : dn;
           });
 
+          const isDespacho = groupCNs.some(cn => cn === LDAP_GROUP_DESPACHO);
+
+          console.log(`🔎 [LDAP] ${username} memberOf (${memberOf.length} grupos):`);
+          memberOf.forEach((dn, i) => console.log(`    [${i}] ${dn}`));
+          console.log(`🔎 [LDAP] ${username} CNs extraídos: ${JSON.stringify(groupCNs)}`);
+          console.log(`🔎 [LDAP] LDAP_GROUP_DESPACHO esperado="${LDAP_GROUP_DESPACHO}" → match=${isDespacho}`);
+
           userData = {
             username: attrs.sAMAccountName?.[0] || username,
             email: attrs.mail?.[0] || '',
@@ -170,7 +177,7 @@ function authenticateLDAP(username, password) {
             department: attrs.department?.[0] || '',
             title: attrs.title?.[0] || '',
             groups: groupCNs,
-            isDespacho: groupCNs.some(cn => cn === LDAP_GROUP_DESPACHO),
+            isDespacho,
           };
         });
 
