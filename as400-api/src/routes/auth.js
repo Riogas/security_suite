@@ -23,13 +23,23 @@ router.post('/as400', async (req, res) => {
   console.log(`[AS400 Auth] Buscando usuario: ${username}`);
 
   try {
+    // El JOIN a AGENCIA y ESCENARIO trae el escenario del usuario en la misma
+    // consulta. Si USUMOBILE.AGENCIAID es null o no matchea, los campos de
+    // agencia/escenario quedan en null y el caller los ignora.
     const rows = await query(
       `SELECT u.USUMOBILEID, u.USUMOBILENOMBRE, u.USUMOBILEEMAIL,
               u.USUMOBILEPASSWORD, u.USUMOBILEHABILITADO,
-              r.USUMOBR_ROLID
+              r.USUMOBR_ROLID,
+              u.AGENCIAID,
+              a.ESCENARIOID,
+              e.ESCENARIONOM
        FROM GXICAGEO.USUMOBILE u
        LEFT JOIN GXICAGEO.USUMOBILEROLES r
          ON r.USUMOBILEID = u.USUMOBILEID AND r.USUMOBR_ROLID = 6
+       LEFT JOIN GXICAGEO.AGENCIA a
+         ON a.AGENCIAID = u.AGENCIAID
+       LEFT JOIN GXICAGEO.ESCENARIO e
+         ON e.ESCENARIOID = a.ESCENARIOID
        WHERE UPPER(TRIM(u.USUMOBILELOGIN)) = UPPER(?)`,
       [username.trim()]
     );
@@ -54,7 +64,13 @@ router.post('/as400', async (req, res) => {
     }
 
     const hasRoleDespacho = row.USUMOBR_ROLID === 6;
-    console.log(`[AS400 Auth] ${username} autenticado. Despacho: ${hasRoleDespacho}`);
+    const escenarioId = row.ESCENARIOID != null ? Number(row.ESCENARIOID) : null;
+    const escenarioNomRaw = (row.ESCENARIONOM || '').trim();
+    const escenarioNom = escenarioNomRaw || null;
+    console.log(
+      `[AS400 Auth] ${username} autenticado. Despacho: ${hasRoleDespacho}. ` +
+        `Escenario: ${escenarioId ?? 'n/a'} (${escenarioNom ?? 'n/a'})`
+    );
 
     res.json({
       outcome: 'OK',
@@ -64,6 +80,8 @@ router.post('/as400', async (req, res) => {
         nombre: (row.USUMOBILENOMBRE || '').trim() || username.trim(),
         email: (row.USUMOBILEEMAIL || '').trim(),
         hasRoleDespacho,
+        escenarioId,
+        escenarioNom,
       },
     });
   } catch (err) {

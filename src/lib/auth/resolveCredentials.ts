@@ -11,6 +11,7 @@ import {
   assignDespachoOnNewUser,
 } from "./assignDespachoIfEligible";
 import { authLog } from "./logger";
+import { persistEscenarioPreference } from "./persistEscenarioPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
 import { classifyUsername } from "./classifyUsername";
 import type {
@@ -163,6 +164,9 @@ async function resolveNewNumericUser(
       desdeSistema: "SGM",
     });
     await assignDespachoOnNewUser(usuario.id, username, !!sgm.user?.hasRoleDespacho);
+    // Persistir el escenario asignado al user en SGM como preferencia.
+    // No bloquea el login si falla (helper loguea y no propaga).
+    await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
     return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
   }
 
@@ -214,6 +218,10 @@ async function resolveExistingUser(
   if (desde === "SGM") {
     const sgm = await validateAs400(usuario.username, password);
     if (sgm.outcome === "OK") {
+      // Refrescar el escenario en cada login OK contra SGM. El helper hace
+      // delete+create de la preferencia 'Escenario'. Si SGM no devuelve
+      // escenario (agencia null) no toca la preferencia existente.
+      await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
       return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
     }
     if (sgm.outcome === "INVALID_CREDS") {
