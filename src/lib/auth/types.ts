@@ -24,11 +24,19 @@ export type ValidateOutcome =
 export type LookupOutcome = "FOUND" | "NOT_FOUND" | "DISABLED" | "UNAVAILABLE";
 
 // Forma del usuario AS400/USUMOBILE devuelto por /api/auth/as400.
+//
+// escenarioId / escenarioNom: vienen del JOIN
+//   USUMOBILE -> AGENCIA -> ESCENARIO en GXICAGEO.
+// Se persisten como preferencia "Escenario" del usuario para alimentar al
+// front (TrackMovil, etc.). Si el usuario no tiene agencia / escenario
+// asignado en SGM, ambos llegan en null y la preferencia no se persiste.
 export interface As400UserPayload {
   username: string;
   nombre: string;
   email: string;
   hasRoleDespacho: boolean;
+  escenarioId?: number | null;
+  escenarioNom?: string | null;
 }
 
 export interface As400ValidateResult {

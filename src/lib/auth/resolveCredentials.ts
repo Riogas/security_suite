@@ -11,6 +11,7 @@ import {
   assignDespachoOnNewUser,
 } from "./assignDespachoIfEligible";
 import { authLog } from "./logger";
+import { persistEscenarioPreference } from "./persistEscenarioPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
 import { classifyUsername } from "./classifyUsername";
 import type {
@@ -45,6 +46,12 @@ interface AdmsecBranchFailure {
 }
 
 type AdmsecBranchResult = AdmsecBranchSuccess | AdmsecBranchFailure;
+
+// Mensaje único para usuarios que validaron contra GSIST o LDAP pero no tienen
+// el rol Despacho en SGM (consultado vía AS400 ADMSEC.GRPUSU). Para SGM users
+// (USUMOBILE) este chequeo NO aplica — los validamos por escenario / empresa
+// fletera más abajo en el flujo.
+const ACCESS_DENIED_NOT_DESPACHO = "No tiene acceso a este sistema";
 
 async function validateAgainstAdmsec(
   username: string,
@@ -136,6 +143,16 @@ async function resolveNewAlphaUser(
     return { ok: false, status: 401 };
   }
 
+  // Sin rol Despacho → denegar acceso (sin crear el user en PG).
+  // Aplica solo a validación contra LDAP/GSIST. SGM tiene su propio chequeo.
+  if (!branch.isDespacho) {
+    authLog.info("alta cancelada: usuario LDAP/GSIST sin rol Despacho", {
+      username,
+      verifiedBy: branch.verifiedBy,
+    });
+    return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+  }
+
   const usuario = await upsertExternalUser({
     username,
     nombre: branch.ldapNombre || username,
@@ -163,6 +180,9 @@ async function resolveNewNumericUser(
       desdeSistema: "SGM",
     });
     await assignDespachoOnNewUser(usuario.id, username, !!sgm.user?.hasRoleDespacho);
+    // Persistir el escenario asignado al user en SGM como preferencia.
+    // No bloquea el login si falla (helper loguea y no propaga).
+    await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
     return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
   }
 
@@ -176,6 +196,15 @@ async function resolveNewNumericUser(
   const branch = await validateAgainstAdmsec(username, password);
   if (!branch.ok) {
     return { ok: false, status: 401 };
+  }
+
+  // Misma regla que para alfa nuevo: sin Despacho desde LDAP/GSIST → 403.
+  if (!branch.isDespacho) {
+    authLog.info("alta numerica cancelada: fallback LDAP/GSIST sin rol Despacho", {
+      username,
+      verifiedBy: branch.verifiedBy,
+    });
+    return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
   }
 
   const usuario = await upsertExternalUser({
@@ -214,6 +243,10 @@ async function resolveExistingUser(
   if (desde === "SGM") {
     const sgm = await validateAs400(usuario.username, password);
     if (sgm.outcome === "OK") {
+      // Refrescar el escenario en cada login OK contra SGM. El helper hace
+      // delete+create de la preferencia 'Escenario'. Si SGM no devuelve
+      // escenario (agencia null) no toca la preferencia existente.
+      await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
       return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
     }
     if (sgm.outcome === "INVALID_CREDS") {
@@ -233,6 +266,13 @@ async function resolveExistingUser(
   if (desde === "LDAP") {
     const ldap = await validateLdap(usuario.username, password);
     if (ldap.outcome === "OK") {
+      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho).
+      if (!ldap.user?.isDespacho) {
+        authLog.info("acceso denegado: existing LDAP user sin rol Despacho", {
+          username: usuario.username,
+        });
+        return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+      }
       // Escenario B: asignar Despacho si corresponde.
       await assignDespachoIfEligible({
         usuario,
@@ -258,6 +298,14 @@ async function resolveExistingUser(
     // Misma lógica que el subárbol ADMSEC del caso 1.
     const branch = await validateAgainstAdmsec(usuario.username, password);
     if (branch.ok) {
+      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho).
+      if (!branch.isDespacho) {
+        authLog.info("acceso denegado: existing GSIST/LDAP user sin rol Despacho", {
+          username: usuario.username,
+          verifiedBy: branch.verifiedBy,
+        });
+        return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+      }
       // Si validó por LDAP, también puede aplicar Escenario B.
       if (branch.verifiedBy === "ldap" && branch.ldapResult) {
         await assignDespachoIfEligible({ usuario, ldapResult: branch.ldapResult });
