@@ -6,7 +6,11 @@ const DESPACHO_ROL_ID = parseInt(process.env.DESPACHO_ROL_ID || "49", 10);
 /**
  * Asigna el rol Despacho a un usuario PG existente cuando:
  *  - validó OK contra LDAP (no fallback)
- *  - viene de desdeSistema = LDAP y esExterno = S
+ *  - es externo (esExterno = S) con desdeSistema en {LDAP, GSIST}
+ *    GSIST también es válido: el lookup ADMSEC indica usuAutAd='A' y la
+ *    validación efectiva pasa por LDAP. Restringir a desdeSistema='LDAP'
+ *    dejaba afuera a usuarios marcados GSIST en PG aunque LDAP los
+ *    autenticara con isDespacho=true.
  *  - LDAP indicó isDespacho = true
  *  - no tiene roles previos (no pisamos asignaciones manuales)
  *
@@ -19,7 +23,8 @@ export async function assignDespachoIfEligible(opts: {
   const { usuario, ldapResult } = opts;
 
   if (!ldapResult || ldapResult.outcome !== "OK") return;
-  if (usuario.desdeSistema?.trim() !== "LDAP") return;
+  const desde = usuario.desdeSistema?.trim();
+  if (desde !== "LDAP" && desde !== "GSIST") return;
   if (usuario.esExterno?.trim() !== "S") return;
   if (!ldapResult.user?.isDespacho) return;
 
