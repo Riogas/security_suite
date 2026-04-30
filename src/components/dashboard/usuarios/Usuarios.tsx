@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { apiUsuarios, apiImportarUsuario, apiUsuariosDB, apiEliminarUsuarioDB } from "@/services/api";
+import VerPermisosModal from "@/components/dashboard/usuarios/VerPermisosModal";
 import {
   Pencil,
   Trash,
@@ -28,6 +29,7 @@ import {
   Phone,
   Plus,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -44,6 +46,7 @@ export default function UsuariosTable() {
   const [importingUsers, setImportingUsers] = useState<Set<number>>(new Set());
   const [importedUsers, setImportedUsers] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [permisosModal, setPermisosModal] = useState<{ userId: number; userName: string } | null>(null);
   const router = useRouter();
 
   // debounce
@@ -449,6 +452,21 @@ export default function UsuariosTable() {
                         </>
                       ) : (
                         <>
+                          {isFromDB(row) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Visualizar permisos"
+                              onClick={() =>
+                                setPermisosModal({
+                                  userId: getUserId(row),
+                                  userName: getUserName(row),
+                                })
+                              }
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -528,6 +546,15 @@ export default function UsuariosTable() {
           </div>
         </div>
       </div>
+
+      {permisosModal && (
+        <VerPermisosModal
+          isOpen
+          onClose={() => setPermisosModal(null)}
+          userId={permisosModal.userId}
+          userName={permisosModal.userName}
+        />
+      )}
     </div>
   );
 }

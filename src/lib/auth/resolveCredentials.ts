@@ -10,6 +10,7 @@ import {
   assignDespachoIfEligible,
   assignDespachoOnNewUser,
 } from "./assignDespachoIfEligible";
+import { applyAdmsecGroupRoles } from "./applyAdmsecGroupRoles";
 import { authLog } from "./logger";
 import { persistEscenarioPreference } from "./persistEscenarioPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
@@ -31,6 +32,8 @@ interface AdmsecBranchSuccess {
   verifiedBy: Extract<VerifiedBy, "ldap" | "gsist" | "gsist-fallback">;
   desdeSistema: "LDAP" | "GSIST";
   isDespacho: boolean;
+  /** GRPIDs del usuario en ADMSEC.GRPUSU (si se obtuvieron). */
+  groups: number[];
   // Para alta: nombre/email del LDAP si se obtuvieron.
   ldapNombre?: string;
   ldapEmail?: string;
@@ -53,6 +56,15 @@ type AdmsecBranchResult = AdmsecBranchSuccess | AdmsecBranchFailure;
 // fletera más abajo en el flujo.
 const ACCESS_DENIED_NOT_DESPACHO = "No tiene acceso a este sistema";
 
+// Un usuario con esRoot='S' (o boolean true si la columna migró a boolean) bypasea
+// el chequeo de rol Despacho.
+// La validación de credenciales (password contra fuente externa) NO se bypasea.
+function isRootUser(usuario: Usuario): boolean {
+  const val = usuario.esRoot;
+  if (val === true || (val as unknown) === "true") return true;
+  return String(val ?? "").trim().toUpperCase() === "S";
+}
+
 async function validateAgainstAdmsec(
   username: string,
   password: string,
@@ -74,6 +86,9 @@ async function validateAgainstAdmsec(
 
   // FOUND
   const usuAutAd = lookup.user!.usuAutAd;
+  // Los grupos los conocemos desde el lookup. El validate los re-trae para
+  // evitar TOCTOU si la membresía cambió entre lookup y validate.
+  const lookupGroups = lookup.user!.groups || [];
 
   if (usuAutAd === "A") {
     // Va por LDAP, con fallback a ADMSEC si LDAP está caído / no encuentra.
@@ -84,6 +99,7 @@ async function validateAgainstAdmsec(
         verifiedBy: "ldap",
         desdeSistema: "LDAP",
         isDespacho: !!ldap.user?.isDespacho,
+        groups: lookupGroups,
         ldapNombre: ldap.user?.nombre,
         ldapEmail: ldap.user?.email,
         ldapResult: { outcome: ldap.outcome, user: { isDespacho: !!ldap.user?.isDespacho } },
@@ -103,6 +119,7 @@ async function validateAgainstAdmsec(
         verifiedBy: "gsist-fallback",
         desdeSistema: "GSIST",
         isDespacho: !!admsec.user?.isDespacho,
+        groups: admsec.user?.groups || lookupGroups,
       };
     }
     if (admsec.outcome === "INVALID_CREDS") {
@@ -120,6 +137,7 @@ async function validateAgainstAdmsec(
       verifiedBy: "gsist",
       desdeSistema: "GSIST",
       isDespacho: !!admsec.user?.isDespacho,
+      groups: admsec.user?.groups || lookupGroups,
     };
   }
   if (admsec.outcome === "INVALID_CREDS") {
@@ -161,6 +179,7 @@ async function resolveNewAlphaUser(
     desdeSistema: branch.desdeSistema,
   });
   await assignDespachoOnNewUser(usuario.id, username, branch.isDespacho);
+  await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
   return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
 }
 
@@ -215,6 +234,7 @@ async function resolveNewNumericUser(
     desdeSistema: branch.desdeSistema,
   });
   await assignDespachoOnNewUser(usuario.id, username, branch.isDespacho);
+  await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
   return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
 }
 
@@ -266,12 +286,19 @@ async function resolveExistingUser(
   if (desde === "LDAP") {
     const ldap = await validateLdap(usuario.username, password);
     if (ldap.outcome === "OK") {
-      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho).
+      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho), salvo esRoot.
       if (!ldap.user?.isDespacho) {
-        authLog.info("acceso denegado: existing LDAP user sin rol Despacho", {
-          username: usuario.username,
-        });
-        return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+        if (isRootUser(usuario)) {
+          authLog.info("acceso permitido por esRoot, bypass de chequeo Despacho", {
+            username: usuario.username,
+            verifiedBy: "ldap",
+          });
+        } else {
+          authLog.info("acceso denegado: existing LDAP user sin rol Despacho", {
+            username: usuario.username,
+          });
+          return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+        }
       }
       // Escenario B: asignar Despacho si corresponde.
       await assignDespachoIfEligible({
@@ -298,18 +325,27 @@ async function resolveExistingUser(
     // Misma lógica que el subárbol ADMSEC del caso 1.
     const branch = await validateAgainstAdmsec(usuario.username, password);
     if (branch.ok) {
-      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho).
+      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho), salvo esRoot.
       if (!branch.isDespacho) {
-        authLog.info("acceso denegado: existing GSIST/LDAP user sin rol Despacho", {
-          username: usuario.username,
-          verifiedBy: branch.verifiedBy,
-        });
-        return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+        if (isRootUser(usuario)) {
+          authLog.info("acceso permitido por esRoot, bypass de chequeo Despacho", {
+            username: usuario.username,
+            verifiedBy: branch.verifiedBy,
+          });
+        } else {
+          authLog.info("acceso denegado: existing GSIST/LDAP user sin rol Despacho", {
+            username: usuario.username,
+            verifiedBy: branch.verifiedBy,
+          });
+          return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
+        }
       }
       // Si validó por LDAP, también puede aplicar Escenario B.
       if (branch.verifiedBy === "ldap" && branch.ldapResult) {
         await assignDespachoIfEligible({ usuario, ldapResult: branch.ldapResult });
       }
+      // Aplicar reglas de grupo ADMSEC (root, rol 48, rol 50) según política.
+      await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
       return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
     }
     if (branch.reason === "INVALID") {

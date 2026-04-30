@@ -67,6 +67,9 @@ export interface AdmsecLookupUser {
   username: string;
   usuAutAd: "A" | "G";
   isDespacho: boolean;
+  /** GRPIDs a los que pertenece el usuario en ADMSEC.GRPUSU.
+   *  Vacío si no se pudo determinar. */
+  groups?: number[];
 }
 
 export interface AdmsecLookupResult {
@@ -78,6 +81,9 @@ export interface AdmsecLookupResult {
 export interface AdmsecValidateUser {
   username: string;
   isDespacho: boolean;
+  /** GRPIDs a los que pertenece el usuario en ADMSEC.GRPUSU.
+   *  Vacío si no se pudo determinar. */
+  groups?: number[];
 }
 
 export interface AdmsecValidateResult {
