@@ -60,9 +60,7 @@ const ACCESS_DENIED_NOT_DESPACHO = "No tiene acceso a este sistema";
 // el chequeo de rol Despacho.
 // La validación de credenciales (password contra fuente externa) NO se bypasea.
 function isRootUser(usuario: Usuario): boolean {
-  const val = usuario.esRoot;
-  if (val === true || (val as unknown) === "true") return true;
-  return String(val ?? "").trim().toUpperCase() === "S";
+  return String(usuario.esRoot ?? "").trim().toUpperCase() === "S";
 }
 
 async function validateAgainstAdmsec(
