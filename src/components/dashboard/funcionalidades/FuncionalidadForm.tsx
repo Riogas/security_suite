@@ -205,6 +205,7 @@ export default function FuncionalidadForm({
 
   // Estados para el guardado
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Handlers
   const handleSubmit = async (e: React.FormEvent) => {
@@ -212,8 +213,12 @@ export default function FuncionalidadForm({
 
     try {
       setSaving(true);
+      setSaveError(null);
 
-      // Construir el array de items para FuncionalidadObjetoAccion
+      // Construir el array de items para FuncionalidadObjetoAccion.
+      // Los Objeto en selectedItems son marcadores visuales de agrupación;
+      // solo se procesan las SortableAction individuales para evitar guardar
+      // acciones no seleccionadas explícitamente.
       const objetoItems: { objetoId: number; objetoAccionId: number | null }[] = [];
 
       // También derivar objetoKey / accionKey del primer item
@@ -222,25 +227,20 @@ export default function FuncionalidadForm({
 
       selectedItems.forEach((item) => {
         if ("acciones" in item) {
-          // Es un Objeto completo: una entrada por cada una de sus acciones
-          const objeto = item as Objeto;
-          const objetoId = parseInt(objeto.id.replace("obj-", ""));
-          objeto.acciones.forEach((a) => {
-            objetoItems.push({ objetoId, objetoAccionId: parseInt(a.id.replace("act-", "")) });
-          });
-          if (!objetoKey) objetoKey = objeto.codigo;
-        } else {
-          // Es una acción individual
-          const accion = item as SortableAction;
-          const accionId = parseInt(accion.id.replace("act-", ""));
-          const padre = objetos.find((obj) =>
-            obj.acciones.some((acc) => acc.id === accion.id),
-          );
-          if (padre) {
-            const objetoId = parseInt(padre.id.replace("obj-", ""));
-            objetoItems.push({ objetoId, objetoAccionId: accionId });
-            if (!objetoKey) { objetoKey = padre.codigo; accionKey = accion.codigo; }
-          }
+          // Es un Objeto (padre visual): se omite en el guardado.
+          // Sus acciones individuales ya están en selectedItems como SortableAction.
+          return;
+        }
+        // Es una acción individual
+        const accion = item as SortableAction;
+        const accionId = parseInt(accion.id.replace("act-", ""));
+        const padre = objetos.find((obj) =>
+          obj.acciones.some((acc) => acc.id === accion.id),
+        );
+        if (padre) {
+          const objetoId = parseInt(padre.id.replace("obj-", ""));
+          objetoItems.push({ objetoId, objetoAccionId: accionId });
+          if (!objetoKey) { objetoKey = padre.codigo; accionKey = accion.codigo; }
         }
       });
 
@@ -277,8 +277,10 @@ export default function FuncionalidadForm({
       if (onSave) {
         onSave({ ...formData, selectedItems, id: funcId });
       }
-    } catch (error) {
+    } catch (error: any) {
+      const msg = error?.message || "Error desconocido al guardar";
       console.error("Error guardando funcionalidad:", error);
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }
@@ -530,6 +532,13 @@ export default function FuncionalidadForm({
         </div>
 
         <div className="border-b border-border" />
+
+        {/* Error de guardado */}
+        {saveError && (
+          <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+            <strong>Error al guardar:</strong> {saveError}
+          </div>
+        )}
 
         {/* Form */}
         <Card>

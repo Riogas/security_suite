@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         include: {
           aplicacion: { select: { id: true, nombre: true } },
           acciones: { include: { accion: { select: { id: true, nombre: true } } } },
+          _count: { select: { objetoAcciones: true } },
         },
       }),
       prisma.funcionalidad.count({ where }),

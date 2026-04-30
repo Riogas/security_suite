@@ -1733,6 +1733,7 @@ export interface FuncionalidadDB {
   fechaCreacion: string;
   aplicacion?: { id: number; nombre: string };
   acciones?: { accionId: number; accion?: { id: number; nombre: string } }[];
+  _count?: { objetoAcciones: number };
 }
 
 export interface FuncionalidadesDBResponse {
