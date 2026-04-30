@@ -1973,3 +1973,44 @@ export const apiPermisosDB = async (payload: {
   AccionKey?: string;
 }) =>
   dbFetch("/api/db/permisos", { method: "POST", body: JSON.stringify(payload) });
+
+// ─── Dual-write helper ──────────────────────────────────────────────────────
+
+/**
+ * dualWriteFireForget — patrón de dual-write non-blocking.
+ *
+ * Ejecuta `fn` en background (sin await en el caller). Si la operación falla,
+ * loggea en consola con JSON estructurado para reconciliación posterior.
+ * Usar cuando GeneXus ya respondió OK y queremos espejear el cambio en PostgreSQL
+ * (o viceversa) sin bloquear el flujo de la UI.
+ *
+ * @param label - identificador legible del contexto (ej: "rol:gx:update:42")
+ * @param fn    - función async que ejecuta la escritura secundaria
+ */
+export function dualWriteFireForget(
+  label: string,
+  fn: () => Promise<any>,
+): void {
+  fn()
+    .then(() => {
+      console.log(
+        JSON.stringify({
+          event: "dual_write",
+          label,
+          ok: true,
+          ts: new Date().toISOString(),
+        }),
+      );
+    })
+    .catch((err: any) => {
+      console.error(
+        JSON.stringify({
+          event: "dual_write",
+          label,
+          ok: false,
+          error: err?.message ?? String(err),
+          ts: new Date().toISOString(),
+        }),
+      );
+    });
+}

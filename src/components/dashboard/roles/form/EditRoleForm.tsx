@@ -9,6 +9,7 @@ import {
   apiAbmRoles,
   AbmRolesReq,
   ObtenerRolResp,
+  dualWriteFireForget,
 } from "@/services/api";
 
 interface EditRoleFormProps {
@@ -83,37 +84,34 @@ export default function EditRoleForm({ rolId }: EditRoleFormProps) {
     }
   }, [rolId, router]);
 
-  const handleSubmit = async (data: RolFormState) => {
-    try {
-      console.log("Actualizando rol:", data);
+  /**
+   * handleSubmit se invoca DESPUÉS de que RoleForm guardó exitosamente en PostgreSQL.
+   * Aquí realizamos el dual-write a GeneXus (fire-and-forget: no bloquea la UI).
+   * Recibe el estado del formulario y las funcionalidades del drag-and-drop.
+   */
+  const handleSubmit = async (data: RolFormState, funcionalidades: FuncionalidadItem[]) => {
+    const rolIdNum = parseInt(data.rolid);
 
-      const payload: AbmRolesReq = {
-        RolId: parseInt(data.rolid),
-        RolNombre: data.rolnombre,
-        RolDescripcion: data.roldescripcion,
-        RolEstado: data.rolestado,
-        RolNivel: data.rolnivel,
-        RolFchIns: data.rolfchins,
-        AplicacionId: parseInt(data.aplicacionid),
-        RolCreadoEn: data.rolcreadoen,
-        Funcionalidad: [], // TODO: Integrar funcionalidades seleccionadas
-      };
+    const gxPayload: AbmRolesReq = {
+      RolId: rolIdNum,
+      RolNombre: data.rolnombre,
+      RolDescripcion: data.roldescripcion,
+      RolEstado: data.rolestado,
+      RolNivel: data.rolnivel,
+      RolFchIns: data.rolfchins,
+      AplicacionId: parseInt(data.aplicacionid),
+      RolCreadoEn: data.rolcreadoen,
+      Funcionalidad: funcionalidades.map((f) => ({
+        FuncionalidadId: parseInt(f.id),
+        RolFuncionalidadFchIns: new Date().toISOString(),
+      })),
+    };
 
-      console.log("Payload para actualizar rol:", payload);
+    // Dual-write a GeneXus: fire-and-forget, no bloquea la navegación
+    dualWriteFireForget(`rol:gx:update:${rolIdNum}`, () => apiAbmRoles(gxPayload));
 
-      const response = await apiAbmRoles(payload);
-      console.log("Respuesta de actualización:", response);
-
-      if (response.success !== false) {
-        toast.success("Rol actualizado correctamente");
-        router.push("/dashboard/roles");
-      } else {
-        toast.error(response.message || "Error al actualizar el rol");
-      }
-    } catch (error) {
-      console.error("Error actualizando rol:", error);
-      toast.error("Error al actualizar el rol");
-    }
+    toast.success("Rol actualizado correctamente");
+    router.push("/dashboard/roles");
   };
 
   if (loading) {
