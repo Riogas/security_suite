@@ -153,6 +153,14 @@ fi
 # ─── Build Next.js ─────────────────────────────────────────────
 if grep -q '"build"' "$APP_DIR/package.json"; then
     echo
+    echo "===== SCHEMA DB (Prisma) ====="
+    echo "Aplicando cambios de schema a la base de datos..."
+    sudo -u "$APP_USER" bash -c "
+        cd '$APP_DIR'
+        export PATH=\$PATH:/usr/local/bin:/home/$APP_USER/.local/share/pnpm
+        pnpm prisma:push 2>&1 || echo 'ADVERTENCIA: prisma db push tuvo errores (continuando...)'
+    "
+    echo
     echo "===== BUILD (Next.js) ====="
     echo "Ejecutando build..."
     sudo -u "$APP_USER" bash -c "
