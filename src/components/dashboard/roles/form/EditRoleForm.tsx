@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import RoleForm, { RolFormState, FuncionalidadItem } from "./RoleForm";
 import {
-  apiObtenerRol,
+  apiRolDBById,
   apiAbmRoles,
   AbmRolesReq,
-  ObtenerRolResp,
   dualWriteFireForget,
 } from "@/services/api";
 
@@ -30,41 +29,46 @@ export default function EditRoleForm({ rolId }: EditRoleFormProps) {
     const cargarRol = async () => {
       try {
         setLoading(true);
-        console.log("Cargando rol con ID:", rolId);
+        console.log("Cargando rol con ID (Prisma):", rolId);
 
-        // Llamar a la API para obtener los datos del rol
-        const rolData: ObtenerRolResp = await apiObtenerRol({
-          RolId: parseInt(rolId),
-        });
-        console.log("Datos del rol cargados:", rolData);
+        // Read rol from PostgreSQL via Prisma — replaces previous GeneXus apiObtenerRol call
+        const response = await apiRolDBById(parseInt(rolId));
+        const rolData = response?.rol;
 
-        // Mapear los datos de la API al formato del formulario
+        if (!rolData) {
+          throw new Error("Rol no encontrado en la base de datos");
+        }
+
+        console.log("Datos del rol cargados (Prisma):", rolData);
+
+        // Map Prisma fields to RolFormState shape
         const mappedData: Partial<RolFormState> = {
-          rolid: rolData.RolId || "",
-          rolnombre: rolData.RolNombre || "",
-          roldescripcion: rolData.RolDescripcion || "",
-          rolestado: (rolData.RolEstado === "A" ? "A" : "I") as "A" | "I",
-          rolnivel: parseInt(rolData.RolNivel || "0"),
-          rolfchins: rolData.RolFchIns || new Date().toISOString(),
-          aplicacionid: rolData.AplicacionId || "2",
-          rolcreadoen: rolData.RolCreadoEn || "Security Suite",
+          rolid: String(rolData.id),
+          rolnombre: rolData.nombre || "",
+          roldescripcion: rolData.descripcion || "",
+          rolestado: (rolData.estado === "A" ? "A" : "I") as "A" | "I",
+          rolnivel: rolData.nivel ?? 0,
+          rolfchins: rolData.fechaCreacion || new Date().toISOString(),
+          aplicacionid: String(rolData.aplicacionId || rolData.aplicacion?.id || "2"),
+          rolcreadoen: rolData.creadoEn || "Security Suite",
         };
 
         console.log("Datos mapeados para el formulario:", mappedData);
         setInitialData(mappedData);
 
-        // Extraer funcionalidades asignadas y convertirlas a FuncionalidadItem
-        if (rolData.Funcionalidad && Array.isArray(rolData.Funcionalidad)) {
+        // Map Prisma funcionalidades to FuncionalidadItem shape
+        // Prisma: funcionalidades[{funcionalidadId, funcionalidad:{id, nombre, estado}}]
+        if (rolData.funcionalidades && Array.isArray(rolData.funcionalidades)) {
           const funcionalidadesAsignadas: FuncionalidadItem[] =
-            rolData.Funcionalidad.map((func) => ({
-              id: func.FuncionalidadId.toString(),
-              nombre: `Funcionalidad ${func.FuncionalidadId}`, // Temporal, debería venir de otra API
-              descripcion: "", // No disponible en la respuesta actual
-              objetosCount: 0, // No disponible en la respuesta actual
-              accionesCount: 0, // No disponible en la respuesta actual
+            rolData.funcionalidades.map((rf: any) => ({
+              id: String(rf.funcionalidadId ?? rf.funcionalidad?.id),
+              nombre: rf.funcionalidad?.nombre || `Funcionalidad ${rf.funcionalidadId}`,
+              descripcion: "",
+              objetosCount: 0,
+              accionesCount: 0,
             }));
           setInitialFuncionalidades(funcionalidadesAsignadas);
-          console.log("Funcionalidades asignadas:", funcionalidadesAsignadas);
+          console.log("Funcionalidades asignadas (Prisma):", funcionalidadesAsignadas);
         }
       } catch (error) {
         console.error("Error cargando rol:", error);
@@ -85,9 +89,8 @@ export default function EditRoleForm({ rolId }: EditRoleFormProps) {
   }, [rolId, router]);
 
   /**
-   * handleSubmit se invoca DESPUÉS de que RoleForm guardó exitosamente en PostgreSQL.
-   * Aquí realizamos el dual-write a GeneXus (fire-and-forget: no bloquea la UI).
-   * Recibe el estado del formulario y las funcionalidades del drag-and-drop.
+   * handleSubmit is called AFTER RoleForm has saved successfully to PostgreSQL.
+   * We perform a fire-and-forget dual-write to GeneXus (non-blocking).
    */
   const handleSubmit = async (data: RolFormState, funcionalidades: FuncionalidadItem[]) => {
     const rolIdNum = parseInt(data.rolid);
@@ -107,7 +110,7 @@ export default function EditRoleForm({ rolId }: EditRoleFormProps) {
       })),
     };
 
-    // Dual-write a GeneXus: fire-and-forget, no bloquea la navegación
+    // Dual-write to GeneXus: fire-and-forget, does not block navigation
     dualWriteFireForget(`rol:gx:update:${rolIdNum}`, () => apiAbmRoles(gxPayload));
 
     toast.success("Rol actualizado correctamente");
