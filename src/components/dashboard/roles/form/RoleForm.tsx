@@ -72,7 +72,13 @@ export type RolFormState = {
 export type RoleFormProps = {
   initialData?: Partial<RolFormState>;
   initialFuncionalidades?: FuncionalidadItem[];
-  onSubmit?: (data: RolFormState) => void | Promise<void>;
+  /**
+   * Callback opcional invocado DESPUÉS de que el guardado a PostgreSQL fue exitoso.
+   * Recibe el estado del formulario y las funcionalidades asignadas (drag-and-drop).
+   * Permite que componentes padre (ej: EditRoleForm) realicen dual-write a GeneXus.
+   * Si no se provee, el formulario navega a /dashboard/roles automáticamente.
+   */
+  onSubmit?: (data: RolFormState, funcionalidades: FuncionalidadItem[]) => void | Promise<void>;
 };
 
 export default function RoleForm({
@@ -216,7 +222,14 @@ export default function RoleForm({
       } else {
         await apiCrearRolDB(dbPayload);
       }
-      router.push("/dashboard/roles");
+
+      // Si el componente padre provee onSubmit, lo invocamos con los datos y funcionalidades
+      // (permite dual-write a GeneXus desde EditRoleForm). Si no, navegamos directo.
+      if (onSubmit) {
+        await onSubmit(form, funcionalidadesAsignadas);
+      } else {
+        router.push("/dashboard/roles");
+      }
     } catch (error) {
       console.error("Error en handleSubmit:", error);
     }

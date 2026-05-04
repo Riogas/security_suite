@@ -1,19 +1,36 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // =====================================================================
 // POST /api/db/permisos
-// Drop-in replacement de la API de GeneXus para verificar permisos.
 //
-// Body: { AplicacionId, ObjetoKey, ObjetoTipo, AccionKey, AccionCodigo?, ObjetoPath? }
-// Auth: Bearer <token> (header) o cookie "token"
+// Verifica si el usuario autenticado tiene acceso para uno o varios
+// objetos + acciones de una aplicacion dada (Postgres/Prisma).
 //
-// Response (compatible con middleware y apiValidarPermiso):
-//   { Permitido: boolean, permitido: boolean, allowed: boolean, ok: boolean, reason?: string }
+// Headers: Authorization: Bearer <jwt>   (o cookie "token")
+//
+// Modo single:
+//   Body: { aplicacion, ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }
+//   Resp: { permitido: "GRANTED"|"DENIED", razon, objetoKey, accionKey?, accionCodigo?, funcionalidadId? }
+//
+// Modo batch:
+//   Body: { aplicacion, permisos: [ { ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }, ... ] }
+//   Resp: { resultados: [ ...misma shape single... ] }
+//
+// Flujo:
+//   1. JWT -> usuario activo
+//   2. esRoot='S' -> GRANTED en todo sin mas checks
+//   3. Aplicacion por nombre
+//   4. Objeto activo (key + tipo opcional)  -> PUBLIC_OBJECT si esPublico
+//   5. ObjetoAccion (filtra accionKey/Codigo/path)
+//   6. funcionalidad_objeto_acciones -> Funcionalidades activas/vigentes
+//      -> PUBLIC_FUNCIONALIDAD | SOLO_ROOT
+//   7. accesos directo (ALLOW, vigente)
+//   8. usuario_roles -> rol_funcionalidades
+//   9. ACCESS_DENIED
 // =====================================================================
 
-/** Decodifica JWT sin verificar firma â€” igual que el middleware Edge */
-function decodeJwt(token: string): Record<string, any> | null {
+function decodeJwt(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
@@ -30,140 +47,241 @@ function extractToken(req: NextRequest): string | null {
   return req.cookies.get("token")?.value ?? null;
 }
 
+type PermisoInput = {
+  ObjetoKey:     string;
+  ObjetoTipo?:   string;
+  AccionKey?:    string;
+  AccionCodigo?: string;
+  ObjetoPath?:   string;
+};
+
+type PermisoResultado = {
+  permitido:        "GRANTED" | "DENIED";
+  razon:            string;
+  objetoKey:        string;
+  accionKey?:       string;
+  accionCodigo?:    string;
+  funcionalidadId?: number;
+};
+
+async function evaluarPermiso(
+  aplicacionId: number,
+  usuarioId:    number,
+  rolIds:       number[],
+  now:          Date,
+  item:         PermisoInput
+): Promise<PermisoResultado> {
+  const objetoKey  = String(item.ObjetoKey).trim();
+  const accionKey  = item.AccionKey    ? String(item.AccionKey).trim().toLowerCase() : undefined;
+  const accionCod  = item.AccionCodigo ? String(item.AccionCodigo).trim()            : undefined;
+  const objetoPath = item.ObjetoPath   ? String(item.ObjetoPath).trim()              : undefined;
+
+  type Base = Omit<PermisoResultado, "permitido" | "razon">;
+  const base: Base = { objetoKey, accionKey, accionCodigo: accionCod };
+
+  const ok   = (razon: string, extra: Partial<Base> = {}): PermisoResultado =>
+    ({ ...base, ...extra, permitido: "GRANTED", razon });
+  const deny = (razon: string, extra: Partial<Base> = {}): PermisoResultado =>
+    ({ ...base, ...extra, permitido: "DENIED",  razon });
+
+  // Objeto
+  const objeto = await prisma.objeto.findFirst({
+    where: {
+      aplicacionId,
+      key:    objetoKey,
+      estado: "A",
+      ...(item.ObjetoTipo ? { tipo: String(item.ObjetoTipo).trim().toUpperCase() } : {}),
+    },
+    select: { id: true, esPublico: true },
+  });
+
+  if (!objeto)                  return deny("OBJETO_NOT_FOUND");
+  if (objeto.esPublico === "S") return ok("PUBLIC_OBJECT");
+
+  // ObjetoAccion
+  const accionFilter: Record<string, unknown>[] = [];
+  if (accionKey)  accionFilter.push({ key:    { equals: accionKey, mode: "insensitive" } });
+  if (accionCod)  accionFilter.push({ codigo: { equals: accionCod } });
+  if (objetoPath) accionFilter.push({ path:   { equals: objetoPath } });
+
+  const oa = await prisma.objetoAccion.findFirst({
+    where: {
+      objetoId: objeto.id,
+      ...(accionFilter.length > 0 ? { OR: accionFilter } : {}),
+    },
+    select: { id: true, key: true, codigo: true },
+  });
+
+  if (accionFilter.length > 0 && !oa) return deny("OBJETO_ACCION_NOT_FOUND");
+
+  const resolved: Base = {
+    objetoKey,
+    accionKey:    oa?.key    ?? accionKey,
+    accionCodigo: oa?.codigo ?? accionCod,
+  };
+  const ok2   = (razon: string, extra: Partial<Base> = {}): PermisoResultado =>
+    ({ ...resolved, ...extra, permitido: "GRANTED", razon });
+  const deny2 = (razon: string): PermisoResultado =>
+    ({ ...resolved, permitido: "DENIED", razon });
+
+  // FuncionalidadObjetoAccion -> Funcionalidades
+  const funcLinks = await prisma.funcionalidadObjetoAccion.findMany({
+    where: {
+      objetoId: objeto.id,
+      ...(oa ? { objetoAccionId: oa.id } : {}),
+      funcionalidad: {
+        aplicacionId,
+        estado: "A",
+        OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
+        AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
+      },
+    },
+    select: {
+      funcionalidadId: true,
+      funcionalidad:   { select: { esPublico: true, soloRoot: true } },
+    },
+  });
+
+  if (funcLinks.length === 0)                                   return deny2("NO_FUNCIONALIDAD_DEFINED");
+  if (funcLinks.some((f) => f.funcionalidad.esPublico === "S")) return ok2("PUBLIC_FUNCIONALIDAD");
+  if (funcLinks.every((f) => f.funcionalidad.soloRoot === "S")) return deny2("SOLO_ROOT");
+
+  const funcIds = funcLinks
+    .filter((f) => f.funcionalidad.soloRoot !== "S")
+    .map((f) => f.funcionalidadId);
+
+  // Acceso directo
+  const accesoDirecto = await prisma.acceso.findFirst({
+    where: {
+      usuarioId,
+      funcionalidadId: { in: funcIds },
+      efecto:          "ALLOW",
+      OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
+      AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
+    },
+    select: { funcionalidadId: true },
+  });
+
+  if (accesoDirecto) return ok2("DIRECT_ACCESO", { funcionalidadId: accesoDirecto.funcionalidadId });
+
+  // Acceso via rol
+  if (rolIds.length > 0) {
+    const rolFunc = await prisma.rolFuncionalidad.findFirst({
+      where: { rolId: { in: rolIds }, funcionalidadId: { in: funcIds } },
+      select: { funcionalidadId: true },
+    });
+    if (rolFunc) return ok2("ROL_FUNCIONALIDAD", { funcionalidadId: rolFunc.funcionalidadId });
+  }
+
+  return deny2("ACCESS_DENIED");
+}
+
 export async function POST(request: NextRequest) {
-  const denyWith = (reason: string, status = 200) =>
-    NextResponse.json({ Permitido: false, permitido: false, allowed: false, ok: false, reason }, { status });
-
-  const allowWith = (reason = "OK") =>
-    NextResponse.json({ Permitido: true, permitido: true, allowed: true, ok: true, reason });
-
   try {
     const body = await request.json();
-    const {
-      AplicacionId,
-      ObjetoKey,
-      AccionKey,
-    } = body as {
-      AplicacionId?: number | string;
-      ObjetoKey?: string;
-      ObjetoTipo?: string;
-      AccionKey?: string;
-      AccionCodigo?: string;
-      ObjetoPath?: string;
-    };
+    const { aplicacion, permisos: permisosArray, ...singleItem } = body as {
+      aplicacion?: string;
+      permisos?:   PermisoInput[];
+    } & PermisoInput;
 
-    if (!AplicacionId || !ObjetoKey || !AccionKey) {
-      return denyWith("MISSING_PARAMS");
+    if (!aplicacion) {
+      return NextResponse.json({ error: "MISSING_PARAMS", detail: "aplicacion es requerido" }, { status: 400 });
     }
 
-    const aplicacionId = Number(AplicacionId);
-    const objetoKey = String(ObjetoKey).trim();
-    const accionKey = String(AccionKey).trim().toLowerCase();
-
-    // â”€â”€ 1. JWT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Auth
     const token = extractToken(request);
-    if (!token) return denyWith("NO_TOKEN", 401);
+    const errAuth = (razon: string, status: number) => {
+      const d: PermisoResultado = { permitido: "DENIED", razon, objetoKey: "" };
+      return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d, { status });
+    };
+
+    if (!token) return errAuth("NO_TOKEN", 401);
 
     const payload = decodeJwt(token);
-    if (!payload) return denyWith("INVALID_TOKEN", 401);
+    if (!payload) return errAuth("INVALID_TOKEN", 401);
 
-    const rawUsername =
+    const rawUsername = (
       payload.username ?? payload.sub ?? payload.name ??
-      payload.email ?? payload.preferred_username ?? null;
+      payload.email   ?? payload.preferred_username ?? null
+    ) as string | null;
 
-    if (!rawUsername) return denyWith("NO_USERNAME_IN_TOKEN");
+    if (!rawUsername) return errAuth("NO_USERNAME_IN_TOKEN", 401);
 
-    const usernameStr = String(rawUsername).trim();
-
-    // â”€â”€ 2. Usuario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
-          { username: { equals: usernameStr, mode: "insensitive" } },
-          { email:    { equals: usernameStr, mode: "insensitive" } },
+          { username: { equals: String(rawUsername).trim(), mode: "insensitive" } },
+          { email:    { equals: String(rawUsername).trim(), mode: "insensitive" } },
         ],
         estado: "A",
       },
       select: { id: true, esRoot: true },
     });
 
-    if (!usuario) return denyWith("USER_NOT_FOUND");
+    if (!usuario) return errAuth("USER_NOT_FOUND", 403);
 
-    // â”€â”€ 3. Root siempre permite â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    if (usuario.esRoot === "S") return allowWith("ROOT");
+    // Root -> GRANTED en todo
+    if (usuario.esRoot === "S") {
+      const rootResult = (i: PermisoInput): PermisoResultado => ({
+        permitido:    "GRANTED",
+        razon:        "ROOT",
+        objetoKey:    String(i.ObjetoKey ?? "").trim(),
+        accionKey:    i.AccionKey    ? String(i.AccionKey).trim().toLowerCase() : undefined,
+        accionCodigo: i.AccionCodigo ? String(i.AccionCodigo).trim()            : undefined,
+      });
+      return NextResponse.json(
+        permisosArray ? { resultados: permisosArray.map(rootResult) } : rootResult(singleItem)
+      );
+    }
 
-    // â”€â”€ 4. Objeto pÃºblico â†’ permite sin mÃ¡s checks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const objeto = await prisma.objeto.findFirst({
-      where: { key: objetoKey, aplicacionId, estado: "A" },
-      select: { esPublico: true },
+    // Aplicacion
+    const app = await prisma.aplicacion.findFirst({
+      where: { nombre: { equals: String(aplicacion).trim(), mode: "insensitive" }, estado: "A" },
+      select: { id: true },
     });
-    if (objeto?.esPublico === "S") return allowWith("PUBLIC_OBJECT");
 
-    // â”€â”€ 5. Buscar funcionalidades que cubran este objeto+acciÃ³n â”€â”€â”€â”€â”€â”€â”€
+    if (!app) {
+      const d: PermisoResultado = { permitido: "DENIED", razon: "APP_NOT_FOUND", objetoKey: "" };
+      return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d);
+    }
+
+    // Roles activos (calculado una vez, reutilizado en batch)
     const now = new Date();
-    const funcionalidades = await prisma.funcionalidad.findMany({
-      where: {
-        aplicacionId,
-        objetoKey,
-        accionKey,
-        estado: "A",
-        OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }],
-        AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }],
-      },
-      select: { id: true, esPublico: true, soloRoot: true },
-    });
-
-    // Funcionalidad pÃºblica
-    if (funcionalidades.some((f) => f.esPublico === "S")) return allowWith("PUBLIC_FUNCIONALIDAD");
-
-    if (funcionalidades.length === 0) return denyWith("NO_FUNCIONALIDAD_DEFINED");
-
-    // Solo root
-    if (funcionalidades.every((f) => f.soloRoot === "S")) return denyWith("SOLO_ROOT");
-
-    const funcIds = funcionalidades.filter((f) => f.soloRoot !== "S").map((f) => f.id);
-
-    // â”€â”€ 6. Acceso directo (usuario â†’ funcionalidad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const accesoDirecto = await prisma.acceso.findFirst({
-      where: {
-        usuarioId:       usuario.id,
-        funcionalidadId: { in: funcIds },
-        efecto:          "ALLOW",
-        OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }],
-        AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }],
-      },
-      select: { funcionalidadId: true },
-    });
-    if (accesoDirecto) return allowWith("DIRECT_ACCESO");
-
-    // â”€â”€ 7. Acceso vÃ­a rol (usuario â†’ rol â†’ funcionalidad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const rolesActivos = await prisma.usuarioRol.findMany({
       where: {
         usuarioId: usuario.id,
-        OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }],
-        AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }],
+        OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
+        AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
         rol: { estado: "A" },
       },
       select: { rolId: true },
     });
+    const rolIds = rolesActivos.map((r) => r.rolId);
 
-    if (rolesActivos.length > 0) {
-      const rolIds = rolesActivos.map((r) => r.rolId);
-      const rolFuncionalidad = await prisma.rolFuncionalidad.findFirst({
-        where: {
-          rolId:           { in: rolIds },
-          funcionalidadId: { in: funcIds },
-        },
-        select: { funcionalidadId: true },
-      });
-      if (rolFuncionalidad) return allowWith("ROL_FUNCIONALIDAD");
+    // Batch
+    if (permisosArray) {
+      if (!Array.isArray(permisosArray) || permisosArray.length === 0) {
+        return NextResponse.json({ error: "permisos debe ser un array no vacio" }, { status: 400 });
+      }
+      const resultados = await Promise.all(
+        permisosArray.map((item) => evaluarPermiso(app.id, usuario.id, rolIds, now, item))
+      );
+      return NextResponse.json({ resultados });
     }
 
-    // â”€â”€ 8. Sin acceso â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    return denyWith("ACCESS_DENIED");
+    // Single
+    if (!singleItem.ObjetoKey) {
+      return NextResponse.json(
+        { permitido: "DENIED", razon: "MISSING_PARAMS", objetoKey: "", detail: "ObjetoKey es requerido" },
+        { status: 400 }
+      );
+    }
+
+    const resultado = await evaluarPermiso(app.id, usuario.id, rolIds, now, singleItem);
+    return NextResponse.json(resultado);
 
   } catch (error) {
     console.error("[API/db/permisos POST]", error);
-    return denyWith("SERVER_ERROR", 500);
+    return NextResponse.json({ permitido: "DENIED", razon: "SERVER_ERROR", objetoKey: "" }, { status: 500 });
   }
 }

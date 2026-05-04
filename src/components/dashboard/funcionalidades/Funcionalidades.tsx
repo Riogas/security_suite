@@ -115,7 +115,7 @@ export default function FuncionalidadesTable() {
       id: "cantAcciones",
       header: "Cant. Acciones",
       cell: ({ row }: { row: { original: FuncionalidadDB } }) => {
-        const c = (row.original as any)?.acciones?.length ?? 0;
+        const c = (row.original as any)?._count?.objetoAcciones ?? (row.original as any)?.acciones?.length ?? 0;
         return <span className="tabular-nums font-medium">{c}</span>;
       },
     },

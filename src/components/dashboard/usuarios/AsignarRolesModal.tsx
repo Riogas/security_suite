@@ -18,11 +18,10 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Search, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  apiRoles,
-  apiSetRol,
-  apiGetRolUsuario,
-  SetRolReq,
-  GetRolUsuarioReq,
+  apiRolesDB,
+  apiRolesUsuarioDB,
+  apiAsignarRolesDB,
+  RolDB,
 } from "@/services/api";
 import { DateRange } from "react-day-picker";
 
@@ -38,6 +37,19 @@ interface Rol {
   esRoot?: string;
   // Agregamos este campo para saber si ya está asignado
   asignado?: boolean;
+}
+
+interface UsuarioRolDB {
+  usuarioId: number;
+  rolId: number;
+  fechaDesde: string | null;
+  fechaHasta: string | null;
+  rol?: RolDB;
+}
+
+interface RolesUsuarioDBResponse {
+  success: boolean;
+  roles?: UsuarioRolDB[];
 }
 
 interface AsignarRolesModalProps {
@@ -63,11 +75,6 @@ export default function AsignarRolesModal({
     Record<number, DateRange | undefined>
   >({});
 
-  // Debug para detectar cambios de loading
-  useEffect(() => {
-    console.log("Loading states changed:", { loadingRoles, saving });
-  }, [loadingRoles, saving]);
-
   // Cargar roles cuando se abra el modal
   useEffect(() => {
     if (isOpen) {
@@ -92,201 +99,78 @@ export default function AsignarRolesModal({
   const loadRoles = async () => {
     try {
       setLoadingRoles(true);
-      console.log("=== INICIO CARGA DE ROLES ===");
-      console.log("Iniciando carga de roles para usuario:", userId);
+      console.log("[AsignarRolesModal] Cargando roles para usuario:", userId);
 
-      // Obtener lista de roles disponibles
-      console.log("Llamando a apiRoles...");
-      const rolesResponse = await apiRoles({
-        Estado: "A", // Solo roles activos
-        Pagesize: "1000",
-        CurrentPage: "1",
+      const rolesResponse = await apiRolesDB({
+        estado: "A",
+        pageSize: 1000,
       });
 
-      console.log("=== RESPUESTA DE API ROLES ===");
-      console.log(
-        "Respuesta completa:",
-        JSON.stringify(rolesResponse, null, 2),
-      );
+      const rolesItems = rolesResponse?.items ?? [];
 
-      // Verificar múltiples formas de acceder a los datos
-      const rolesData =
-        rolesResponse?.sdtRoles ||
-        rolesResponse?.SdtRoles ||
-        rolesResponse?.roles ||
-        [];
-      console.log("=== EXTRACCIÓN DE DATOS ===");
-      console.log("rolesResponse?.sdtRoles:", rolesResponse?.sdtRoles);
-      console.log("rolesResponse?.SdtRoles:", rolesResponse?.SdtRoles);
-      console.log("rolesResponse?.roles:", rolesResponse?.roles);
-      console.log("Datos finales extraídos:", rolesData);
-      console.log("Tipo de rolesData:", typeof rolesData);
-      console.log("Es array?:", Array.isArray(rolesData));
-      console.log("Cantidad de roles:", rolesData?.length || 0);
-
-      if (!rolesData || !Array.isArray(rolesData) || rolesData.length === 0) {
-        console.error("ERROR: No se encontraron roles válidos en la respuesta");
-        console.log("Configurando estado vacío...");
+      if (rolesItems.length === 0) {
         setRoles([]);
         setFilteredRoles([]);
         return;
       }
 
-      console.log("=== PROCESANDO ROLES ===");
-      // Obtener roles ya asignados al usuario específico
-      let rolesAsignadosData = [];
+      // Obtener roles ya asignados al usuario desde Postgres
+      let rolesAsignadosIds = new Set<number>();
       try {
-        const userIdNumber = userId;
-        console.log("UserId convertido a número:", userIdNumber);
-
-        if (!isNaN(userIdNumber)) {
-          console.log("Llamando a apiGetRolUsuario...");
-          const rolesAsignadosResponse = await apiGetRolUsuario({
-            UserId: userIdNumber,
-          });
-          console.log("Respuesta de apiGetRolUsuario:", rolesAsignadosResponse);
-          console.log("Tipo de respuesta:", typeof rolesAsignadosResponse);
-          console.log("Es array?:", Array.isArray(rolesAsignadosResponse));
-
-          // Manejar diferentes tipos de respuesta
-          if (Array.isArray(rolesAsignadosResponse)) {
-            rolesAsignadosData = rolesAsignadosResponse;
-          } else if (
-            rolesAsignadosResponse &&
-            typeof rolesAsignadosResponse === "object"
-          ) {
-            // Si es un objeto, verificar si tiene una propiedad con array de roles
-            const response = rolesAsignadosResponse as any;
-            rolesAsignadosData =
-              response.roles || response.sdtRoles || response.SdtRoles || [];
-          } else {
-            rolesAsignadosData = [];
-          }
-
-          console.log("Roles asignados procesados:", rolesAsignadosData);
-        } else {
-          console.warn("UserId no es un número válido:", userId);
-        }
+        const rolesAsignadosResponse: RolesUsuarioDBResponse =
+          await apiRolesUsuarioDB(userId);
+        rolesAsignadosIds = new Set<number>(
+          (rolesAsignadosResponse?.roles ?? []).map((ur) => ur.rolId),
+        );
       } catch (error) {
         console.warn(
-          "Error obteniendo roles asignados para usuario",
-          userId,
-          ":",
+          "[AsignarRolesModal] Error obteniendo roles asignados:",
           error,
         );
-        rolesAsignadosData = [];
       }
 
-      // Crear un Set con los IDs de roles ya asignados para búsqueda rápida
-      const rolesAsignadosIds = new Set();
-      if (Array.isArray(rolesAsignadosData)) {
-        rolesAsignadosData.forEach((rol) => {
-          if (rol && rol.RolId) {
-            const rolId = parseInt(rol.RolId.toString());
-            if (!isNaN(rolId)) {
-              rolesAsignadosIds.add(rolId);
-            }
-          }
-        });
-      }
-      console.log("IDs de roles asignados:", Array.from(rolesAsignadosIds));
+      // Adaptar respuesta DB al shape interno Rol del componente
+      const rolesConAsignacion: Rol[] = rolesItems.map((r: RolDB) => ({
+        RolId: r.id,
+        RolNombre: r.nombre,
+        RolDescripcion: r.descripcion ?? "",
+        RolEstado: r.estado,
+        AplicacionId: String(r.aplicacionId),
+        RolNivel: r.nivel,
+        RolFchIns: r.fechaCreacion,
+        RolCreadoEn: r.creadoEn ?? undefined,
+        asignado: rolesAsignadosIds.has(r.id),
+      }));
 
-      // Combinar información de roles disponibles con estado de asignación
-      console.log("=== MAPEANDO ROLES ===");
-      const rolesConAsignacion = rolesData.map((rol: any, index: number) => {
-        console.log(`Procesando rol ${index + 1}:`, rol);
-
-        // Convertir RolId de string a number de forma más robusta
-        let rolIdValue = null;
-        if (rol.RolId !== undefined && rol.RolId !== null && rol.RolId !== "") {
-          const parsed = parseInt(rol.RolId.toString());
-          if (!isNaN(parsed)) {
-            rolIdValue = parsed;
-          }
-        }
-
-        const estaAsignado =
-          rolIdValue !== null && rolesAsignadosIds.has(rolIdValue);
-
-        const rolProcesado = {
-          ...rol,
-          RolId: rolIdValue,
-          asignado: estaAsignado,
-        };
-
-        console.log(`Resultado rol ${index + 1}:`, {
-          nombre: rol.RolNombre,
-          rolIdOriginal: rol.RolId,
-          rolIdProcesado: rolIdValue,
-          asignado: estaAsignado,
-          rolCompleto: rolProcesado,
-        });
-
-        return rolProcesado;
-      });
-
-      // Filtrar roles válidos
-      const rolesValidos = rolesConAsignacion.filter(
-        (rol: any, index: number) => {
-          const isValid = rol.RolId !== null;
-          console.log(
-            `Validando rol ${index + 1} (${rol.RolNombre}): ${isValid ? "VÁLIDO" : "INVÁLIDO"}`,
-          );
-          if (!isValid) {
-            console.warn("Rol filtrado por RolId inválido:", rol);
-          }
-          return isValid;
-        },
-      );
-
-      console.log("=== RESULTADO FINAL ===");
-      console.log("Total roles procesados:", rolesConAsignacion.length);
-      console.log("Total roles válidos:", rolesValidos.length);
-      console.log("Roles válidos finales:", rolesValidos);
-
-      setRoles(rolesValidos);
-      setFilteredRoles(rolesValidos);
+      setRoles(rolesConAsignacion);
+      setFilteredRoles(rolesConAsignacion);
 
       // Inicializar roles seleccionados con los ya asignados
-      const rolesAsignadosSeleccionados = rolesValidos
-        .filter((rol: Rol) => rol.asignado)
-        .map((rol: Rol) => rol.RolId);
+      const rolesAsignadosSeleccionados = rolesConAsignacion
+        .filter((rol) => rol.asignado)
+        .map((rol) => rol.RolId);
 
-      console.log(
-        "Roles preseleccionados (asignados):",
-        rolesAsignadosSeleccionados,
-      );
       setSelectedRoles(rolesAsignadosSeleccionados);
-
-      console.log("=== FIN CARGA DE ROLES ===");
     } catch (error) {
-      console.error("=== ERROR EN CARGA DE ROLES ===", error);
+      console.error("[AsignarRolesModal] Error cargando roles:", error);
       toast.error("Error al cargar la lista de roles");
     } finally {
       setLoadingRoles(false);
-      console.log("Loading state actualizado a false");
     }
   };
 
   const handleRoleToggle = (rolId: number) => {
-    console.log("Toggle rol:", rolId);
-    console.log("Loading states:", { loadingRoles, saving });
-
-    setSelectedRoles((prev) => {
-      const newSelection = prev.includes(rolId)
+    setSelectedRoles((prev) =>
+      prev.includes(rolId)
         ? prev.filter((id) => id !== rolId)
-        : [...prev, rolId];
-
-      console.log("Roles seleccionados actualizados:", newSelection);
-      return newSelection;
-    });
+        : [...prev, rolId],
+    );
   };
 
   const handleDateRangeChange = (
     rolId: number,
     dateRange: DateRange | undefined,
   ) => {
-    console.log("Cambio de rango de fechas para rol:", rolId, dateRange);
     setRoleDateRanges((prev) => ({
       ...prev,
       [rolId]: dateRange,
@@ -297,62 +181,30 @@ export default function AsignarRolesModal({
     try {
       setSaving(true);
 
-      console.log("selectedRoles antes de mapear:", selectedRoles);
-      console.log("roleDateRanges:", roleDateRanges);
-      console.log("userId:", userId);
-
-      // Convertir userId a número
-      const userIdNumber = userId;
-      if (isNaN(userIdNumber)) {
+      if (isNaN(userId)) {
         toast.error("Error: ID de usuario inválido");
         return;
       }
 
-      // Preparar datos para la API /setRol
-      const rolesConFechas = selectedRoles.map((rolId) => {
-        console.log("Procesando rolId:", rolId, "tipo:", typeof rolId);
-        console.log(
-          "Rango de fechas para rol",
-          rolId,
-          ":",
-          roleDateRanges[rolId],
-        );
-
+      const rolesPayload = selectedRoles.map((rolId) => {
         const dateRange = roleDateRanges[rolId];
-        const fechaDesde = dateRange?.from ? dateRange.from.toISOString() : "";
-        const fechaHasta = dateRange?.to ? dateRange.to.toISOString() : "";
-
-        console.log("Fechas procesadas para rol", rolId, ":", {
-          desde: fechaDesde,
-          hasta: fechaHasta,
-        });
-
         return {
-          RolId: rolId,
-          UsuarioRolFchDesde: fechaDesde,
-          UsuarioRolFchHasta: fechaHasta,
+          rolId,
+          fechaDesde: dateRange?.from ? dateRange.from.toISOString() : undefined,
+          fechaHasta: dateRange?.to ? dateRange.to.toISOString() : undefined,
         };
       });
 
-      const payload: SetRolReq = {
-        UserId: userIdNumber,
-        sdtAsignacionRoles: rolesConFechas,
-      };
+      const response = await apiAsignarRolesDB(userId, rolesPayload);
 
-      console.log("Guardando roles para usuario:", userId);
-      console.log("Payload para /setRol:", JSON.stringify(payload, null, 2));
-
-      // Llamar a la API real
-      const response = await apiSetRol(payload);
-
-      if (response.success !== false) {
+      if (response?.success !== false) {
         toast.success("Roles asignados correctamente");
         onClose();
       } else {
-        toast.error(response.message || "Error al asignar roles");
+        toast.error(response?.error || "Error al asignar roles");
       }
     } catch (error) {
-      console.error("Error asignando roles:", error);
+      console.error("[AsignarRolesModal] Error asignando roles:", error);
       toast.error("Error al asignar roles");
     } finally {
       setSaving(false);
@@ -360,7 +212,6 @@ export default function AsignarRolesModal({
   };
 
   const handleClose = () => {
-    console.log("Cerrando modal de roles");
     setSearchTerm("");
     setSelectedRoles([]);
     setRoleDateRanges({});
@@ -369,7 +220,7 @@ export default function AsignarRolesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent 
+      <DialogContent
         className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col"
         data-no-loading="true"
       >

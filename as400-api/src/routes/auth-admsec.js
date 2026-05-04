@@ -38,6 +38,24 @@ async function isDespacho(usuid) {
   }
 }
 
+/**
+ * Devuelve todos los GRPIDs a los que pertenece el usuario en ADMSEC.GRPUSU.
+ * Si la consulta falla, devuelve []. El caller debe interpretarlo como
+ * "no se pudo determinar" (no asignar/quitar roles especulativamente).
+ */
+async function getUserGroups(usuid) {
+  try {
+    const rows = await query(
+      `SELECT GRPID FROM ADMSEC.GRPUSU WHERE USUID = ?`,
+      [usuid]
+    );
+    return rows.map((r) => Number(r.GRPID)).filter((n) => Number.isFinite(n));
+  } catch (err) {
+    console.warn(`[ADMSEC] No se pudo obtener grupos de USUID=${usuid}: ${err.message}`);
+    return [];
+  }
+}
+
 function normalizeAutAd(value) {
   const v = (value || '').trim().toUpperCase();
   // Cualquier valor distinto a 'A' lo tratamos como 'G' (más seguro: evita autorizar contra LDAP "por error").
@@ -68,13 +86,15 @@ router.post('/admsec/lookup', async (req, res) => {
       return res.json({ outcome: 'DISABLED' });
     }
     const usuAutAd = normalizeAutAd(row.USUAUTAD);
-    const despacho = await isDespacho(row.USUID);
+    const groups = await getUserGroups(row.USUID);
+    const despacho = groups.includes(AS400_GRUPO_DESPACHO_ID);
     return res.json({
       outcome: 'FOUND',
       user: {
         username: (row.USULOGIN || username).trim(),
         usuAutAd,
         isDespacho: despacho,
+        groups,
       },
     });
   } catch (err) {
@@ -115,13 +135,15 @@ router.post('/admsec/validate', async (req, res) => {
       return res.json({ outcome: 'INVALID_CREDS' });
     }
 
-    const despacho = await isDespacho(row.USUID);
-    console.log(`[ADMSEC Validate] ${username}: OK (despacho=${despacho})`);
+    const groups = await getUserGroups(row.USUID);
+    const despacho = groups.includes(AS400_GRUPO_DESPACHO_ID);
+    console.log(`[ADMSEC Validate] ${username}: OK (despacho=${despacho}, groups=[${groups.join(',')}])`);
     return res.json({
       outcome: 'OK',
       user: {
         username: (row.USULOGIN || username).trim(),
         isDespacho: despacho,
+        groups,
       },
     });
   } catch (err) {

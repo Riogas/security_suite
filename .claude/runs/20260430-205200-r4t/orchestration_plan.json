@@ -1,0 +1,37 @@
+{
+  "runId": "20260430-205200-r4t",
+  "bucket": "large-feature",
+  "bucket_source": "auto (confirmed from parent + triage of prev run)",
+  "stages": ["triage", "analyst", "implementer", "code-reviewer", "security-reviewer", "qa-tester", "ux-validator"],
+  "stages_skipped": ["architect", "documenter"],
+  "skip_reasons": {
+    "architect": "Pure read-migration: no new architecture required. Analyst findings fully specify the changes.",
+    "documenter": "No --docs flag from user."
+  },
+  "implementer_model_chosen": "sonnet",
+  "implementer_model_triage_recommended": "sonnet",
+  "parallel_review_qa": false,
+  "parallel_review_qa_reason": "large-feature with possible test modifications (qa-tester needs to see final diff)",
+  "analyst_findings": {
+    "total_screens_audited": 12,
+    "reads_via_prisma_already": 9,
+    "reads_via_genexus_requiring_migration": 2,
+    "reads_via_genexus_intentional_or_gap": 4,
+    "gaps_no_prisma_endpoint": 2
+  },
+  "key_changes_planned": [
+    "EditRoleForm: replace apiObtenerRol (GeneXus /obtenerRol) with apiRolDBById (Prisma /api/db/roles/{id})",
+    "RoleForm funcionalidades listing: already uses apiFuncionalidadesDB — verify no secondary GeneXus calls",
+    "Eventos panel: apiEventos goes to GeneXus proxy — no /api/db/eventos endpoint exists (GAP)",
+    "Dashboard home stats: all hardcoded mock data — GAP (no real DB queries)",
+    "SyncUsuariosModal: uses /api/db/usuarios/sync (Prisma) — already correct"
+  ],
+  "constraints": [
+    "NO touch auth (login, proxy.ts, middleware)",
+    "NO touch dual-write from run 20260430-201700-s9k",
+    "Maintain same response shape so UI does not break",
+    "NO create new Prisma tables"
+  ],
+  "estimated_budget_usd": 0.35,
+  "max_iterations": 3
+}

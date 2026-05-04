@@ -1,0 +1,162 @@
+diff --git a/src/components/dashboard/roles/form/EditRoleForm.tsx b/src/components/dashboard/roles/form/EditRoleForm.tsx
+index 7cfb43d..eabac08 100644
+--- a/src/components/dashboard/roles/form/EditRoleForm.tsx
++++ b/src/components/dashboard/roles/form/EditRoleForm.tsx
+@@ -9,6 +9,7 @@ import {
+   apiAbmRoles,
+   AbmRolesReq,
+   ObtenerRolResp,
++  dualWriteFireForget,
+ } from "@/services/api";
+ 
+ interface EditRoleFormProps {
+@@ -83,37 +84,34 @@ export default function EditRoleForm({ rolId }: EditRoleFormProps) {
+     }
+   }, [rolId, router]);
+ 
+-  const handleSubmit = async (data: RolFormState) => {
+-    try {
+-      console.log("Actualizando rol:", data);
+-
+-      const payload: AbmRolesReq = {
+-        RolId: parseInt(data.rolid),
+-        RolNombre: data.rolnombre,
+-        RolDescripcion: data.roldescripcion,
+-        RolEstado: data.rolestado,
+-        RolNivel: data.rolnivel,
+-        RolFchIns: data.rolfchins,
+-        AplicacionId: parseInt(data.aplicacionid),
+-        RolCreadoEn: data.rolcreadoen,
+-        Funcionalidad: [], // TODO: Integrar funcionalidades seleccionadas
+-      };
+-
+-      console.log("Payload para actualizar rol:", payload);
+-
+-      const response = await apiAbmRoles(payload);
+-      console.log("Respuesta de actualización:", response);
+-
+-      if (response.success !== false) {
+-        toast.success("Rol actualizado correctamente");
+-        router.push("/dashboard/roles");
+-      } else {
+-        toast.error(response.message || "Error al actualizar el rol");
+-      }
+-    } catch (error) {
+-      console.error("Error actualizando rol:", error);
+-      toast.error("Error al actualizar el rol");
+-    }
++  /**
++   * handleSubmit se invoca DESPUÉS de que RoleForm guardó exitosamente en PostgreSQL.
++   * Aquí realizamos el dual-write a GeneXus (fire-and-forget: no bloquea la UI).
++   * Recibe el estado del formulario y las funcionalidades del drag-and-drop.
++   */
++  const handleSubmit = async (data: RolFormState, funcionalidades: FuncionalidadItem[]) => {
++    const rolIdNum = parseInt(data.rolid);
++
++    const gxPayload: AbmRolesReq = {
++      RolId: rolIdNum,
++      RolNombre: data.rolnombre,
++      RolDescripcion: data.roldescripcion,
++      RolEstado: data.rolestado,
++      RolNivel: data.rolnivel,
++      RolFchIns: data.rolfchins,
++      AplicacionId: parseInt(data.aplicacionid),
++      RolCreadoEn: data.rolcreadoen,
++      Funcionalidad: funcionalidades.map((f) => ({
++        FuncionalidadId: parseInt(f.id),
++        RolFuncionalidadFchIns: new Date().toISOString(),
++      })),
++    };
++
++    // Dual-write a GeneXus: fire-and-forget, no bloquea la navegación
++    dualWriteFireForget(`rol:gx:update:${rolIdNum}`, () => apiAbmRoles(gxPayload));
++
++    toast.success("Rol actualizado correctamente");
++    router.push("/dashboard/roles");
+   };
+ 
+   if (loading) {
+diff --git a/src/components/dashboard/roles/form/RoleForm.tsx b/src/components/dashboard/roles/form/RoleForm.tsx
+index 9173076..31796c3 100644
+--- a/src/components/dashboard/roles/form/RoleForm.tsx
++++ b/src/components/dashboard/roles/form/RoleForm.tsx
+@@ -72,7 +72,13 @@ export type RolFormState = {
+ export type RoleFormProps = {
+   initialData?: Partial<RolFormState>;
+   initialFuncionalidades?: FuncionalidadItem[];
+-  onSubmit?: (data: RolFormState) => void | Promise<void>;
++  /**
++   * Callback opcional invocado DESPUÉS de que el guardado a PostgreSQL fue exitoso.
++   * Recibe el estado del formulario y las funcionalidades asignadas (drag-and-drop).
++   * Permite que componentes padre (ej: EditRoleForm) realicen dual-write a GeneXus.
++   * Si no se provee, el formulario navega a /dashboard/roles automáticamente.
++   */
++  onSubmit?: (data: RolFormState, funcionalidades: FuncionalidadItem[]) => void | Promise<void>;
+ };
+ 
+ export default function RoleForm({
+@@ -216,7 +222,14 @@ export default function RoleForm({
+       } else {
+         await apiCrearRolDB(dbPayload);
+       }
+-      router.push("/dashboard/roles");
++
++      // Si el componente padre provee onSubmit, lo invocamos con los datos y funcionalidades
++      // (permite dual-write a GeneXus desde EditRoleForm). Si no, navegamos directo.
++      if (onSubmit) {
++        await onSubmit(form, funcionalidadesAsignadas);
++      } else {
++        router.push("/dashboard/roles");
++      }
+     } catch (error) {
+       console.error("Error en handleSubmit:", error);
+     }
+diff --git a/src/services/api.ts b/src/services/api.ts
+index 2bc53dc..d564978 100644
+--- a/src/services/api.ts
++++ b/src/services/api.ts
+@@ -1973,3 +1973,44 @@ export const apiPermisosDB = async (payload: {
+   AccionKey?: string;
+ }) =>
+   dbFetch("/api/db/permisos", { method: "POST", body: JSON.stringify(payload) });
++
++// ─── Dual-write helper ──────────────────────────────────────────────────────
++
++/**
++ * dualWriteFireForget — patrón de dual-write non-blocking.
++ *
++ * Ejecuta `fn` en background (sin await en el caller). Si la operación falla,
++ * loggea en consola con JSON estructurado para reconciliación posterior.
++ * Usar cuando GeneXus ya respondió OK y queremos espejear el cambio en PostgreSQL
++ * (o viceversa) sin bloquear el flujo de la UI.
++ *
++ * @param label - identificador legible del contexto (ej: "rol:gx:update:42")
++ * @param fn    - función async que ejecuta la escritura secundaria
++ */
++export function dualWriteFireForget(
++  label: string,
++  fn: () => Promise<any>,
++): void {
++  fn()
++    .then(() => {
++      console.log(
++        JSON.stringify({
++          event: "dual_write",
++          label,
++          ok: true,
++          ts: new Date().toISOString(),
++        }),
++      );
++    })
++    .catch((err: any) => {
++      console.error(
++        JSON.stringify({
++          event: "dual_write",
++          label,
++          ok: false,
++          error: err?.message ?? String(err),
++          ts: new Date().toISOString(),
++        }),
++      );
++    });
++}
