@@ -1,0 +1,31 @@
+bucket: large-feature
+confidence: high
+multi_intent: false
+clarifying_questions: []
+touches:
+  ui: true
+  db: true
+  auth: false
+  api: true
+  infra: false
+size_estimate_loc: 350
+risk: medium
+recommended_agents:
+  analyst: sonnet
+  architect: sonnet
+  implementer: sonnet
+  code_reviewer: sonnet
+  security_reviewer: sonnet
+  qa_tester: sonnet
+  ux_validator: sonnet
+files_expected:
+  - src/components/dashboard/roles/form/EditRoleForm.tsx
+  - src/services/api.ts (new dual-write helpers)
+notes: |
+  Análisis post-lectura del repo: la mayoría de los CRUDs del dashboard YA apuntan
+  solo a PostgreSQL (apiCrearUsuarioDB, apiActualizarRolDB, apiCrearAplicacionDB, etc.).
+  El único gap real es EditRoleForm que usa apiAbmRoles (GeneXus write) sin dual-write
+  a DB. El resto: UsuarioForm, AplicacionForm, RoleForm (crear), FuncionalidadForm,
+  AsignarRolesModal, PermisosTable — todos ya usan las APIs /api/db/*.
+  La feature principal es REFACTORIZAR EditRoleForm para usar la misma lógica de
+  RoleForm (que ya escribe a DB), y verificar consistencia general del patrón dual-write.
