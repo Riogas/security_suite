@@ -26,13 +26,22 @@ router.post('/as400', async (req, res) => {
     // El JOIN a AGENCIA y ESCENARIO trae el escenario del usuario en la misma
     // consulta. Si USUMOBILE.AGENCIAID es null o no matchea, los campos de
     // agencia/escenario quedan en null y el caller los ignora.
+    //
+    // Adicionalmente, la AGENCIA puede tener vinculada una empresa fletera
+    // (AGENCIAVINCEMPFLT). Si el valor es 0 o null, la agencia no tiene
+    // fletera asociada y el caller persiste null. Si tiene un valor > 0,
+    // hacemos JOIN con GXCALDTA.EFLETERA (PK EFLID DECIMAL(3)) para traer
+    // el nombre. La preferencia EmpFletera del usuario en SGM se sincroniza
+    // a partir de este valor cada login OK.
     const rows = await query(
       `SELECT u.USUMOBILEID, u.USUMOBILENOMBRE, u.USUMOBILEEMAIL,
               u.USUMOBILEPASSWORD, u.USUMOBILEHABILITADO,
               r.USUMOBR_ROLID,
               u.AGENCIAID,
               a.ESCENARIOID,
-              e.ESCENARIONOM
+              e.ESCENARIONOM,
+              a.AGENCIAVINCEMPFLT,
+              ef.EFLNOM
        FROM GXICAGEO.USUMOBILE u
        LEFT JOIN GXICAGEO.USUMOBILEROLES r
          ON r.USUMOBILEID = u.USUMOBILEID AND r.USUMOBR_ROLID = 6
@@ -40,6 +49,8 @@ router.post('/as400', async (req, res) => {
          ON a.AGENCIAID = u.AGENCIAID
        LEFT JOIN GXICAGEO.ESCENARIO e
          ON e.ESCENARIOID = a.ESCENARIOID
+       LEFT JOIN GXCALDTA.EFLETERA ef
+         ON ef.EFLID = a.AGENCIAVINCEMPFLT AND a.AGENCIAVINCEMPFLT > 0
        WHERE UPPER(TRIM(u.USUMOBILELOGIN)) = UPPER(?)`,
       [username.trim()]
     );
@@ -67,9 +78,16 @@ router.post('/as400', async (req, res) => {
     const escenarioId = row.ESCENARIOID != null ? Number(row.ESCENARIOID) : null;
     const escenarioNomRaw = (row.ESCENARIONOM || '').trim();
     const escenarioNom = escenarioNomRaw || null;
+    // Empresa fletera vinculada: 0 o null = sin fletera asignada. Solo
+    // valores > 0 son IDs reales de GXCALDTA.EFLETERA.
+    const empFleteraIdRaw = row.AGENCIAVINCEMPFLT != null ? Number(row.AGENCIAVINCEMPFLT) : 0;
+    const empFleteraId = empFleteraIdRaw > 0 ? empFleteraIdRaw : null;
+    const empFleteraNomRaw = (row.EFLNOM || '').trim();
+    const empFleteraNom = empFleteraId != null && empFleteraNomRaw ? empFleteraNomRaw : null;
     console.log(
       `[AS400 Auth] ${username} autenticado. Despacho: ${hasRoleDespacho}. ` +
-        `Escenario: ${escenarioId ?? 'n/a'} (${escenarioNom ?? 'n/a'})`
+        `Escenario: ${escenarioId ?? 'n/a'} (${escenarioNom ?? 'n/a'}). ` +
+        `EmpFletera: ${empFleteraId ?? 'n/a'} (${empFleteraNom ?? 'n/a'})`
     );
 
     res.json({
@@ -82,6 +100,8 @@ router.post('/as400', async (req, res) => {
         hasRoleDespacho,
         escenarioId,
         escenarioNom,
+        empFleteraId,
+        empFleteraNom,
       },
     });
   } catch (err) {
