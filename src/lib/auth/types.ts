@@ -30,6 +30,12 @@ export type LookupOutcome = "FOUND" | "NOT_FOUND" | "DISABLED" | "UNAVAILABLE";
 // Se persisten como preferencia "Escenario" del usuario para alimentar al
 // front (TrackMovil, etc.). Si el usuario no tiene agencia / escenario
 // asignado en SGM, ambos llegan en null y la preferencia no se persiste.
+//
+// empFleteraId / empFleteraNom: vienen de
+//   AGENCIA.AGENCIAVINCEMPFLT -> GXCALDTA.EFLETERA (PK EFLID).
+// Se persisten como preferencia "EmpFletera" del usuario. Si la agencia no
+// tiene fletera vinculada (AGENCIAVINCEMPFLT = 0 o NULL), ambos llegan en
+// null y la preferencia no se persiste.
 export interface As400UserPayload {
   username: string;
   nombre: string;
@@ -37,6 +43,8 @@ export interface As400UserPayload {
   hasRoleDespacho: boolean;
   escenarioId?: number | null;
   escenarioNom?: string | null;
+  empFleteraId?: number | null;
+  empFleteraNom?: string | null;
 }
 
 export interface As400ValidateResult {

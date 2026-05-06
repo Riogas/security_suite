@@ -13,6 +13,7 @@ import {
 import { applyAdmsecGroupRoles } from "./applyAdmsecGroupRoles";
 import { authLog } from "./logger";
 import { persistEscenarioPreference } from "./persistEscenarioPreference";
+import { persistEmpFleteraPreference } from "./persistEmpFleteraPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
 import { classifyUsername } from "./classifyUsername";
 import type {
@@ -197,9 +198,12 @@ async function resolveNewNumericUser(
       desdeSistema: "SGM",
     });
     await assignDespachoOnNewUser(usuario.id, username, !!sgm.user?.hasRoleDespacho);
-    // Persistir el escenario asignado al user en SGM como preferencia.
-    // No bloquea el login si falla (helper loguea y no propaga).
+    // Persistir el escenario y la empresa fletera asignados al user en SGM
+    // como preferencias. No bloquean el login si fallan (helpers loguean y
+    // no propagan). EmpFletera viene del JOIN AGENCIA -> EFLETERA — si la
+    // agencia no tiene fletera vinculada, llega null y el helper no-op.
     await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
+    await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
     return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
   }
 
@@ -261,10 +265,12 @@ async function resolveExistingUser(
   if (desde === "SGM") {
     const sgm = await validateAs400(usuario.username, password);
     if (sgm.outcome === "OK") {
-      // Refrescar el escenario en cada login OK contra SGM. El helper hace
-      // delete+create de la preferencia 'Escenario'. Si SGM no devuelve
-      // escenario (agencia null) no toca la preferencia existente.
+      // Refrescar el escenario y la empresa fletera en cada login OK contra
+      // SGM. Los helpers hacen delete+create de las preferencias respectivas.
+      // Si SGM no devuelve el dato (agencia null o fletera no vinculada) los
+      // helpers son no-op y no tocan la preferencia existente.
       await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
+      await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
       return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
     }
     if (sgm.outcome === "INVALID_CREDS") {
