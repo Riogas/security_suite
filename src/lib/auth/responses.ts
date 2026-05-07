@@ -60,7 +60,21 @@ export async function buildSuccessResponse(
     }),
     prisma.acceso.findMany({
       where: { usuarioId },
-      select: { funcionalidadId: true, efecto: true },
+      select: {
+        funcionalidadId: true,
+        efecto: true,
+        funcionalidad: {
+          select: {
+            objetoAcciones: {
+              select: {
+                objetoAccion: {
+                  select: { key: true, codigo: true },
+                },
+              },
+            },
+          },
+        },
+      },
     }),
   ]);
 
@@ -95,6 +109,14 @@ export async function buildSuccessResponse(
       funcionalidades: ur.rol.funcionalidades.map((rf) => rf.funcionalidadId),
     })),
     preferencias: preferencias.map((p) => ({ atributo: p.atributo, valor: p.valor })),
-    accesos: accesos.map((a) => ({ funcionalidadId: a.funcionalidadId, efecto: a.efecto })),
+    accesos: accesos.map((a) => ({
+      funcionalidadId: a.funcionalidadId,
+      efecto: a.efecto,
+      objetoAcciones: a.funcionalidad.objetoAcciones
+        .map((foa) =>
+          foa.objetoAccion ? { key: foa.objetoAccion.key, codigo: foa.objetoAccion.codigo } : null
+        )
+        .filter((x): x is { key: string; codigo: string | null } => x !== null),
+    })),
   });
 }
