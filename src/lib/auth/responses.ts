@@ -49,7 +49,12 @@ export async function buildSuccessResponse(
       include: {
         rol: {
           include: {
-            funcionalidades: { select: { funcionalidadId: true } },
+            funcionalidades: {
+              select: {
+                funcionalidadId: true,
+                funcionalidad: { select: { nombre: true } },
+              },
+            },
           },
         },
       },
@@ -65,6 +70,7 @@ export async function buildSuccessResponse(
         efecto: true,
         funcionalidad: {
           select: {
+            nombre: true,
             objetoAcciones: {
               select: {
                 objetoAccion: {
@@ -106,11 +112,15 @@ export async function buildSuccessResponse(
       rolId: ur.rolId,
       rolNombre: ur.rol.nombre,
       aplicacionId: ur.rol.aplicacionId,
-      funcionalidades: ur.rol.funcionalidades.map((rf) => rf.funcionalidadId),
+      funcionalidades: ur.rol.funcionalidades.map((rf) => ({
+        funcionalidadId: rf.funcionalidadId,
+        nombre: rf.funcionalidad.nombre,
+      })),
     })),
     preferencias: preferencias.map((p) => ({ atributo: p.atributo, valor: p.valor })),
     accesos: accesos.map((a) => ({
       funcionalidadId: a.funcionalidadId,
+      funcionalidadNombre: a.funcionalidad.nombre,
       efecto: a.efecto,
       objetoAcciones: a.funcionalidad.objetoAcciones
         .map((foa) =>
