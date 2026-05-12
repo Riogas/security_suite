@@ -25,9 +25,10 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { apiRolesDB, apiEliminarRolDB } from "@/services/api";
-import { Pencil, Trash, Plus } from "lucide-react";
+import { Pencil, Trash, Plus, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import AtributosRolModal from "@/components/dashboard/roles/AtributosRolModal";
 
 export default function RolesTable() {
   const [rows, setRows] = useState<any[]>([]);
@@ -38,6 +39,7 @@ export default function RolesTable() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
+  const [atributosModal, setAtributosModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
   const router = useRouter();
 
   // debounce
@@ -119,6 +121,16 @@ export default function RolesTable() {
             onClick={() => router.push(`/dashboard/roles/editar/${row.original?.id || ""}`)}
           >
             <Pencil className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            title="Gestionar atributos del rol"
+            onClick={() =>
+              setAtributosModal({ rolId: row.original.id, rolNombre: row.original.nombre })
+            }
+          >
+            <Settings className="w-4 h-4" />
           </Button>
           <Button
             variant="destructive"
@@ -278,6 +290,15 @@ export default function RolesTable() {
           </div>
         </div>
       </div>
+
+      {atributosModal && (
+        <AtributosRolModal
+          isOpen={true}
+          onClose={() => setAtributosModal(null)}
+          rolId={atributosModal.rolId}
+          rolNombre={atributosModal.rolNombre}
+        />
+      )}
     </div>
   );
 }

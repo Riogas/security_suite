@@ -1844,6 +1844,43 @@ export const apiGuardarAtributoDB = async (
     body: JSON.stringify({ atributo, valor }),
   });
 
+
+// =====================================================================
+// SERVICIOS PRISMA - Atributos de Rol (rol_preferencias)
+// =====================================================================
+
+export interface RolAtributoDB {
+  id: number;
+  rolId: number;
+  atributo: string;
+  valor: string | null;
+}
+
+export const apiAtributosRolDB = async (rolId: number): Promise<RolAtributoDB[]> => {
+  const json = await dbFetch(`/api/db/roles/${rolId}/atributos`);
+  return json.atributos ?? [];
+};
+
+export const apiGuardarAtributosRolDB = async (
+  rolId: number,
+  atributos: { atributo: string; valor?: string }[]
+) =>
+  dbFetch(`/api/db/roles/${rolId}/atributos`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ atributos }),
+  });
+
+export const apiGuardarAtributoRolDB = async (
+  rolId: number,
+  atributo: string,
+  valor?: string
+) =>
+  dbFetch(`/api/db/roles/${rolId}/atributos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ atributo, valor }),
+  });
 // =====================================================================
 // 📦 SERVICIOS PRISMA — Sync masivo desde SGM
 // =====================================================================

@@ -55,6 +55,9 @@ export async function buildSuccessResponse(
                 funcionalidad: { select: { nombre: true } },
               },
             },
+            preferencias: {
+              select: { atributo: true, valor: true },
+            },
           },
         },
       },
@@ -116,6 +119,7 @@ export async function buildSuccessResponse(
         funcionalidadId: rf.funcionalidadId,
         nombre: rf.funcionalidad.nombre,
       })),
+      atributos: ur.rol.preferencias.map((p) => ({ atributo: p.atributo, valor: p.valor })),
     })),
     preferencias: preferencias.map((p) => ({ atributo: p.atributo, valor: p.valor })),
     accesos: accesos.map((a) => ({
