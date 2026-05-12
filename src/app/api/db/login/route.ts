@@ -7,6 +7,7 @@ import {
   serverError,
   unauthorized,
 } from "@/lib/auth/responses";
+import { assignDistribuidorIfNeeded } from "@/lib/auth/assignDistribuidorIfNeeded";
 import { authLog } from "@/lib/auth/logger";
 
 /**
@@ -31,6 +32,10 @@ import { authLog } from "@/lib/auth/logger";
  * Reglas de fallback:
  *  - INVALID_CREDS desde una fuente conectada → 401 directo (sin fallback).
  *  - NOT_FOUND / DISABLED / UNAVAILABLE → degradar al siguiente nodo del árbol.
+ *
+ * Post-validación (antes de buildSuccessResponse):
+ *  - assignDistribuidorIfNeeded: si el usuario tiene FWL_Distribuidor activo,
+ *    asigna también el rol Distribuidor (idempotente).
  *
  * Body: { UserName, Password, Sistema? }
  * Respuesta éxito: { success, token, user, verifiedBy, roles, preferencias, accesos }
@@ -66,6 +71,11 @@ export async function POST(request: NextRequest) {
     }
 
     authLog.info("login OK", { username, verifiedBy: result.verifiedBy, usuarioId: result.usuarioId });
+
+    // Post-validación: asignar roles implícitos antes de armar la respuesta,
+    // para que el JWT y el payload ya los incluyan.
+    await assignDistribuidorIfNeeded(result.usuarioId, username);
+
     return buildSuccessResponse(result.usuarioId, sistema, result.verifiedBy);
   } catch (error) {
     authLog.error("login error inesperado", { message: (error as Error)?.message });

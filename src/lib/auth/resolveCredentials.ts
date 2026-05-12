@@ -198,10 +198,11 @@ async function resolveNewNumericUser(
       desdeSistema: "SGM",
     });
     await assignDespachoOnNewUser(usuario.id, username, !!sgm.user?.hasRoleDespacho);
-    // Persistir el escenario y la empresa fletera asignados al user en SGM
-    // como preferencias. No bloquean el login si fallan (helpers loguean y
-    // no propagan). EmpFletera viene del JOIN AGENCIA -> EFLETERA — si la
-    // agencia no tiene fletera vinculada, llega null y el helper no-op.
+    // INSERT-ONLY: persistir escenario y empresa fletera de SGM como preferencias
+    // solo cuando el usuario NO tiene valor previo para ese atributo. Si ya existe,
+    // se respeta lo configurado por el admin. No bloquean el login si fallan.
+    // EmpFletera viene del JOIN AGENCIA -> EFLETERA — si la agencia no tiene
+    // fletera vinculada, llega null y el helper es no-op.
     await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
     await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
     return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
@@ -265,10 +266,11 @@ async function resolveExistingUser(
   if (desde === "SGM") {
     const sgm = await validateAs400(usuario.username, password);
     if (sgm.outcome === "OK") {
-      // Refrescar el escenario y la empresa fletera en cada login OK contra
-      // SGM. Los helpers hacen delete+create de las preferencias respectivas.
-      // Si SGM no devuelve el dato (agencia null o fletera no vinculada) los
-      // helpers son no-op y no tocan la preferencia existente.
+      // INSERT-ONLY: intentar persistir escenario y empresa fletera de SGM como
+      // preferencias en cada login OK. Los helpers NO sobreescriben: si ya existe
+      // un valor para el atributo, lo dejan intacto (respetan configuración del
+      // admin). Si SGM no devuelve el dato (agencia null o fletera no vinculada),
+      // el helper es no-op.
       await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
       await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
       return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
