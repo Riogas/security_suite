@@ -11,9 +11,9 @@ import { authLog } from "./logger";
  *
  * Casos:
  *   - escenarioId / escenarioNom inválidos → no-op (no existe agencia/escenario en SGM).
- *   - Ya existe una preferencia 'Escenario' para el usuario → se reemplaza
- *     (delete + create) porque UsuarioPreferencia no tiene unique compuesto
- *     (usuarioId, atributo).
+ *   - Ya existe una preferencia 'Escenario' para el usuario → no-op: se respeta
+ *     lo configurado por el admin en security_suite y NO se sobreescribe.
+ *   - No existe preferencia 'Escenario' para el usuario → INSERT con el dato de SGM.
  *   - Errores de Prisma se loguean y no propagan: la preferencia es complementaria
  *     y no debe romper el login.
  */
@@ -26,17 +26,20 @@ export async function persistEscenarioPreference(
   const nombre = (escenarioNom ?? "").trim();
   if (!nombre) return;
 
-  const valor = JSON.stringify([{ Nombre: nombre, Valor: Number(escenarioId) }]);
-
   try {
-    await prisma.$transaction([
-      prisma.usuarioPreferencia.deleteMany({
-        where: { usuarioId, atributo: "Escenario" },
-      }),
-      prisma.usuarioPreferencia.create({
-        data: { usuarioId, atributo: "Escenario", valor },
-      }),
-    ]);
+    const existing = await prisma.usuarioPreferencia.findFirst({
+      where: { usuarioId, atributo: "Escenario" },
+    });
+
+    if (existing) {
+      authLog.info("persistEscenarioPreference: ya existe, no se sobreescribe", { usuarioId });
+      return;
+    }
+
+    const valor = JSON.stringify([{ Nombre: nombre, Valor: Number(escenarioId) }]);
+    await prisma.usuarioPreferencia.create({
+      data: { usuarioId, atributo: "Escenario", valor },
+    });
     authLog.info("persistEscenarioPreference ok", { usuarioId, escenarioId, escenarioNom: nombre });
   } catch (err) {
     authLog.error("persistEscenarioPreference falló", {

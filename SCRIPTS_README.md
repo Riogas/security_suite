@@ -99,6 +99,57 @@ sudo bash setup.sh
 
 ---
 
+## Importación masiva de preferencias SGM
+
+### `scripts/import-sgm-preferences.ts` — CLI para importar preferencias SGM
+
+Script Node/TypeScript que dispara `POST /api/db/admin/import-sgm-preferences` desde la línea de comandos, sin necesidad de login manual en el browser.
+
+**Qué hace:**
+- Genera un JWT localmente usando `JWT_SECRET` del `.env.local` (mismo secret que usa la app).
+- Hace POST al endpoint con la cookie `token=<jwt>`.
+- Imprime un resumen de candidatos, escenarios/empFleteras actualizados/skipped, roles Distribuidor asignados y errores.
+- Imprime una tabla detallada por usuario.
+
+**Uso:**
+```bash
+# Importación real
+pnpm import:sgm-prefs
+
+# Dry run (simulación sin escrituras en DB)
+pnpm import:sgm-prefs --dry-run
+
+# Apuntar a otra URL (ej: producción)
+pnpm import:sgm-prefs --base-url=https://securitysuite.riogas.com.uy
+
+# Ver ayuda
+pnpm import:sgm-prefs --help
+```
+
+**Variables de entorno (en `.env.local` o `.env`):**
+
+| Variable | Obligatoria | Default | Descripción |
+|---|---|---|---|
+| `JWT_SECRET` | Sí | — | Secret para firmar el JWT. Debe coincidir con el que usa la app. |
+| `DATABASE_URL` | Solo si no se especifica admin | — | URL de PostgreSQL. Se usa para buscar el primer usuario `esRoot='S'`. |
+| `IMPORT_BASE_URL` | No | `http://localhost:4005` | URL base del servidor. |
+| `IMPORT_ADMIN_USERNAME` | No | lookup en DB | Username del admin para el JWT. |
+| `IMPORT_ADMIN_USERID` | No | lookup en DB | ID del admin para el JWT. |
+
+**Errores comunes:**
+
+- `JWT_SECRET no está seteado` → Agregá `JWT_SECRET=<valor>` al `.env.local`.
+- `ERROR 401` → El JWT_SECRET no coincide con el que usa la app.
+- `No se pudo conectar a http://localhost:4005` → El servidor no está corriendo en esa URL.
+- `No se encontró ningún usuario con esRoot='S'` → Especificá `IMPORT_ADMIN_USERNAME` y `IMPORT_ADMIN_USERID` en el `.env`.
+
+**Requisitos:**
+- Node 20+ (usa `fetch` nativo)
+- `tsx` instalado (ya está en `devDependencies`)
+- `jsonwebtoken` y `dotenv` (ya están en `dependencies`)
+
+---
+
 ## 🔧 Diferencias Clave
 
 | Aspecto | Desarrollo (`dev.sh`) | Producción Local (`build-and-run.sh`) | Producción Servidor (`deploy-simple.sh`) |

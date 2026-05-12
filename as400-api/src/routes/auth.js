@@ -8,6 +8,63 @@ const router = express.Router();
 const ENCRYPT_KEY = process.env.AS400_ENCRYPT_KEY || 'e57bfc8ea91ab3e2f1201b5b3612eea2';
 
 /**
+ * Consulta los datos de agencia/escenario/empFletera de un usuario en USUMOBILE.
+ * Extrae la lógica de JOIN compartida entre POST /as400 y POST /as400/lookup.
+ *
+ * @param {string} username
+ * @returns {Promise<{ found: boolean, disabled?: boolean, row?: object, error?: Error }>}
+ */
+async function queryAgenciaData(username) {
+  const rows = await query(
+    `SELECT u.USUMOBILEID, u.USUMOBILENOMBRE, u.USUMOBILEEMAIL,
+            u.USUMOBILEPASSWORD, u.USUMOBILEHABILITADO,
+            r.USUMOBR_ROLID,
+            u.AGENCIAID,
+            a.ESCENARIOID,
+            e.ESCENARIONOM,
+            a.AGENCIAVINCEMPFLT,
+            ef.EFLNOM
+     FROM GXICAGEO.USUMOBILE u
+     LEFT JOIN GXICAGEO.USUMOBILEROLES r
+       ON r.USUMOBILEID = u.USUMOBILEID AND r.USUMOBR_ROLID = 6
+     LEFT JOIN GXICAGEO.AGENCIA a
+       ON a.AGENCIAID = u.AGENCIAID
+     LEFT JOIN GXICAGEO.ESCENARIO e
+       ON e.ESCENARIOID = a.ESCENARIOID
+     LEFT JOIN GXCALDTA.EFLETERA ef
+       ON ef.EFLID = a.AGENCIAVINCEMPFLT AND a.AGENCIAVINCEMPFLT > 0
+     WHERE UPPER(TRIM(u.USUMOBILELOGIN)) = UPPER(?)`,
+    [username.trim()]
+  );
+
+  if (rows.length === 0) return { found: false };
+
+  const row = rows[0];
+  if (row.USUMOBILEHABILITADO !== 'S') return { found: true, disabled: true, row };
+  return { found: true, disabled: false, row };
+}
+
+/**
+ * Extrae los campos de agencia/escenario/empFletera de una fila de USUMOBILE.
+ * Centraliza el mapeo para que ambos endpoints usen exactamente los mismos valores.
+ *
+ * @param {object} row
+ * @returns {{ escenarioId, escenarioNom, empFleteraId, empFleteraNom }}
+ */
+function mapAgenciaFields(row) {
+  const escenarioId = row.ESCENARIOID != null ? Number(row.ESCENARIOID) : null;
+  const escenarioNomRaw = (row.ESCENARIONOM || '').trim();
+  const escenarioNom = escenarioNomRaw || null;
+  // Empresa fletera vinculada: 0 o null = sin fletera asignada. Solo
+  // valores > 0 son IDs reales de GXCALDTA.EFLETERA.
+  const empFleteraIdRaw = row.AGENCIAVINCEMPFLT != null ? Number(row.AGENCIAVINCEMPFLT) : 0;
+  const empFleteraId = empFleteraIdRaw > 0 ? empFleteraIdRaw : null;
+  const empFleteraNomRaw = (row.EFLNOM || '').trim();
+  const empFleteraNom = empFleteraId != null && empFleteraNomRaw ? empFleteraNomRaw : null;
+  return { escenarioId, escenarioNom, empFleteraId, empFleteraNom };
+}
+
+/**
  * POST /api/auth/as400
  * Valida credenciales contra la tabla GXICAGEO.USUMOBILE del AS400.
  * Body: { username, password }
@@ -23,46 +80,16 @@ router.post('/as400', async (req, res) => {
   console.log(`[AS400 Auth] Buscando usuario: ${username}`);
 
   try {
-    // El JOIN a AGENCIA y ESCENARIO trae el escenario del usuario en la misma
-    // consulta. Si USUMOBILE.AGENCIAID es null o no matchea, los campos de
-    // agencia/escenario quedan en null y el caller los ignora.
-    //
-    // Adicionalmente, la AGENCIA puede tener vinculada una empresa fletera
-    // (AGENCIAVINCEMPFLT). Si el valor es 0 o null, la agencia no tiene
-    // fletera asociada y el caller persiste null. Si tiene un valor > 0,
-    // hacemos JOIN con GXCALDTA.EFLETERA (PK EFLID DECIMAL(3)) para traer
-    // el nombre. La preferencia EmpFletera del usuario en SGM se sincroniza
-    // a partir de este valor cada login OK.
-    const rows = await query(
-      `SELECT u.USUMOBILEID, u.USUMOBILENOMBRE, u.USUMOBILEEMAIL,
-              u.USUMOBILEPASSWORD, u.USUMOBILEHABILITADO,
-              r.USUMOBR_ROLID,
-              u.AGENCIAID,
-              a.ESCENARIOID,
-              e.ESCENARIONOM,
-              a.AGENCIAVINCEMPFLT,
-              ef.EFLNOM
-       FROM GXICAGEO.USUMOBILE u
-       LEFT JOIN GXICAGEO.USUMOBILEROLES r
-         ON r.USUMOBILEID = u.USUMOBILEID AND r.USUMOBR_ROLID = 6
-       LEFT JOIN GXICAGEO.AGENCIA a
-         ON a.AGENCIAID = u.AGENCIAID
-       LEFT JOIN GXICAGEO.ESCENARIO e
-         ON e.ESCENARIOID = a.ESCENARIOID
-       LEFT JOIN GXCALDTA.EFLETERA ef
-         ON ef.EFLID = a.AGENCIAVINCEMPFLT AND a.AGENCIAVINCEMPFLT > 0
-       WHERE UPPER(TRIM(u.USUMOBILELOGIN)) = UPPER(?)`,
-      [username.trim()]
-    );
+    const result = await queryAgenciaData(username);
 
-    if (rows.length === 0) {
+    if (!result.found) {
       console.log(`[AS400 Auth] Usuario ${username} no encontrado`);
       return res.json({ outcome: 'NOT_FOUND', success: false, message: 'Usuario no encontrado' });
     }
 
-    const row = rows[0];
+    const row = result.row;
 
-    if (row.USUMOBILEHABILITADO !== 'S') {
+    if (result.disabled) {
       return res.json({ outcome: 'DISABLED', success: false, message: 'Usuario deshabilitado en SGM' });
     }
 
@@ -75,15 +102,8 @@ router.post('/as400', async (req, res) => {
     }
 
     const hasRoleDespacho = row.USUMOBR_ROLID === 6;
-    const escenarioId = row.ESCENARIOID != null ? Number(row.ESCENARIOID) : null;
-    const escenarioNomRaw = (row.ESCENARIONOM || '').trim();
-    const escenarioNom = escenarioNomRaw || null;
-    // Empresa fletera vinculada: 0 o null = sin fletera asignada. Solo
-    // valores > 0 son IDs reales de GXCALDTA.EFLETERA.
-    const empFleteraIdRaw = row.AGENCIAVINCEMPFLT != null ? Number(row.AGENCIAVINCEMPFLT) : 0;
-    const empFleteraId = empFleteraIdRaw > 0 ? empFleteraIdRaw : null;
-    const empFleteraNomRaw = (row.EFLNOM || '').trim();
-    const empFleteraNom = empFleteraId != null && empFleteraNomRaw ? empFleteraNomRaw : null;
+    const { escenarioId, escenarioNom, empFleteraId, empFleteraNom } = mapAgenciaFields(row);
+
     console.log(
       `[AS400 Auth] ${username} autenticado. Despacho: ${hasRoleDespacho}. ` +
         `Escenario: ${escenarioId ?? 'n/a'} (${escenarioNom ?? 'n/a'}). ` +
@@ -110,10 +130,72 @@ router.post('/as400', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/as400/lookup
+ * Consulta datos de agencia/escenario/empFletera de un usuario SIN validar password.
+ * Usado por el import masivo de preferencias SGM para obtener los campos correctos
+ * (especialmente empFleteraId <- AGENCIAVINCEMPFLT, NO AGENCIAID).
+ *
+ * Body: { username }
+ * Respuesta: { outcome: "FOUND" | "NOT_FOUND" | "UNAVAILABLE", data: { username, escenarioId, escenarioNom, empFleteraId, empFleteraNom } }
+ *
+ * Nota: este endpoint NO autentica al usuario. Es exclusivamente para lectura
+ * de datos de agencia desde procesos internos (import masivo). No exponer
+ * externamente sin proteccion adicional si el entorno lo requiere.
+ */
+router.post('/as400/lookup', async (req, res) => {
+  const { username } = req.body || {};
+  if (!username) {
+    return res.status(400).json({ outcome: 'UNAVAILABLE', message: 'username es requerido' });
+  }
+
+  console.log(`[AS400 Lookup] Consultando agencia para: ${username}`);
+
+  try {
+    const result = await queryAgenciaData(username);
+
+    if (!result.found || result.disabled) {
+      // Usuarios deshabilitados tambien se reportan como NOT_FOUND para el import
+      // (no tiene sentido sincronizar preferencias de usuarios inactivos).
+      console.log(`[AS400 Lookup] ${username}: ${result.found ? 'deshabilitado' : 'no encontrado'}`);
+      return res.json({
+        outcome: 'NOT_FOUND',
+        data: { username: username.trim(), escenarioId: null, escenarioNom: null, empFleteraId: null, empFleteraNom: null },
+      });
+    }
+
+    const { escenarioId, escenarioNom, empFleteraId, empFleteraNom } = mapAgenciaFields(result.row);
+
+    console.log(
+      `[AS400 Lookup] ${username} encontrado. ` +
+        `Escenario: ${escenarioId ?? 'n/a'} (${escenarioNom ?? 'n/a'}). ` +
+        `EmpFletera: ${empFleteraId ?? 'n/a'} (${empFleteraNom ?? 'n/a'})`
+    );
+
+    res.json({
+      outcome: 'FOUND',
+      data: {
+        username: username.trim(),
+        escenarioId,
+        escenarioNom,
+        empFleteraId,
+        empFleteraNom,
+      },
+    });
+  } catch (err) {
+    console.error('[AS400 Lookup] Error:', err.message);
+    res.status(500).json({
+      outcome: 'UNAVAILABLE',
+      data: { username: username.trim(), escenarioId: null, escenarioNom: null, empFleteraId: null, empFleteraNom: null },
+    });
+  }
+});
+
 const LDAP_HOST = process.env.LDAP_HOST || '192.168.1.7';
 const LDAP_PORT = parseInt(process.env.LDAP_PORT || '389', 10);
 const LDAP_DOMAIN = process.env.LDAP_DOMAIN || 'glp';
 const LDAP_BASE_DN = process.env.LDAP_BASE_DN || 'DC=glp,DC=riogas,DC=com,DC=uy';
+const LDAP_BASE_DN_EXPORTS = LDAP_BASE_DN;
 // GRPID en AS400 ADMSEC.GRPUSU que representa "Despacho".
 // Mantenemos el nombre LDAP_GROUP_DESPACHO por compatibilidad de env.
 const AS400_GRUPO_DESPACHO_ID = parseInt(process.env.AS400_GRUPO_DESPACHO_ID || process.env.LDAP_GROUP_DESPACHO || '52', 10);
@@ -216,7 +298,7 @@ function authenticateLDAP(username, password) {
         return finish({ outcome: 'INVALID_CREDS', success: false, message: 'Credenciales inválidas' });
       }
 
-      client.search(LDAP_BASE_DN, {
+      client.search(LDAP_BASE_DN_EXPORTS, {
         filter: new EqualityFilter({ attribute: 'sAMAccountName', value: username }),
         scope: 'sub',
         attributes: ['cn', 'mail', 'displayName', 'memberOf', 'department', 'title', 'sAMAccountName'],

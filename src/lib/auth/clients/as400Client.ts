@@ -73,3 +73,35 @@ export function validateAdmsec(username: string, password: string): Promise<Adms
     unavailable<AdmsecValidateResult>("ADMSEC no disponible")
   );
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Lookup de datos de agencia (escenario + empresa fletera) sin validar clave.
+// Llama a /api/auth/as400/lookup en el AS400 API server.
+// Retorna los mismos campos de agencia que validateAs400, pero sin credenciales.
+// Si el servicio no está disponible o el endpoint no existe → UNAVAILABLE.
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface As400AgenciaLookupPayload {
+  username: string;
+  escenarioId?: number | null;
+  escenarioNom?: string | null;
+  empFleteraId?: number | null;
+  empFleteraNom?: string | null;
+}
+
+export type As400AgenciaLookupOutcome = "FOUND" | "NOT_FOUND" | "UNAVAILABLE";
+
+export interface As400AgenciaLookupResult {
+  outcome: As400AgenciaLookupOutcome;
+  data?: As400AgenciaLookupPayload;
+  message?: string;
+}
+
+export function lookupAs400Agencia(username: string): Promise<As400AgenciaLookupResult> {
+  return postJson<As400AgenciaLookupResult>(
+    "/api/auth/as400/lookup",
+    { username },
+    TIMEOUT_AS400,
+    unavailable<As400AgenciaLookupResult>("AS400 API no disponible")
+  );
+}

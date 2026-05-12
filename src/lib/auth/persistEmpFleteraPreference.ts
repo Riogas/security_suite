@@ -15,9 +15,9 @@ import { authLog } from "./logger";
  * Casos:
  *   - empFleteraId / empFleteraNom inválidos (null, 0, sin nombre) → no-op:
  *     la agencia del usuario no tiene fletera vinculada.
- *   - Ya existe una preferencia 'EmpFletera' para el usuario → se reemplaza
- *     (delete + create) porque UsuarioPreferencia no tiene unique compuesto
- *     (usuarioId, atributo).
+ *   - Ya existe una preferencia 'EmpFletera' para el usuario → no-op: se respeta
+ *     lo configurado por el admin en security_suite y NO se sobreescribe.
+ *   - No existe preferencia 'EmpFletera' para el usuario → INSERT con el dato de SGM.
  *   - Errores de Prisma se loguean y no propagan: la preferencia es
  *     complementaria y no debe romper el login.
  *
@@ -33,17 +33,20 @@ export async function persistEmpFleteraPreference(
   const nombre = (empFleteraNom ?? "").trim();
   if (!nombre) return;
 
-  const valor = JSON.stringify([{ Nombre: nombre, Valor: Number(empFleteraId) }]);
-
   try {
-    await prisma.$transaction([
-      prisma.usuarioPreferencia.deleteMany({
-        where: { usuarioId, atributo: "EmpFletera" },
-      }),
-      prisma.usuarioPreferencia.create({
-        data: { usuarioId, atributo: "EmpFletera", valor },
-      }),
-    ]);
+    const existing = await prisma.usuarioPreferencia.findFirst({
+      where: { usuarioId, atributo: "EmpFletera" },
+    });
+
+    if (existing) {
+      authLog.info("persistEmpFleteraPreference: ya existe, no se sobreescribe", { usuarioId });
+      return;
+    }
+
+    const valor = JSON.stringify([{ Nombre: nombre, Valor: Number(empFleteraId) }]);
+    await prisma.usuarioPreferencia.create({
+      data: { usuarioId, atributo: "EmpFletera", valor },
+    });
     authLog.info("persistEmpFleteraPreference ok", { usuarioId, empFleteraId, empFleteraNom: nombre });
   } catch (err) {
     authLog.error("persistEmpFleteraPreference falló", {
