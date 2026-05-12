@@ -39,13 +39,14 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Users, Shield, Lock, Save } from "lucide-react";
+import { GripVertical, Users, Shield, Lock, Save, Settings } from "lucide-react";
 import {
   apiAplicacionesDB,
   apiFuncionalidadesDB,
   apiCrearRolDB,
   apiActualizarRolDB,
 } from "@/services/api";
+import AtributosRolModal from "../AtributosRolModal";
 
 export type EstadoCode = "A" | "I";
 
@@ -140,6 +141,7 @@ export default function RoleForm({
     useState<FuncionalidadItem | null>(null);
   const [isLoadingFuncionalidades, setIsLoadingFuncionalidades] =
     useState(true);
+  const [showAtributosModal, setShowAtributosModal] = useState(false);
 
   // Cargar funcionalidades desde PostgreSQL, filtradas por aplicación seleccionada
   useEffect(() => {
@@ -554,14 +556,30 @@ export default function RoleForm({
               </div>
             </div>
           </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              <Save className="h-4 w-4 mr-2" />
-              Guardar
-            </Button>
+          <CardFooter className="justify-between gap-2">
+            <div className="flex gap-2">
+              {form.rolid && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAtributosModal(true)}
+                  className="flex items-center gap-2"
+                  data-no-loading="true"
+                >
+                  <Settings className="w-4 h-4" />
+                  Atributos
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                <Save className="h-4 w-4 mr-2" />
+                Guardar
+              </Button>
+            </div>
           </CardFooter>
         </Card>
       </form>
@@ -599,6 +617,16 @@ export default function RoleForm({
             </div>
           </CardContent>
         </Card>
+
+        {/* Modal de Atributos del Rol */}
+        {form.rolid && (
+          <AtributosRolModal
+            isOpen={showAtributosModal}
+            onClose={() => setShowAtributosModal(false)}
+            rolId={parseInt(form.rolid)}
+            rolNombre={form.rolnombre || "Rol"}
+          />
+        )}
 
         {/* Overlay para mostrar el item siendo arrastrado */}
         <DragOverlay>
