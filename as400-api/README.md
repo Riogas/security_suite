@@ -5,13 +5,43 @@ REST API que expone autenticación contra IBM AS400 / DB2 y contra Active Direct
 ## Endpoints
 
 - `POST /api/auth/as400` — valida credenciales contra `GXICAGEO.USUMOBILE` (tabla SGM).
+- `POST /api/auth/as400/lookup` — consulta datos de agencia/escenario/empFletera de un usuario **sin validar password**. Usado por el import masivo de preferencias SGM.
 - `POST /api/auth/ldap` — valida credenciales contra Active Directory via LDAP bind, y consulta `ADMSEC.USUARIOS` + `ADMSEC.GRPUSU` para resolver pertenencia al grupo Despacho.
 
-Ambos endpoints devuelven una respuesta con la forma:
+Ambos endpoints de autenticación devuelven una respuesta con la forma:
 
 ```json
 { "outcome": "OK | INVALID_CREDS | NOT_FOUND | DISABLED | UNAVAILABLE", "success": true | false, "user": { ... }, "message": "..." }
 ```
+
+### POST /api/auth/as400/lookup
+
+Body: `{ "username": "<login>" }`
+
+Respuesta:
+
+```json
+{
+  "outcome": "FOUND | NOT_FOUND | UNAVAILABLE",
+  "data": {
+    "username": "<trim>",
+    "escenarioId": "<number | null>",
+    "escenarioNom": "<string | null>",
+    "empFleteraId": "<number | null>",
+    "empFleteraNom": "<string | null>"
+  }
+}
+```
+
+Campos:
+- `escenarioId` ← `a.ESCENARIOID` (de `GXICAGEO.AGENCIA` joineada con `USUMOBILE.AGENCIAID`).
+- `escenarioNom` ← `e.ESCENARIONOM` (`GXICAGEO.ESCENARIO`, PK `ESCENARIOID`).
+- `empFleteraId` ← `a.AGENCIAVINCEMPFLT` (**no** `a.AGENCIAID`). Si `AGENCIAVINCEMPFLT` es `0` o `null` → `empFleteraId = null`.
+- `empFleteraNom` ← `ef.EFLNOM` de `GXCALDTA.EFLETERA`.
+
+Usuarios deshabilitados (`USUMOBILEHABILITADO != 'S'`) se reportan como `NOT_FOUND` (no tiene sentido sincronizar preferencias de usuarios inactivos).
+
+**Nota:** este endpoint no autentica al usuario. Es exclusivamente para lectura de datos de agencia desde procesos internos (import masivo de `security_suite`).
 
 ## Variables de entorno relevantes
 

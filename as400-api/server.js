@@ -37,6 +37,7 @@ app.get('/', (req, res) => res.json({
     'GET  /api/pedidos/:nro',
     'PUT  /api/pedidos/:nro/estado',
     'POST /api/auth/as400',
+    'POST /api/auth/as400/lookup',
     'POST /api/auth/ldap',
     'POST /api/auth/admsec/lookup',
     'POST /api/auth/admsec/validate',
