@@ -78,6 +78,7 @@ model Rol {
   fechaCreacion   DateTime           @default(now()) @map("fecha_creacion") @db.Timestamp(6)
   creadoEn        String?            @map("creado_en") @db.VarChar(60)
   funcionalidades RolFuncionalidad[]
+  preferencias    RolPreferencia[]
   aplicacion      Aplicacion         @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   usuarios        UsuarioRol[]
 
@@ -85,6 +86,17 @@ model Rol {
   @@index([aplicacionId], map: "idx_roles_aplicacion")
   @@index([estado], map: "idx_roles_estado")
   @@map("roles")
+}
+
+model RolPreferencia {
+  id       Int     @id @default(autoincrement())
+  rolId    Int     @map("rol_id")
+  atributo String  @db.VarChar(60)
+  valor    String? @db.Text
+  rol      Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([rolId], map: "idx_rol_preferencias_rol")
+  @@map("rol_preferencias")
 }
 
 model UsuarioRol {
