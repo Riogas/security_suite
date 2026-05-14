@@ -1701,6 +1701,13 @@ export const apiActualizarRolDB = async (
 export const apiEliminarRolDB = async (id: number) =>
   dbFetch(`/api/db/roles/${id}`, { method: "DELETE" });
 
+export const apiClonarRolDB = async (id: number, nombre: string) =>
+  dbFetch(`/api/db/roles/${id}/clonar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombre }),
+  });
+
 // Roles de un usuario
 export const apiRolesUsuarioDB = async (usuarioId: number) =>
   dbFetch(`/api/db/usuarios/${usuarioId}/roles`);

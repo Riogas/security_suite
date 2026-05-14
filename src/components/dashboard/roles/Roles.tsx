@@ -24,11 +24,12 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiRolesDB, apiEliminarRolDB } from "@/services/api";
-import { Pencil, Trash, Plus, Settings } from "lucide-react";
+import { apiRolesDB, apiEliminarRolDB, apiClonarRolDB } from "@/services/api";
+import { Pencil, Trash, Plus, Settings, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import AtributosRolModal from "@/components/dashboard/roles/AtributosRolModal";
+import ClonarRolModal from "@/components/dashboard/roles/ClonarRolModal";
 
 export default function RolesTable() {
   const [rows, setRows] = useState<any[]>([]);
@@ -40,6 +41,8 @@ export default function RolesTable() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [atributosModal, setAtributosModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
+  const [clonarModal, setClonarModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const router = useRouter();
 
   // debounce
@@ -88,7 +91,20 @@ export default function RolesTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, pageIndex, pageSize]);
+  }, [debouncedSearch, estado, pageIndex, pageSize, refreshKey]);
+
+  const handleClonar = async (nombre: string) => {
+    if (!clonarModal) return;
+    const res = await apiClonarRolDB(clonarModal.rolId, nombre);
+    if (res?.success) {
+      toast.success("Rol clonado exitosamente");
+      setClonarModal(null);
+      setRefreshKey((k) => k + 1);
+    } else {
+      // Lanzar error para que el modal lo capture y lo muestre inline
+      throw new Error(res?.error || "Error al clonar el rol");
+    }
+  };
 
   const columns: any[] = [
     { accessorKey: "nombre", header: "Rol" },
@@ -131,6 +147,16 @@ export default function RolesTable() {
             }
           >
             <Settings className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            title="Clonar rol"
+            onClick={() =>
+              setClonarModal({ rolId: row.original.id, rolNombre: row.original.nombre })
+            }
+          >
+            <Copy className="w-4 h-4" />
           </Button>
           <Button
             variant="destructive"
@@ -297,6 +323,15 @@ export default function RolesTable() {
           onClose={() => setAtributosModal(null)}
           rolId={atributosModal.rolId}
           rolNombre={atributosModal.rolNombre}
+        />
+      )}
+
+      {clonarModal && (
+        <ClonarRolModal
+          isOpen={true}
+          rolNombre={clonarModal.rolNombre}
+          onClose={() => setClonarModal(null)}
+          onClonar={handleClonar}
         />
       )}
     </div>
