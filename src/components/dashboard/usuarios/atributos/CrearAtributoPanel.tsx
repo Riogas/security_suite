@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Hash, Pencil, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { Combobox, ComboboxOption } from "@/components/ui/combobox";
+import {
+  InputAutocomplete,
+  InputAutocompleteOption,
+} from "@/components/ui/input-autocomplete";
 import { SugerenciasAtributosResponse } from "@/services/api";
 
 interface CampoValor {
@@ -39,37 +42,85 @@ export default function CrearAtributoPanel({
 }: CrearAtributoPanelProps) {
   const modoEdicion = editandoId !== null;
 
-  // Opciones para el combobox de descripción
-  const opcionesDescripcion: ComboboxOption[] = useMemo(
+  // Mapa key→valores y valor→keys de la descripción seleccionada
+  const valoresPorKey = useMemo(() => {
+    if (!sugerencias || !descripcionAtributo) return {} as Record<string, string[]>;
+    return sugerencias.porAtributo[descripcionAtributo]?.valoresPorKey ?? {};
+  }, [sugerencias, descripcionAtributo]);
+
+  const opcionesDescripcion: InputAutocompleteOption[] = useMemo(
     () =>
       (sugerencias?.atributos ?? []).map((a) => ({ value: a, label: a })),
-    [sugerencias]
+    [sugerencias],
   );
 
-  // Opciones para el combobox de ID de campo (dependen de la descripción seleccionada)
-  const opcionesIdCampo: ComboboxOption[] = useMemo(() => {
+  const opcionesIdCampo: InputAutocompleteOption[] = useMemo(() => {
     if (!sugerencias || !descripcionAtributo) return [];
     const keys = sugerencias.porAtributo[descripcionAtributo]?.keys ?? [];
     return keys.map((k) => ({ value: k, label: k }));
   }, [sugerencias, descripcionAtributo]);
 
-  // Opciones para el combobox de valor (dependen de descripción + id)
-  const opcionesValorCampo: ComboboxOption[] = useMemo(() => {
-    if (!sugerencias || !descripcionAtributo || !nuevoCampo.id) return [];
-    const valores =
-      sugerencias.porAtributo[descripcionAtributo]?.valoresPorKey[nuevoCampo.id] ?? [];
-    return valores.map((v) => ({ value: v, label: v }));
-  }, [sugerencias, descripcionAtributo, nuevoCampo.id]);
+  // Opciones de valor: todas las que existan para esa key, o si no hay key seleccionada,
+  // todos los valores distintos para la descripcion (asi puede arrancar por el valor).
+  const opcionesValorCampo: InputAutocompleteOption[] = useMemo(() => {
+    if (!descripcionAtributo) return [];
+    if (nuevoCampo.id) {
+      return (valoresPorKey[nuevoCampo.id] ?? []).map((v) => ({
+        value: v,
+        label: v,
+      }));
+    }
+    // Sin key elegida → mostrar todos los valores distintos de la descripcion
+    const todos = new Set<string>();
+    for (const arr of Object.values(valoresPorKey)) {
+      for (const v of arr) todos.add(v);
+    }
+    return Array.from(todos).map((v) => ({ value: v, label: v }));
+  }, [valoresPorKey, nuevoCampo.id, descripcionAtributo]);
 
-  // Al cambiar descripción, resetear el ID y valor del nuevo campo
+  // Al cambiar descripción (typing o seleccion), si cambia el atributo limpiar campos
   const handleDescripcionChange = (value: string) => {
+    if (value !== descripcionAtributo) {
+      setNuevoCampo({ id: "", valor: "" });
+    }
     setDescripcionAtributo(value);
-    setNuevoCampo({ id: "", valor: "" });
   };
 
-  // Al cambiar ID del campo, resetear el valor
+  // Typing del ID: solo actualiza el id, no toca el valor
   const handleIdCampoChange = (value: string) => {
-    setNuevoCampo((prev) => ({ ...prev, id: value, valor: "" }));
+    setNuevoCampo((prev) => ({ ...prev, id: value }));
+  };
+
+  // Seleccion de una sugerencia de ID: auto-pair con valor si hay exactamente uno
+  const handleIdCampoSelect = (value: string) => {
+    const valores = valoresPorKey[value] ?? [];
+    setNuevoCampo((prev) => ({
+      ...prev,
+      id: value,
+      valor: valores.length === 1 ? valores[0] : prev.valor,
+    }));
+  };
+
+  // Typing del Valor: solo actualiza el valor
+  const handleValorCampoChange = (value: string) => {
+    setNuevoCampo((prev) => ({ ...prev, valor: value }));
+  };
+
+  // Seleccion de una sugerencia de Valor: auto-pair con ID si hay exactamente uno asociado
+  const handleValorCampoSelect = (value: string) => {
+    // Buscar todas las keys que contienen este valor
+    const keysQueLoContienen: string[] = [];
+    for (const [k, vs] of Object.entries(valoresPorKey)) {
+      if (vs.includes(value)) keysQueLoContienen.push(k);
+    }
+    setNuevoCampo((prev) => ({
+      ...prev,
+      valor: value,
+      id:
+        !prev.id && keysQueLoContienen.length === 1
+          ? keysQueLoContienen[0]
+          : prev.id,
+    }));
   };
 
   // Agregar nuevo campo a la colección actual
@@ -114,16 +165,13 @@ export default function CrearAtributoPanel({
             <Label htmlFor="descripcion" className="text-base font-medium">
               Descripción del Atributo
             </Label>
-            <Combobox
+            <InputAutocomplete
               id="descripcion"
               options={opcionesDescripcion}
               value={descripcionAtributo}
               onChange={handleDescripcionChange}
-              placeholder="Ej: Configuración de preferencias..."
-              searchPlaceholder="Buscar descripción..."
-              emptyText="Sin sugerencias. Se creará una nueva."
-              allowCreate
-              className="h-12 text-base"
+              placeholder="Escribí o seleccioná una descripción..."
+              emptyText="Empezá a escribir para sugerencias"
             />
           </div>
 
@@ -133,31 +181,23 @@ export default function CrearAtributoPanel({
 
             <div className="flex gap-6">
               <div className="flex-1 min-w-0">
-                <Combobox
+                <InputAutocomplete
                   options={opcionesIdCampo}
                   value={nuevoCampo.id}
                   onChange={handleIdCampoChange}
-                  placeholder="ID del campo"
-                  searchPlaceholder="Buscar ID..."
-                  emptyText="Sin sugerencias para esta descripción."
-                  allowCreate
-                  className="h-12 text-base"
-                  disabled={!descripcionAtributo}
+                  onSelectSuggestion={handleIdCampoSelect}
+                  placeholder="ID del campo (escribí o seleccioná)"
+                  emptyText="Sin sugerencias previas"
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <Combobox
+                <InputAutocomplete
                   options={opcionesValorCampo}
                   value={nuevoCampo.valor}
-                  onChange={(value) =>
-                    setNuevoCampo((prev) => ({ ...prev, valor: value }))
-                  }
-                  placeholder="Valor del campo"
-                  searchPlaceholder="Buscar valor..."
-                  emptyText="Sin sugerencias para este ID."
-                  allowCreate
-                  className="h-12 text-base"
-                  disabled={!nuevoCampo.id}
+                  onChange={handleValorCampoChange}
+                  onSelectSuggestion={handleValorCampoSelect}
+                  placeholder="Valor del campo (escribí o seleccioná)"
+                  emptyText="Sin sugerencias previas"
                 />
               </div>
               <Button
