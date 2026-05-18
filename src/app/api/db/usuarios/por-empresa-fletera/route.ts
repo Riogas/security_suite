@@ -67,6 +67,35 @@ export async function GET(req: NextRequest) {
 
     const usuarioIds = Array.from(empFleteraByUsuario.keys());
 
+    // habilitado = true si el usuario tiene algún rol (activo) que incluya
+    // la funcionalidad "PermiteLogin".
+    const habilitadoByUsuario = new Map<number, boolean>();
+    if (usuarioIds.length > 0) {
+      const rolesConPermiteLogin = await prisma.rolFuncionalidad.findMany({
+        where: {
+          funcionalidad: { nombre: "PermiteLogin" },
+          rol: { estado: "A" },
+        },
+        select: { rolId: true },
+      });
+      const permiteLoginRolIds = new Set(
+        rolesConPermiteLogin.map((r) => r.rolId),
+      );
+
+      const userRoles = await prisma.usuarioRol.findMany({
+        where: { usuarioId: { in: usuarioIds } },
+        select: { usuarioId: true, rolId: true },
+      });
+
+      for (const ur of userRoles) {
+        if (permiteLoginRolIds.has(ur.rolId)) {
+          habilitadoByUsuario.set(ur.usuarioId, true);
+        } else if (!habilitadoByUsuario.has(ur.usuarioId)) {
+          habilitadoByUsuario.set(ur.usuarioId, false);
+        }
+      }
+    }
+
     if (usuarioIds.length === 0) {
       return NextResponse.json({
         success: true,
@@ -103,6 +132,7 @@ export async function GET(req: NextRequest) {
     const items = usuarios.map((u) => ({
       ...u,
       empFletera: empFleteraByUsuario.get(u.id) ?? null,
+      habilitado: habilitadoByUsuario.get(u.id) ?? false,
     }));
 
     return NextResponse.json({
