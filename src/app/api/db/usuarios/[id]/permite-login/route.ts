@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const PERMITE_LOGIN_FUNCIONALIDAD_ID = 8; // RiogasTracking (app 5) → PermiteLogin
+const PISTERO_ROL_ID = 54; // RiogasTracking → rol "Pistero" (otorga PermiteLogin)
 
 type Accion = "toggle" | "grant" | "revoke";
 
 // POST /api/db/usuarios/[id]/permite-login
 // Body (opcional): { accion?: "toggle" | "grant" | "revoke" }   default: "toggle"
 //
-// Asigna o quita la funcionalidad PermiteLogin (id=8) al usuario en la tabla `accesos`.
-//   - toggle: si ya la tiene la quita, si no la tiene la asigna.
-//   - grant: la asigna (idempotente, no falla si ya la tenia).
-//   - revoke: la quita (idempotente, no falla si no la tenia).
+// Asigna o quita el rol "Pistero" (id=54) al usuario via tabla `usuario_roles`.
+// El rol "Pistero" incluye la funcionalidad PermiteLogin, por lo que asignarlo
+// habilita el login del usuario en RiogasTracking.
+//   - toggle: si ya tiene el rol lo quita, si no lo tiene lo asigna.
+//   - grant: lo asigna (idempotente, no falla si ya lo tenia).
+//   - revoke: lo quita (idempotente, no falla si no lo tenia).
+//
+// Nota: el campo `habilitado` en la respuesta refleja PermiteLogin real
+// (considerando todos los roles del usuario y la tabla `accesos`). Puede ser
+// true incluso despues de un revoke si el usuario tiene PermiteLogin por
+// otro rol o por acceso directo.
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -58,13 +65,22 @@ export async function POST(
       );
     }
 
+    // Validar que el rol Pistero existe
+    const rolPistero = await prisma.rol.findUnique({
+      where: { id: PISTERO_ROL_ID },
+      select: { id: true, nombre: true },
+    });
+    if (!rolPistero) {
+      return NextResponse.json(
+        { success: false, error: "rol Pistero no encontrado" },
+        { status: 500 },
+      );
+    }
+
     // Estado actual
-    const existing = await prisma.acceso.findUnique({
+    const existing = await prisma.usuarioRol.findUnique({
       where: {
-        funcionalidadId_usuarioId: {
-          funcionalidadId: PERMITE_LOGIN_FUNCIONALIDAD_ID,
-          usuarioId,
-        },
+        usuarioId_rolId: { usuarioId, rolId: PISTERO_ROL_ID },
       },
     });
     const tenia = !!existing;
@@ -87,22 +103,14 @@ export async function POST(
     let resultado: "granted" | "revoked" | "noop";
 
     if (debeQuedarAsignado && !tenia) {
-      await prisma.acceso.create({
-        data: {
-          funcionalidadId: PERMITE_LOGIN_FUNCIONALIDAD_ID,
-          usuarioId,
-          efecto: "grant",
-          creadoEn: new Date().toISOString(),
-        },
+      await prisma.usuarioRol.create({
+        data: { usuarioId, rolId: PISTERO_ROL_ID },
       });
       resultado = "granted";
     } else if (!debeQuedarAsignado && tenia) {
-      await prisma.acceso.delete({
+      await prisma.usuarioRol.delete({
         where: {
-          funcionalidadId_usuarioId: {
-            funcionalidadId: PERMITE_LOGIN_FUNCIONALIDAD_ID,
-            usuarioId,
-          },
+          usuarioId_rolId: { usuarioId, rolId: PISTERO_ROL_ID },
         },
       });
       resultado = "revoked";
@@ -110,19 +118,51 @@ export async function POST(
       resultado = "noop"; // grant en usuario que ya lo tenia, o revoke en usuario que no lo tenia
     }
 
+    // Calcular `habilitado` real (rol + accesos) post-operacion
+    const habilitado = await calcularHabilitado(usuarioId);
+
     return NextResponse.json({
       success: true,
       usuarioId,
       username: usuario.username,
+      rolId: PISTERO_ROL_ID,
+      rolNombre: rolPistero.nombre,
       accion,
       resultado,
-      habilitado: debeQuedarAsignado,
+      tieneRol: debeQuedarAsignado,
+      habilitado,
     });
   } catch (error) {
     console.error("[API/db/usuarios/[id]/permite-login POST]", error);
     return NextResponse.json(
-      { success: false, error: "Error al cambiar PermiteLogin" },
+      { success: false, error: "Error al cambiar rol Pistero" },
       { status: 500 },
     );
   }
+}
+
+// true si el usuario tiene PermiteLogin via algun rol activo O via acceso directo (efecto != "deny")
+async function calcularHabilitado(usuarioId: number): Promise<boolean> {
+  const rolHit = await prisma.usuarioRol.findFirst({
+    where: {
+      usuarioId,
+      rol: {
+        estado: "A",
+        funcionalidades: { some: { funcionalidad: { nombre: "PermiteLogin" } } },
+      },
+    },
+    select: { rolId: true },
+  });
+  if (rolHit) return true;
+
+  const accesoHit = await prisma.acceso.findFirst({
+    where: {
+      usuarioId,
+      funcionalidad: { nombre: "PermiteLogin" },
+    },
+    select: { efecto: true },
+  });
+  if (accesoHit && accesoHit.efecto?.toLowerCase() !== "deny") return true;
+
+  return false;
 }
