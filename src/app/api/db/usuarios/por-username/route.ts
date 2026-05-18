@@ -55,7 +55,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, item: usuario });
+    // Empresa(s) fletera(s) del usuario (UsuarioPreferencia atributo="EmpFletera")
+    const prefs = await prisma.usuarioPreferencia.findMany({
+      where: { usuarioId: usuario.id, atributo: "EmpFletera" },
+      select: { valor: true },
+    });
+
+    let empFletera: unknown = null;
+    if (prefs.length > 0) {
+      const raw = prefs[0].valor;
+      try {
+        empFletera = raw ? JSON.parse(raw) : raw;
+      } catch {
+        empFletera = raw;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      item: { ...usuario, empFletera },
+    });
   } catch (error) {
     console.error("[API/db/usuarios/por-username GET]", error);
     return NextResponse.json(
