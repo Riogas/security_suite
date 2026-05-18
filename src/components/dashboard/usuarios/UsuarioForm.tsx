@@ -15,10 +15,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Key, RotateCcw, Users, Settings } from "lucide-react";
+import { ArrowLeft, Save, Key, RotateCcw, Users, Settings, Shield } from "lucide-react";
 import { apiUsuarioDBById, apiCrearUsuarioDB, apiActualizarUsuarioDB } from "@/services/api";
 import AsignarRolesModal from "./AsignarRolesModal";
 import AtributosModal from "./AtributosModal";
+import AsignarFuncionalidadesModal from "./AsignarFuncionalidadesModal";
 
 interface UsuarioFormProps {
   mode: "create" | "edit";
@@ -54,6 +55,7 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [showAtributosModal, setShowAtributosModal] = useState(false);
+  const [showFuncionalidadesModal, setShowFuncionalidadesModal] = useState(false);
 
   useEffect(() => {
     if (mode === "edit" && userId) {
@@ -200,6 +202,16 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               >
                 <Users className="w-4 h-4" />
                 Asignar Roles
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowFuncionalidadesModal(true)}
+                className="flex items-center gap-2"
+                data-no-loading="true"
+              >
+                <Shield className="w-4 h-4" />
+                Asignar Funcionalidades
               </Button>
               <Button
                 type="button"
@@ -540,6 +552,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
       <AtributosModal
         isOpen={showAtributosModal}
         onClose={() => setShowAtributosModal(false)}
+        userId={parseInt(userId || "0")}
+        userName={formData.username || "Usuario"}
+      />
+
+      {/* Modal de Asignacion de Funcionalidades */}
+      <AsignarFuncionalidadesModal
+        isOpen={showFuncionalidadesModal}
+        onClose={() => setShowFuncionalidadesModal(false)}
         userId={parseInt(userId || "0")}
         userName={formData.username || "Usuario"}
       />

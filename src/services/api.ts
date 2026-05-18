@@ -1961,6 +1961,50 @@ export const apiEliminarAccesoDB = async (usuarioId: number, funcionalidadId: nu
     method: "DELETE",
   });
 
+
+// -- Accesos por usuario (modal Asignar Funcionalidades) --
+
+export interface FuncionalidadConEstadoDB {
+  funcionalidadId: number;
+  funcionalidadNombre: string;
+  aplicacionId: number;
+  aplicacionNombre: string;
+  viaRoles: string[];
+  accesoDirecto: {
+    efecto: "grant" | "deny";
+    fechaDesde: string | null;
+    fechaHasta: string | null;
+  } | null;
+}
+
+export interface AccesosUsuarioDBResponse {
+  success: boolean;
+  items: FuncionalidadConEstadoDB[];
+}
+
+export const apiObtenerAccesosUsuarioDB = async (
+  usuarioId: number
+): Promise<AccesosUsuarioDBResponse> =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/accesos`);
+
+export interface CambioAccesoDB {
+  funcionalidadId: number;
+  efecto?: "grant" | "deny";
+  fechaDesde?: string | null;
+  fechaHasta?: string | null;
+  remove?: boolean;
+}
+
+export const apiActualizarAccesosUsuarioDB = async (
+  usuarioId: number,
+  cambios: CambioAccesoDB[]
+) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/accesos`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cambios }),
+  });
+
 // ─── Acciones DB ─────────────────────────────────────────────────────────────
 
 export const apiAccionesDB = async (opts?: { funcionalidadId?: number; estado?: string; search?: string }) => {
