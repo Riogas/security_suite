@@ -39,6 +39,7 @@ export default function AtributosModal({
     editandoId,
     saving,
     loading,
+    sugerencias,
     crearAtributo,
     editarAtributo,
     eliminarAtributo,
@@ -63,7 +64,7 @@ export default function AtributosModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent 
+      <DialogContent
         className="!max-w-none w-[96vw] h-[90vh] overflow-hidden flex flex-col"
         data-no-loading="true"
       >
@@ -87,6 +88,7 @@ export default function AtributosModal({
             setNuevoCampo={setNuevoCampo}
             editandoId={editandoId}
             onCrearAtributo={crearAtributo}
+            sugerencias={sugerencias}
           />
 
           <ListaAtributosPanel

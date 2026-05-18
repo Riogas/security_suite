@@ -1850,6 +1850,21 @@ export const apiGuardarAtributoDB = async (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ atributo, valor }),
   });
+export interface SugerenciasAtributosResponse {
+  success: true;
+  atributos: string[];
+  porAtributo: Record<
+    string,
+    {
+      keys: string[];
+      valoresPorKey: Record<string, string[]>;
+    }
+  >;
+}
+
+export const apiObtenerSugerenciasAtributosDB =
+  async (): Promise<SugerenciasAtributosResponse> =>
+    dbFetch("/api/db/usuario-preferencias/sugerencias");
 
 
 // =====================================================================

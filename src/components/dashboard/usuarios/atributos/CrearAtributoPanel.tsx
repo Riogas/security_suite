@@ -1,13 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Tag, Hash, Pencil } from "lucide-react";
+import { Plus, Trash2, Hash, Pencil, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { Combobox, ComboboxOption } from "@/components/ui/combobox";
+import { SugerenciasAtributosResponse } from "@/services/api";
 
 interface CampoValor {
   id: string;
@@ -23,6 +23,7 @@ interface CrearAtributoPanelProps {
   setNuevoCampo: React.Dispatch<React.SetStateAction<CampoValor>>;
   editandoId: string | null;
   onCrearAtributo: () => void;
+  sugerencias?: SugerenciasAtributosResponse | null;
 }
 
 export default function CrearAtributoPanel({
@@ -34,14 +35,42 @@ export default function CrearAtributoPanel({
   setNuevoCampo,
   editandoId,
   onCrearAtributo,
+  sugerencias = null,
 }: CrearAtributoPanelProps) {
   const modoEdicion = editandoId !== null;
-  // 🔍 DEBUG: Rastrear props
-  console.log("➕ [CrearAtributoPanel] Props:", {
-    descripcionAtributo,
-    camposActualesCount: camposActuales.length,
-    nuevoCampo,
-  });
+
+  // Opciones para el combobox de descripción
+  const opcionesDescripcion: ComboboxOption[] = useMemo(
+    () =>
+      (sugerencias?.atributos ?? []).map((a) => ({ value: a, label: a })),
+    [sugerencias]
+  );
+
+  // Opciones para el combobox de ID de campo (dependen de la descripción seleccionada)
+  const opcionesIdCampo: ComboboxOption[] = useMemo(() => {
+    if (!sugerencias || !descripcionAtributo) return [];
+    const keys = sugerencias.porAtributo[descripcionAtributo]?.keys ?? [];
+    return keys.map((k) => ({ value: k, label: k }));
+  }, [sugerencias, descripcionAtributo]);
+
+  // Opciones para el combobox de valor (dependen de descripción + id)
+  const opcionesValorCampo: ComboboxOption[] = useMemo(() => {
+    if (!sugerencias || !descripcionAtributo || !nuevoCampo.id) return [];
+    const valores =
+      sugerencias.porAtributo[descripcionAtributo]?.valoresPorKey[nuevoCampo.id] ?? [];
+    return valores.map((v) => ({ value: v, label: v }));
+  }, [sugerencias, descripcionAtributo, nuevoCampo.id]);
+
+  // Al cambiar descripción, resetear el ID y valor del nuevo campo
+  const handleDescripcionChange = (value: string) => {
+    setDescripcionAtributo(value);
+    setNuevoCampo({ id: "", valor: "" });
+  };
+
+  // Al cambiar ID del campo, resetear el valor
+  const handleIdCampoChange = (value: string) => {
+    setNuevoCampo((prev) => ({ ...prev, id: value, valor: "" }));
+  };
 
   // Agregar nuevo campo a la colección actual
   const agregarCampo = () => {
@@ -70,12 +99,6 @@ export default function CrearAtributoPanel({
     setCamposActuales((prev) => prev.filter((campo) => campo.id !== idCampo));
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      agregarCampo();
-    }
-  };
-
   return (
     <div className="w-[48%] space-y-6">
       <Card>
@@ -91,13 +114,16 @@ export default function CrearAtributoPanel({
             <Label htmlFor="descripcion" className="text-base font-medium">
               Descripción del Atributo
             </Label>
-            <Textarea
+            <Combobox
               id="descripcion"
-              placeholder="Ej: Configuración de preferencias, Datos adicionales, etc."
+              options={opcionesDescripcion}
               value={descripcionAtributo}
-              onChange={(e) => setDescripcionAtributo(e.target.value)}
-              rows={4}
-              className="resize-none text-base"
+              onChange={handleDescripcionChange}
+              placeholder="Ej: Configuración de preferencias..."
+              searchPlaceholder="Buscar descripción..."
+              emptyText="Sin sugerencias. Se creará una nueva."
+              allowCreate
+              className="h-12 text-base"
             />
           </div>
 
@@ -107,28 +133,31 @@ export default function CrearAtributoPanel({
 
             <div className="flex gap-6">
               <div className="flex-1 min-w-0">
-                <Input
-                  placeholder="ID del campo"
+                <Combobox
+                  options={opcionesIdCampo}
                   value={nuevoCampo.id}
-                  onChange={(e) =>
-                    setNuevoCampo((prev) => ({ ...prev, id: e.target.value }))
-                  }
-                  onKeyPress={handleKeyPress}
-                  className="w-full h-12 text-base"
+                  onChange={handleIdCampoChange}
+                  placeholder="ID del campo"
+                  searchPlaceholder="Buscar ID..."
+                  emptyText="Sin sugerencias para esta descripción."
+                  allowCreate
+                  className="h-12 text-base"
+                  disabled={!descripcionAtributo}
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <Input
-                  placeholder="Valor del campo"
+                <Combobox
+                  options={opcionesValorCampo}
                   value={nuevoCampo.valor}
-                  onChange={(e) =>
-                    setNuevoCampo((prev) => ({
-                      ...prev,
-                      valor: e.target.value,
-                    }))
+                  onChange={(value) =>
+                    setNuevoCampo((prev) => ({ ...prev, valor: value }))
                   }
-                  onKeyPress={handleKeyPress}
-                  className="w-full h-12 text-base"
+                  placeholder="Valor del campo"
+                  searchPlaceholder="Buscar valor..."
+                  emptyText="Sin sugerencias para este ID."
+                  allowCreate
+                  className="h-12 text-base"
+                  disabled={!nuevoCampo.id}
                 />
               </div>
               <Button
@@ -182,7 +211,6 @@ export default function CrearAtributoPanel({
             }
             className="w-full h-12 text-base"
             size="lg"
-            variant={modoEdicion ? "default" : "default"}
           >
             {modoEdicion ? (
               <><Pencil className="w-5 h-5 mr-2" />Actualizar Atributo</>
