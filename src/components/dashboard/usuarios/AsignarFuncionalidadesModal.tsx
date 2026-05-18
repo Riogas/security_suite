@@ -20,7 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, X, Search, Shield } from "lucide-react";
+import {
+  Save,
+  X,
+  Search,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   apiObtenerAccesosUsuarioDB,
@@ -124,6 +133,8 @@ export default function AsignarFuncionalidadesModal({
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [estados, setEstados] = useState<FuncLocalState[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // ── Load ─────────────────────────────────────────────────────────────────
 
@@ -219,8 +230,14 @@ export default function AsignarFuncionalidadesModal({
   const handleClose = () => {
     setSearchTerm("");
     setEstados([]);
+    setPage(1);
     onClose();
   };
+
+  // Reset paginación al filtrar
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, pageSize]);
 
   // ── Filtrado y agrupación ─────────────────────────────────────────────────
 
@@ -234,17 +251,27 @@ export default function AsignarFuncionalidadesModal({
     );
   }, [estados, searchTerm]);
 
-  // Agrupar por aplicación
+  // Paginación sobre la lista filtrada (plana)
+  const totalFiltrados = filtrados.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltrados / pageSize));
+  const currentPage = Math.min(page, totalPages);
+
+  const paginados = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtrados.slice(start, start + pageSize);
+  }, [filtrados, currentPage, pageSize]);
+
+  // Agrupar por aplicación (sobre los items de la página actual)
   const porAplicacion = useMemo(() => {
     const grupos = new Map<string, FuncLocalState[]>();
-    for (const f of filtrados) {
+    for (const f of paginados) {
       const key = `${f.aplicacionId}:${f.aplicacionNombre}`;
       const grupo = grupos.get(key) ?? [];
       grupo.push(f);
       grupos.set(key, grupo);
     }
     return grupos;
-  }, [filtrados]);
+  }, [paginados]);
 
   const totalCambios = buildCambios(estados).length;
 
@@ -253,7 +280,7 @@ export default function AsignarFuncionalidadesModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="max-w-6xl w-[95vw] max-h-[85vh] overflow-hidden flex flex-col"
         data-no-loading="true"
       >
         <DialogHeader>
@@ -331,7 +358,7 @@ export default function AsignarFuncionalidadesModal({
                             </div>
 
                             {/* Controles derecha */}
-                            <div className="flex flex-col gap-2 sm:items-end sm:min-w-[280px]">
+                            <div className="flex flex-col gap-2 sm:items-end sm:min-w-[420px]">
                               {/* Selector de override */}
                               <Select
                                 value={f.overrideSeleccionado}
@@ -342,7 +369,7 @@ export default function AsignarFuncionalidadesModal({
                                   )
                                 }
                               >
-                                <SelectTrigger className="w-full sm:w-48 h-8 text-sm">
+                                <SelectTrigger className="w-full sm:w-56 h-8 text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -354,8 +381,8 @@ export default function AsignarFuncionalidadesModal({
 
                               {/* Date pickers — solo si hay override */}
                               {f.overrideSeleccionado !== "none" && (
-                                <div className="flex gap-2 w-full sm:w-48">
-                                  <div className="flex-1 space-y-1">
+                                <div className="flex gap-3 w-full sm:w-[420px]">
+                                  <div className="flex-1 min-w-0 space-y-1">
                                     <Label className="text-xs text-muted-foreground">Desde</Label>
                                     <Input
                                       type="date"
@@ -367,10 +394,10 @@ export default function AsignarFuncionalidadesModal({
                                           e.target.value
                                         )
                                       }
-                                      className="h-7 text-xs"
+                                      className="h-8 text-xs w-full"
                                     />
                                   </div>
-                                  <div className="flex-1 space-y-1">
+                                  <div className="flex-1 min-w-0 space-y-1">
                                     <Label className="text-xs text-muted-foreground">Hasta</Label>
                                     <Input
                                       type="date"
@@ -382,7 +409,7 @@ export default function AsignarFuncionalidadesModal({
                                           e.target.value
                                         )
                                       }
-                                      className="h-7 text-xs"
+                                      className="h-8 text-xs w-full"
                                     />
                                   </div>
                                 </div>
@@ -398,6 +425,90 @@ export default function AsignarFuncionalidadesModal({
             </div>
           )}
         </div>
+
+        {/* Paginación */}
+        {!loading && totalFiltrados > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0 pt-1 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                Mostrando{" "}
+                <span className="font-medium text-foreground">
+                  {(currentPage - 1) * pageSize + 1}
+                </span>
+                {"-"}
+                <span className="font-medium text-foreground">
+                  {Math.min(currentPage * pageSize, totalFiltrados)}
+                </span>{" "}
+                de{" "}
+                <span className="font-medium text-foreground">
+                  {totalFiltrados}
+                </span>
+              </span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => setPageSize(Number(v))}
+              >
+                <SelectTrigger className="h-7 w-20 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-xs">por página</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage(1)}
+                disabled={currentPage === 1}
+                aria-label="Primera página"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                aria-label="Página anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="px-2 text-xs">
+                Página{" "}
+                <span className="font-medium text-foreground">{currentPage}</span>{" "}
+                / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                aria-label="Página siguiente"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage(totalPages)}
+                disabled={currentPage === totalPages}
+                aria-label="Última página"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         <DialogFooter className="flex gap-2 shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={saving}>
