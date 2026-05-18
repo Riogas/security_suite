@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     const estado = searchParams.get("estado") || "";
 
-    // Buscar IDs de usuarios que tengan EmpFletera conteniendo al menos una empresa (OR)
+    // Buscar usuarios que tengan EmpFletera conteniendo al menos una empresa (OR)
     const preferencias = await prisma.usuarioPreferencia.findMany({
       where: {
         atributo: "EmpFletera",
@@ -49,11 +49,23 @@ export async function GET(req: NextRequest) {
           valor: { contains: empresa, mode: "insensitive" as const },
         })),
       },
-      select: { usuarioId: true },
-      distinct: ["usuarioId"],
+      select: { usuarioId: true, valor: true },
     });
 
-    const usuarioIds = preferencias.map((p) => p.usuarioId);
+    // Map usuarioId -> EmpFletera (parsed si es JSON válido, raw si no)
+    const empFleteraByUsuario = new Map<number, unknown>();
+    for (const p of preferencias) {
+      if (empFleteraByUsuario.has(p.usuarioId)) continue;
+      let parsed: unknown = p.valor;
+      try {
+        parsed = p.valor ? JSON.parse(p.valor) : p.valor;
+      } catch {
+        // valor no es JSON — devolver string crudo
+      }
+      empFleteraByUsuario.set(p.usuarioId, parsed);
+    }
+
+    const usuarioIds = Array.from(empFleteraByUsuario.keys());
 
     if (usuarioIds.length === 0) {
       return NextResponse.json({
@@ -88,10 +100,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    const items = usuarios.map((u) => ({
+      ...u,
+      empFletera: empFleteraByUsuario.get(u.id) ?? null,
+    }));
+
     return NextResponse.json({
       success: true,
-      items: usuarios,
-      total: usuarios.length,
+      items,
+      total: items.length,
       empresasFiltradas: empresas,
     });
   } catch (error) {
