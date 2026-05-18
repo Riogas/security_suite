@@ -67,10 +67,12 @@ export async function GET(req: NextRequest) {
 
     const usuarioIds = Array.from(empFleteraByUsuario.keys());
 
-    // habilitado = true si el usuario tiene algún rol (activo) que incluya
-    // la funcionalidad "PermiteLogin".
+    // habilitado = true si el usuario tiene PermiteLogin via cualquiera de:
+    //   (a) algún rol activo con la funcionalidad "PermiteLogin" (RolFuncionalidad)
+    //   (b) acceso directo en la tabla `accesos` (Acceso) con efecto distinto de "deny"
     const habilitadoByUsuario = new Map<number, boolean>();
     if (usuarioIds.length > 0) {
+      // (a) via rol
       const rolesConPermiteLogin = await prisma.rolFuncionalidad.findMany({
         where: {
           funcionalidad: { nombre: "PermiteLogin" },
@@ -92,6 +94,21 @@ export async function GET(req: NextRequest) {
           habilitadoByUsuario.set(ur.usuarioId, true);
         } else if (!habilitadoByUsuario.has(ur.usuarioId)) {
           habilitadoByUsuario.set(ur.usuarioId, false);
+        }
+      }
+
+      // (b) via acceso directo
+      const accesosDirectos = await prisma.acceso.findMany({
+        where: {
+          funcionalidad: { nombre: "PermiteLogin" },
+          usuarioId: { in: usuarioIds },
+        },
+        select: { usuarioId: true, efecto: true },
+      });
+
+      for (const a of accesosDirectos) {
+        if (a.efecto?.toLowerCase() !== "deny") {
+          habilitadoByUsuario.set(a.usuarioId, true);
         }
       }
     }
