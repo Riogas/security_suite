@@ -56,6 +56,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Empresa(s) fletera(s) del usuario (UsuarioPreferencia atributo="EmpFletera")
+    // Puede venir en dos shapes históricos que coexisten:
+    //   - Una sola fila con un JSON array: [{"Nombre":"X","Valor":1}, ...]
+    //   - Varias filas (una por empresa), cada una con su propio JSON o string
+    // Combinamos ambos casos en un array plano para que el cliente
+    // (extractEmpFletera en TrackMovil / security_suite) muestre todas.
     const prefs = await prisma.usuarioPreferencia.findMany({
       where: { usuarioId: usuario.id, atributo: "EmpFletera" },
       select: { valor: true },
@@ -63,11 +68,26 @@ export async function GET(req: NextRequest) {
 
     let empFletera: unknown = null;
     if (prefs.length > 0) {
-      const raw = prefs[0].valor;
-      try {
-        empFletera = raw ? JSON.parse(raw) : raw;
-      } catch {
-        empFletera = raw;
+      const items: unknown[] = [];
+      for (const p of prefs) {
+        const raw = p.valor;
+        if (raw == null || raw === "") continue;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          parsed = raw;
+        }
+        if (Array.isArray(parsed)) {
+          items.push(...parsed);
+        } else {
+          items.push(parsed);
+        }
+      }
+      if (items.length === 1) {
+        empFletera = items[0];
+      } else if (items.length > 1) {
+        empFletera = items;
       }
     }
 
