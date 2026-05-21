@@ -1,19 +1,17 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Activity,
-  User,
-  Shield,
-  Settings,
   LogIn,
   LogOut,
   UserPlus,
-  Trash2,
   Edit,
-  Clock,
+  Trash2,
+  Shield,
+  Settings,
+  ArrowRight,
 } from "lucide-react";
 
 interface RecentActivity {
@@ -38,6 +36,24 @@ interface RecentActivitiesWidgetProps {
   maxActivities?: number;
 }
 
+const activityConfig: Record<
+  RecentActivity["type"],
+  { icon: React.ComponentType<{ className?: string }>; dot: string }
+> = {
+  login:              { icon: LogIn,    dot: "bg-success" },
+  logout:             { icon: LogOut,   dot: "bg-primary/60" },
+  user_created:       { icon: UserPlus, dot: "bg-primary" },
+  user_updated:       { icon: Edit,     dot: "bg-warning" },
+  user_deleted:       { icon: Trash2,   dot: "bg-destructive" },
+  role_assigned:      { icon: Shield,   dot: "bg-primary" },
+  permission_changed: { icon: Settings, dot: "bg-warning" },
+  system_config:      { icon: Settings, dot: "bg-muted-foreground" },
+};
+
+function getInitials(username: string): string {
+  return username.substring(0, 2).toUpperCase();
+}
+
 export function RecentActivitiesWidget({
   activities = [
     {
@@ -45,7 +61,7 @@ export function RecentActivitiesWidget({
       type: "login",
       user: "admin",
       description: "Inicio de sesión exitoso",
-      timestamp: "Hace 2 minutos",
+      timestamp: "Hace 2 min",
       details: "IP: 192.168.1.100",
     },
     {
@@ -53,7 +69,7 @@ export function RecentActivitiesWidget({
       type: "user_created",
       user: "admin",
       description: "Usuario 'jperez' creado",
-      timestamp: "Hace 15 minutos",
+      timestamp: "Hace 15 min",
       details: "Rol: Operador",
     },
     {
@@ -61,7 +77,7 @@ export function RecentActivitiesWidget({
       type: "role_assigned",
       user: "admin",
       description: "Rol 'Supervisor' asignado a 'mgarcia'",
-      timestamp: "Hace 1 hora",
+      timestamp: "Hace 1h",
       details: "Permisos actualizados",
     },
     {
@@ -69,149 +85,105 @@ export function RecentActivitiesWidget({
       type: "logout",
       user: "jlopez",
       description: "Sesión cerrada",
-      timestamp: "Hace 2 horas",
-      details: "Tiempo de sesión: 4h 23m",
+      timestamp: "Hace 2h",
+      details: "Sesión: 4h 23m",
     },
     {
       id: "5",
       type: "system_config",
       user: "admin",
       description: "Configuración de seguridad actualizada",
-      timestamp: "Hace 3 horas",
+      timestamp: "Hace 3h",
       details: "Timeout de sesión modificado",
     },
   ],
-  maxActivities = 10,
+  maxActivities = 8,
 }: RecentActivitiesWidgetProps) {
-  const getActivityConfig = (type: RecentActivity["type"]) => {
-    const configs = {
-      login: {
-        icon: LogIn,
-        color: "text-green-600",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-200",
-      },
-      logout: {
-        icon: LogOut,
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
-        borderColor: "border-blue-200",
-      },
-      user_created: {
-        icon: UserPlus,
-        color: "text-purple-600",
-        bgColor: "bg-purple-50",
-        borderColor: "border-purple-200",
-      },
-      user_updated: {
-        icon: Edit,
-        color: "text-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-      },
-      user_deleted: {
-        icon: Trash2,
-        color: "text-red-600",
-        bgColor: "bg-red-50",
-        borderColor: "border-red-200",
-      },
-      role_assigned: {
-        icon: Shield,
-        color: "text-indigo-600",
-        bgColor: "bg-indigo-50",
-        borderColor: "border-indigo-200",
-      },
-      permission_changed: {
-        icon: Settings,
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200",
-      },
-      system_config: {
-        icon: Settings,
-        color: "text-gray-600",
-        bgColor: "bg-gray-50",
-        borderColor: "border-gray-200",
-      },
-    };
-    return configs[type];
-  };
-
-  const getInitials = (username: string) => {
-    return username.substring(0, 2).toUpperCase();
-  };
-
   const displayActivities = activities.slice(0, maxActivities);
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
+    <Card className="h-full rounded-2xl border">
+      <CardHeader className="pb-3 px-6 pt-6">
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Activity className="w-5 h-5" />
-            <span>Actividades Recientes</span>
-          </div>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            Actividades Recientes
+          </span>
           {activities.length > maxActivities && (
-            <Badge variant="outline" className="text-xs">
+            <span className="text-xs text-muted-foreground">
               +{activities.length - maxActivities} más
-            </Badge>
+            </span>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+
+      <CardContent className="px-6 pb-6">
         {displayActivities.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No hay actividades recientes</p>
+          <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground gap-2">
+            <Activity className="h-10 w-10 opacity-30" />
+            <p className="text-sm">No hay actividades recientes</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {displayActivities.map((activity, index) => {
-              const config = getActivityConfig(activity.type);
-              const Icon = config.icon;
+          <div className="relative">
+            {/* Vertical timeline line */}
+            <div className="absolute left-[18px] top-2 bottom-8 w-px bg-border" />
 
-              return (
-                <div
-                  key={activity.id}
-                  className={`flex items-start space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm ${config.bgColor} ${config.borderColor}`}
-                >
+            <div className="space-y-1">
+              {displayActivities.map((activity) => {
+                const cfg = activityConfig[activity.type];
+                const Icon = cfg.icon;
+
+                return (
                   <div
-                    className={`p-2 rounded-full ${config.bgColor} border ${config.borderColor}`}
+                    key={activity.id}
+                    className="group relative flex items-start gap-4 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/40"
                   >
-                    <Icon className={`w-4 h-4 ${config.color}`} />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center space-x-2">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className="text-xs">
-                            {getInitials(activity.user)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">
-                          {activity.user}
-                        </span>
+                    {/* Timeline dot + icon */}
+                    <div className="relative z-10 flex-shrink-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-card shadow-sm">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        <span>{activity.timestamp}</span>
-                      </div>
+                      <span
+                        className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${cfg.dot}`}
+                      />
                     </div>
 
-                    <p className="text-sm text-foreground mb-1">
-                      {activity.description}
-                    </p>
-
-                    {activity.details && (
-                      <p className="text-xs text-muted-foreground">
-                        {activity.details}
+                    {/* Content */}
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Avatar className="h-5 w-5 flex-shrink-0">
+                            <AvatarFallback className="text-[10px] font-medium">
+                              {getInitials(activity.user)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {activity.user}
+                          </span>
+                        </div>
+                        <span className="flex-shrink-0 text-xs text-muted-foreground/70">
+                          {activity.timestamp}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-sm text-foreground/80 leading-snug">
+                        {activity.description}
                       </p>
-                    )}
+                      {activity.details && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {activity.details}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <button className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+              Ver más actividades
+              <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
         )}
       </CardContent>

@@ -1,12 +1,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 interface BarChartData {
   label: string;
   value: number;
-  color?: string;
 }
 
 interface EnhancedBarChartProps {
@@ -26,45 +24,58 @@ export function EnhancedBarChart({
   const barWidth = 32;
   const gap = 20;
   const width = data.length * (barWidth + gap) + gap;
+  const total = data.reduce((acc, d) => acc + d.value, 0);
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md border-0 shadow-sm bg-gradient-to-br from-card to-card/80">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="rounded-2xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+      <CardHeader className="px-6 pt-6 pb-2">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+            <CardTitle className="text-sm font-semibold">{title}</CardTitle>
             {description && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {description}
-              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <Badge variant="outline" className="text-xs bg-muted/30">
-            Total: {data.reduce((acc, d) => acc + d.value, 0)}
-          </Badge>
+          <div className="text-right flex-shrink-0">
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="text-sm font-semibold tabular-nums">{total.toLocaleString("es-UY")}</p>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
+
+      <CardContent className="px-6 pb-6">
         <div className="overflow-x-auto">
-          <svg width={width} height={height} className="text-primary">
+          <svg
+            width={width}
+            height={height}
+            className="text-primary"
+            aria-label={title}
+          >
             <defs>
-              <linearGradient
-                id="barGradient"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor="currentColor" stopOpacity="0.8" />
-                <stop
-                  offset="100%"
-                  stopColor="currentColor"
-                  stopOpacity="0.4"
-                />
+              <linearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.85" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0.35" />
               </linearGradient>
             </defs>
+
+            {/* Subtle grid lines */}
+            {[0.25, 0.5, 0.75].map((frac) => {
+              const y = height - 20 - frac * (height - 40);
+              return (
+                <line
+                  key={frac}
+                  x1={gap / 2}
+                  y1={y}
+                  x2={width - gap / 2}
+                  y2={y}
+                  strokeDasharray="3,3"
+                  className="stroke-border/40"
+                />
+              );
+            })}
+
             {data.map((d, i) => {
-              const h = Math.round((d.value / max) * (height - 40));
+              const h = Math.max(4, Math.round((d.value / max) * (height - 40)));
               const x = gap + i * (barWidth + gap);
               const y = height - h - 20;
               return (
@@ -80,17 +91,19 @@ export function EnhancedBarChart({
                   />
                   <text
                     x={x + barWidth / 2}
-                    y={y - 8}
+                    y={y - 6}
                     textAnchor="middle"
-                    className="fill-foreground text-xs font-medium"
+                    fontSize="10"
+                    className="fill-foreground font-medium"
                   >
                     {d.value}
                   </text>
                   <text
                     x={x + barWidth / 2}
-                    y={height - 4}
+                    y={height - 5}
                     textAnchor="middle"
-                    className="fill-muted-foreground text-[10px] font-medium"
+                    fontSize="10"
+                    className="fill-muted-foreground"
                   >
                     {d.label}
                   </text>

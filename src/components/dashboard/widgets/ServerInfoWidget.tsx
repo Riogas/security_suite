@@ -1,8 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import {
   Server,
   Database,
@@ -20,6 +18,54 @@ interface ServerInfoWidgetProps {
   lastBackup?: string;
 }
 
+const statusConfig = {
+  online:      { icon: CheckCircle,  dot: "bg-success",     text: "text-success",     label: "En Línea" },
+  maintenance: { icon: AlertTriangle, dot: "bg-warning",    text: "text-warning",     label: "Mantenimiento" },
+  offline:     { icon: AlertTriangle, dot: "bg-destructive",text: "text-destructive", label: "Fuera de Línea" },
+};
+
+interface InfoRowProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+function InfoRow({ icon: Icon, label, value, mono }: InfoRowProps) {
+  return (
+    <div className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{label}</span>
+      </div>
+      <span className={`text-sm font-semibold ${mono ? "font-mono" : ""}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+interface ConnectionRowProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  connected: boolean;
+}
+
+function ConnectionRow({ icon: Icon, label, connected }: ConnectionRowProps) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-sm">{label}</span>
+      </div>
+      <span className={`flex items-center gap-1.5 text-xs font-medium ${connected ? "text-success" : "text-destructive"}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-success" : "bg-destructive"}`} />
+        {connected ? "Activo" : "Inactivo"}
+      </span>
+    </div>
+  );
+}
+
 export function ServerInfoWidget({
   serverName = "SEC-SRV-01",
   uptime = "15d 7h 23m",
@@ -27,141 +73,42 @@ export function ServerInfoWidget({
   version = "v2.1.4",
   lastBackup = "Hace 2 horas",
 }: ServerInfoWidgetProps) {
-  const getStatusConfig = (status: "online" | "maintenance" | "offline") => {
-    const configs = {
-      online: {
-        icon: CheckCircle,
-        color: "text-green-600",
-        bgColor: "bg-green-50 border-green-200",
-        badgeColor: "bg-green-100 text-green-700",
-        text: "En Línea",
-      },
-      maintenance: {
-        icon: AlertTriangle,
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-50 border-yellow-200",
-        badgeColor: "bg-yellow-100 text-yellow-700",
-        text: "Mantenimiento",
-      },
-      offline: {
-        icon: AlertTriangle,
-        color: "text-red-600",
-        bgColor: "bg-red-50 border-red-200",
-        badgeColor: "bg-red-100 text-red-700",
-        text: "Fuera de Línea",
-      },
-    };
-    return configs[status];
-  };
-
-  const statusConfig = getStatusConfig(status);
-  const StatusIcon = statusConfig.icon;
+  const cfg = statusConfig[status];
+  const StatusIcon = cfg.icon;
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
+    <Card className="h-full rounded-2xl border">
+      <CardHeader className="pb-3 px-6 pt-6">
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Server className="w-5 h-5" />
-            <span>Información del Servidor</span>
-          </div>
-          <Badge variant="outline" className={statusConfig.badgeColor}>
-            <StatusIcon className="w-3 h-3 mr-1" />
-            {statusConfig.text}
-          </Badge>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Server className="h-4 w-4 text-muted-foreground" />
+            Info del Servidor
+          </span>
+          <span className={`flex items-center gap-1.5 text-xs font-medium ${cfg.text}`}>
+            <StatusIcon className="h-3.5 w-3.5" />
+            {cfg.label}
+          </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Server Details */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Server className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Servidor</span>
-            </div>
-            <span className="text-sm text-muted-foreground">{serverName}</span>
-          </div>
 
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Tiempo Activo</span>
-            </div>
-            <span className="text-sm text-muted-foreground">{uptime}</span>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Database className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Versión</span>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              {version}
-            </Badge>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Database className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Último Backup</span>
-            </div>
-            <span className="text-sm text-muted-foreground">{lastBackup}</span>
-          </div>
+      <CardContent className="px-6 pb-6 space-y-4">
+        {/* Details */}
+        <div className="space-y-2">
+          <InfoRow icon={Server}   label="Servidor"       value={serverName} mono />
+          <InfoRow icon={Clock}    label="Tiempo activo"  value={uptime}     mono />
+          <InfoRow icon={Database} label="Versión"        value={version}    mono />
+          <InfoRow icon={Database} label="Último backup"  value={lastBackup} />
         </div>
 
-        {/* Connection Status */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-foreground">
-            Estado de Conexiones
-          </h4>
-
+        {/* Connections */}
+        <div className="space-y-2.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Conexiones
+          </p>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Database className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">Base de Datos</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-green-600">Conectado</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Wifi className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">Red Externa</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-green-600">Activa</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Server className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm">API Externa</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs text-green-600">Disponible</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Resource Usage Summary */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-foreground">
-            Uso General de Recursos
-          </h4>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span>Sistema General</span>
-              <span className="text-green-600 font-medium">Óptimo</span>
-            </div>
-            <Progress value={78} className="h-1" />
+            <ConnectionRow icon={Database} label="Base de Datos" connected />
+            <ConnectionRow icon={Wifi}     label="Red Externa"   connected />
+            <ConnectionRow icon={Server}   label="API Externa"   connected />
           </div>
         </div>
       </CardContent>

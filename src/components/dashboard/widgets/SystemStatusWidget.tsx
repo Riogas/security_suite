@@ -1,16 +1,14 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  Monitor,
+  Server,
   Database,
   Wifi,
   HardDrive,
   Cpu,
   MemoryStick,
-  Server,
   Activity,
 } from "lucide-react";
 
@@ -21,7 +19,7 @@ interface SystemMetric {
   maxValue: number;
   unit: string;
   status: "good" | "warning" | "critical";
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 interface SystemStatusWidgetProps {
@@ -30,75 +28,34 @@ interface SystemStatusWidgetProps {
   uptime?: string;
 }
 
+const statusDot: Record<SystemMetric["status"], string> = {
+  good: "bg-success",
+  warning: "bg-warning",
+  critical: "bg-destructive",
+};
+
+const statusLabel: Record<SystemMetric["status"], string> = {
+  good: "Normal",
+  warning: "Alerta",
+  critical: "Crítico",
+};
+
+const statusText: Record<SystemMetric["status"], string> = {
+  good: "text-success",
+  warning: "text-warning",
+  critical: "text-destructive",
+};
+
 export function SystemStatusWidget({
   metrics = [
-    {
-      id: "cpu",
-      name: "CPU",
-      value: 45,
-      maxValue: 100,
-      unit: "%",
-      status: "good",
-      icon: Cpu,
-    },
-    {
-      id: "memory",
-      name: "Memoria",
-      value: 68,
-      maxValue: 100,
-      unit: "%",
-      status: "warning",
-      icon: MemoryStick,
-    },
-    {
-      id: "disk",
-      name: "Disco",
-      value: 82,
-      maxValue: 100,
-      unit: "%",
-      status: "critical",
-      icon: HardDrive,
-    },
-    {
-      id: "network",
-      name: "Red",
-      value: 25,
-      maxValue: 100,
-      unit: "Mbps",
-      status: "good",
-      icon: Wifi,
-    },
+    { id: "cpu",    name: "CPU",     value: 45, maxValue: 100, unit: "%",    status: "good",     icon: Cpu },
+    { id: "memory", name: "Memoria", value: 68, maxValue: 100, unit: "%",    status: "warning",  icon: MemoryStick },
+    { id: "disk",   name: "Disco",   value: 82, maxValue: 100, unit: "%",    status: "critical", icon: HardDrive },
+    { id: "network",name: "Red",     value: 25, maxValue: 100, unit: "Mbps", status: "good",     icon: Wifi },
   ],
   serverName = "SEC-SRV-01",
   uptime = "15d 7h 23m",
 }: SystemStatusWidgetProps) {
-  const getStatusColor = (status: SystemMetric["status"]) => {
-    const colors = {
-      good: "text-green-600",
-      warning: "text-yellow-600",
-      critical: "text-red-600",
-    };
-    return colors[status];
-  };
-
-  const getProgressColor = (status: SystemMetric["status"]) => {
-    const colors = {
-      good: "bg-green-500",
-      warning: "bg-yellow-500",
-      critical: "bg-red-500",
-    };
-    return colors[status];
-  };
-
-  const getStatusBadge = (status: SystemMetric["status"]) => {
-    const badges = {
-      good: { text: "Normal", class: "bg-green-100 text-green-700" },
-      warning: { text: "Alerta", class: "bg-yellow-100 text-yellow-700" },
-      critical: { text: "Crítico", class: "bg-red-100 text-red-700" },
-    };
-    return badges[status];
-  };
-
   const overallStatus = metrics.some((m) => m.status === "critical")
     ? "critical"
     : metrics.some((m) => m.status === "warning")
@@ -106,31 +63,30 @@ export function SystemStatusWidget({
       : "good";
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
+    <Card className="h-full rounded-2xl border">
+      <CardHeader className="pb-3 px-6 pt-6">
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Server className="w-5 h-5" />
-            <span>Estado del Sistema</span>
-          </div>
-          <Badge
-            variant="outline"
-            className={getStatusBadge(overallStatus).class}
-          >
-            {getStatusBadge(overallStatus).text}
-          </Badge>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Server className="h-4 w-4 text-muted-foreground" />
+            Estado del Sistema
+          </span>
+          <span className={`flex items-center gap-1.5 text-xs font-medium ${statusText[overallStatus]}`}>
+            <span className={`h-2 w-2 rounded-full ${statusDot[overallStatus]}`} />
+            {statusLabel[overallStatus]}
+          </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Server Info */}
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <Monitor className="w-4 h-4 text-muted-foreground" />
+
+      <CardContent className="px-6 pb-6 space-y-4">
+        {/* Server info row */}
+        <div className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">{serverName}</span>
           </div>
-          <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-            <Activity className="w-4 h-4" />
-            <span>{uptime}</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Activity className="h-3.5 w-3.5" />
+            <span className="font-mono">{uptime}</span>
           </div>
         </div>
 
@@ -138,51 +94,38 @@ export function SystemStatusWidget({
         <div className="space-y-3">
           {metrics.map((metric) => {
             const Icon = metric.icon;
-            const percentage = (metric.value / metric.maxValue) * 100;
+            const pct = Math.round((metric.value / metric.maxValue) * 100);
 
             return (
-              <div key={metric.id} className="space-y-2">
+              <div key={metric.id} className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Icon className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm font-medium">{metric.name}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`text-sm font-mono ${getStatusColor(metric.status)}`}
-                    >
-                      {metric.value}
-                      {metric.unit}
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-mono font-semibold ${statusText[metric.status]}`}>
+                      {metric.value}{metric.unit}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${getStatusBadge(metric.status).class}`}
-                    >
-                      {getStatusBadge(metric.status).text}
-                    </Badge>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusDot[metric.status]}`} />
                   </div>
                 </div>
-                <div className="relative">
-                  <Progress value={percentage} className="h-2" />
-                  <div
-                    className={`absolute top-0 left-0 h-2 rounded-full transition-all ${getProgressColor(metric.status)}`}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
+                <Progress value={pct} className="h-1.5" />
               </div>
             );
           })}
         </div>
 
-        {/* Database Status */}
-        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <Database className="w-4 h-4 text-muted-foreground" />
+        {/* DB status */}
+        <div className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Base de Datos</span>
           </div>
-          <Badge variant="outline" className="bg-green-100 text-green-700">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
             Conectado
-          </Badge>
+          </span>
         </div>
       </CardContent>
     </Card>
