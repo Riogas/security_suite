@@ -1,30 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { apiRolesDB, apiEliminarRolDB, apiClonarRolDB } from "@/services/api";
+import { DataTable } from "@/components/ui/data-table";
+import { BadgeEstado } from "@/components/ui/badge-estado";
+import { type ColumnDef } from "@tanstack/react-table";
+import { apiRolesDB, apiEliminarRolDB, apiClonarRolDB, type RolDB } from "@/services/api";
 import { Pencil, Trash, Plus, Settings, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -32,14 +19,14 @@ import AtributosRolModal from "@/components/dashboard/roles/AtributosRolModal";
 import ClonarRolModal from "@/components/dashboard/roles/ClonarRolModal";
 
 export default function RolesTable() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<RolDB[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
   const [loading, setLoading] = useState(false);
-  const [pageIndex, setPageIndex] = useState(0);
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
   const [atributosModal, setAtributosModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
   const [clonarModal, setClonarModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -51,47 +38,29 @@ export default function RolesTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (opts: {
-    FiltroTexto: string;
-    Estado: string;
-    Pagesize: number;
-    CurrentPage: number;
-    signal?: AbortSignal;
-  }) => {
-    const res = await apiRolesDB({
-      filtro: opts.FiltroTexto,
-      estado: opts.Estado || undefined,
-      page: opts.CurrentPage,
-      pageSize: opts.Pagesize,
-    });
-    const items = res?.items || [];
-    const total = Number(res?.total ?? items.length);
-    return { items, total };
-  };
-
   // load
   useEffect(() => {
     const ac = new AbortController();
     setLoading(true);
     (async () => {
       try {
-        const { items, total } = await fetcher({
-          FiltroTexto: debouncedSearch,
-          Estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          Pagesize: pageSize,
-          CurrentPage: pageIndex + 1,
-          signal: ac.signal,
+        const res = await apiRolesDB({
+          filtro: debouncedSearch,
+          estado: estado === "todos" ? undefined : estado,
+          page,
+          pageSize,
         });
-        setRows(items);
-        setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
-      } catch (e: any) {
-        if (e?.name !== "AbortError") console.error("Error cargando roles:", e);
+        setRows(res?.items ?? []);
+        setTotal(Number(res?.total ?? 0));
+      } catch (e: unknown) {
+        if ((e as { name?: string })?.name !== "AbortError")
+          console.error("Error cargando roles:", e);
       } finally {
         setLoading(false);
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, pageIndex, pageSize, refreshKey]);
+  }, [debouncedSearch, estado, page, pageSize, refreshKey]);
 
   const handleClonar = async (nombre: string) => {
     if (!clonarModal) return;
@@ -101,40 +70,36 @@ export default function RolesTable() {
       setClonarModal(null);
       setRefreshKey((k) => k + 1);
     } else {
-      // Lanzar error para que el modal lo capture y lo muestre inline
       throw new Error(res?.error || "Error al clonar el rol");
     }
   };
 
-  const columns: any[] = [
+  const columns: ColumnDef<RolDB, unknown>[] = [
     { accessorKey: "nombre", header: "Rol" },
-    { accessorKey: "descripcion", header: "Descripción" },
     {
-      accessorKey: "aplicacion",
+      id: "descripcion",
+      header: "Descripción",
+      cell: ({ row }) => row.original?.descripcion ?? "-",
+    },
+    {
+      id: "aplicacion",
       header: "Aplicación",
-      cell: ({ row }: { row: { original: any } }) => row.original?.aplicacion?.nombre || "-",
+      cell: ({ row }) => (row.original as RolDB & { aplicacion?: { nombre: string } })?.aplicacion?.nombre ?? "-",
     },
     {
-      accessorKey: "estado",
+      id: "estado",
       header: "Estado",
-      cell: ({ row }: { row: { original: any } }) => {
-        const activo = row.original?.estado === "A";
-        return (
-          <Badge className={activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"}>
-            {activo ? "Activo" : "Inactivo"}
-          </Badge>
-        );
-      },
+      cell: ({ row }) => <BadgeEstado estado={row.original?.estado ?? ""} />,
     },
     {
-      accessorKey: "acciones",
+      id: "acciones",
       header: "Acciones",
-      cell: ({ row }: { row: { original: any } }) => (
+      cell: ({ row }) => (
         <div className="space-x-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/dashboard/roles/editar/${row.original?.id || ""}`)}
+            onClick={() => router.push(`/dashboard/roles/editar/${row.original?.id ?? ""}`)}
           >
             <Pencil className="w-4 h-4" />
           </Button>
@@ -179,143 +144,51 @@ export default function RolesTable() {
     },
   ];
 
-  const table = useReactTable({
-    data: rows as any[],
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: totalPages,
-    state: { pagination: { pageIndex, pageSize } },
-    onPaginationChange: (updater: any) => {
-      if (typeof updater === "function") {
-        const next = updater({ pageIndex, pageSize });
-        setPageIndex(next.pageIndex);
-        setPageSize(next.pageSize);
-      } else {
-        setPageIndex(updater.pageIndex);
-        setPageSize(updater.pageSize);
-      }
-    },
-  });
+  const estadoFilter = (
+    <Select
+      value={estado}
+      onValueChange={(v) => {
+        setEstado(v);
+        setPage(1);
+      }}
+    >
+      <SelectTrigger className="w-36">
+        {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="A">Activo</SelectItem>
+        <SelectItem value="I">Inactivo</SelectItem>
+        <SelectItem value="todos">Todos</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  const headerActions = (
+    <Button onClick={() => router.push("/dashboard/roles/crear")}>
+      <Plus className="w-4 h-4 mr-1" /> Nuevo Rol
+    </Button>
+  );
 
   return (
-    <div>
-      <div className="flex justify-between items-end mb-4">
-        <Input
-          placeholder="Búsqueda..."
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPageIndex(0); }}
-          className="w-1/2"
-        />
-        <div className="flex gap-4 items-end">
-          <Button onClick={() => router.push("/dashboard/roles/crear")}>
-            <Plus className="w-4 h-4 mr-1" /> Nuevo Rol
-          </Button>
-          <Select
-            value={estado}
-            onValueChange={(v) => {
-              setEstado(v);
-              setPageIndex(0);
-            }}
-          >
-            <SelectTrigger>
-              {estado === "A"
-                ? "Activo"
-                : estado === "I"
-                  ? "Inactivo"
-                  : "Estado"}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A">Activo</SelectItem>
-              <SelectItem value="I">Inactivo</SelectItem>
-              <SelectItem value="todos">Todos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        <div className="flex justify-between items-center mt-2 p-2">
-          <div className="flex items-center gap-2">
-            <span>Registros por página</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => {
-                const ps = Number(v);
-                setPageSize(ps);
-                table.setPageSize(ps);
-                setPageIndex(0);
-              }}
-            >
-              <SelectTrigger>{pageSize}</SelectTrigger>
-              <SelectContent>
-                {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <span>
-            Página {pageIndex + 1} de {table.getPageCount()}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => table.setPageIndex(0)}
-              disabled={pageIndex === 0}
-            >
-              «
-            </Button>
-            <Button
-              onClick={() => table.previousPage()}
-              disabled={pageIndex === 0}
-            >
-              ‹
-            </Button>
-            <Button
-              onClick={() => table.nextPage()}
-              disabled={pageIndex >= table.getPageCount() - 1}
-            >
-              ›
-            </Button>
-            <Button
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={pageIndex >= table.getPageCount() - 1}
-            >
-              »
-            </Button>
-          </div>
-        </div>
-      </div>
+    <>
+      <DataTable
+        columns={columns}
+        data={rows}
+        loading={loading}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder="Buscar rol..."
+        filters={estadoFilter}
+        headerActions={headerActions}
+        emptyTitle="Sin roles"
+        emptyDescription="No se encontraron roles con los filtros actuales."
+        pageSizeOptions={[10, 25, 50]}
+      />
 
       {atributosModal && (
         <AtributosRolModal
@@ -334,6 +207,6 @@ export default function RolesTable() {
           onClonar={handleClonar}
         />
       )}
-    </div>
+    </>
   );
 }
