@@ -120,8 +120,8 @@ importers:
         specifier: ^3.3.4
         version: 3.3.4
       js-cookie:
-        specifier: ^3.0.5
-        version: 3.0.5
+        specifier: ^3.0.7
+        version: 3.0.7
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
@@ -3193,9 +3193,9 @@ packages:
   js-base64@3.7.8:
     resolution: {integrity: sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow==}
 
-  js-cookie@3.0.5:
-    resolution: {integrity: sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw==}
-    engines: {node: '>=14'}
+  js-cookie@3.0.7:
+    resolution: {integrity: sha512-z/wZZgDrkNV1eA0ULjM/F9/50Ya8fbzgKneSpoPsXSGd0KnpdtHfOZWK+GcwLk+EZbS4F9RBhU+K2RgzuDaItw==}
+    engines: {node: '>=20'}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -3824,6 +3824,7 @@ packages:
 
   react-joyride@3.0.0-7:
     resolution: {integrity: sha512-NBgtdm8QehHEVI/Qkakb4EJ/WjKN7bQaZgZmO/01v1p2yBlzAcXyKM36FeS1YZaywX8v8R79bF5Z0OcV5BK1og==}
+    deprecated: Pre-release. Upgrade to react-joyride@^3 — see https://react-joyride.com/docs/migration
     peerDependencies:
       react: 16.8 - 19
       react-dom: 16.8 - 19
@@ -4297,6 +4298,7 @@ packages:
 
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   victory-area@37.3.6:
@@ -8337,7 +8339,7 @@ snapshots:
 
   js-base64@3.7.8: {}
 
-  js-cookie@3.0.5: {}
+  js-cookie@3.0.7: {}
 
   js-tokens@4.0.0: {}
 

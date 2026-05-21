@@ -52,7 +52,7 @@
     "fastest-levenshtein": "^1.0.16",
     "framer-motion": "^12.31.0",
     "geolib": "^3.3.4",
-    "js-cookie": "^3.0.5",
+    "js-cookie": "^3.0.7",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
