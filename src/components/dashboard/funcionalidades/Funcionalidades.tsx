@@ -105,19 +105,21 @@ export default function FuncionalidadesTable() {
           <Button
             variant="outline"
             size="sm"
+            aria-label={`Editar funcionalidad ${row.original?.nombre ?? ""}`}
             onClick={() =>
               router.push(`/dashboard/funcionalidades/editar/${row.original?.id}`)
             }
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="destructive"
             size="sm"
+            aria-label={`Eliminar funcionalidad ${row.original?.nombre ?? ""}`}
             disabled={loading}
             onClick={() => handleDelete(row.original?.id)}
           >
-            <Trash className="w-4 h-4" />
+            <Trash className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       ),

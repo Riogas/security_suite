@@ -118,19 +118,19 @@ export default function LoginPage() {
           duration: 4000,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`${tag} 💥 Error en login:`, error);
       setLockState("idle");
 
       LogRocket.track("Login Failed", {
         email: usuario,
-        error: error?.message || "Unknown error",
+        error: (error as Error)?.message || "Unknown error",
         timestamp: new Date().toISOString(),
       });
 
       toast.error("Login fallido", {
         description:
-          error?.response?.data?.message || "Verifica tus credenciales.",
+          (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Verifica tus credenciales.",
         duration: 4000,
       });
     } finally {
@@ -146,13 +146,13 @@ export default function LoginPage() {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all">
         <div className="bg-card/90 rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-fade-in">
           {lockState === "locked" && (
-            <Lock className="w-16 h-16 text-red-400 animate-pulse mb-4" />
+            <Lock className="w-16 h-16 text-destructive animate-pulse mb-4" />
           )}
           {lockState === "unlocked" && (
             <LockOpen className="w-16 h-16 text-green-400 animate-bounce mb-4" />
           )}
           {lockState === "denied" && (
-            <ShieldBan className="w-16 h-16 text-red-600 animate-shake mb-4" />
+            <ShieldBan className="w-16 h-16 text-destructive animate-shake mb-4" />
           )}
           <span className="text-lg font-semibold">
             {lockState === "locked"
@@ -213,11 +213,15 @@ export default function LoginPage() {
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               placeholder="nombre de usuario"
-              className={errors.usuario ? "border-red-500" : ""}
+              className={errors.usuario ? "border-destructive" : ""}
+              aria-invalid={!!errors.usuario}
+              aria-describedby={errors.usuario ? "usuario-error" : undefined}
               disabled={loading}
             />
             {errors.usuario && (
-              <p className="text-sm text-red-500">{errors.usuario}</p>
+              <p id="usuario-error" className="text-sm text-destructive" role="alert">
+                {errors.usuario}
+              </p>
             )}
           </div>
           <div className="space-y-2">
@@ -229,7 +233,9 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+                className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-login-error" : undefined}
                 disabled={loading}
               />
               <button
@@ -237,6 +243,7 @@ export default function LoginPage() {
                 onClick={() => setShowPassword((prev) => !prev)}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 tabIndex={-1}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -246,13 +253,15 @@ export default function LoginPage() {
               </button>
             </div>
             {errors.password && (
-              <p className="text-sm text-red-500">{errors.password}</p>
+              <p id="password-login-error" className="text-sm text-destructive" role="alert">
+                {errors.password}
+              </p>
             )}
           </div>
           <Button
             type="submit"
             disabled={loading || lockState === "locked"}
-            className="w-full relative overflow-hidden rounded-xl py-2 px-4 font-semibold text-white bg-gradient-to-r from-blue-900 to-slate-800 shadow-md transition-all duration-300 group"
+            className="w-full relative overflow-hidden rounded-xl py-2 px-4 font-semibold bg-gradient-to-r from-primary to-primary/80 shadow-md transition-all duration-300 group"
           >
             <span className="relative z-10 flex items-center justify-center space-x-2">
               {loading && <Loader2 className="animate-spin w-4 h-4" />}

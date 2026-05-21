@@ -99,33 +99,35 @@ export default function RolesTable() {
           <Button
             variant="outline"
             size="sm"
+            aria-label={`Editar rol ${row.original?.nombre}`}
             onClick={() => router.push(`/dashboard/roles/editar/${row.original?.id ?? ""}`)}
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            title="Gestionar atributos del rol"
+            aria-label={`Gestionar atributos del rol ${row.original?.nombre}`}
             onClick={() =>
               setAtributosModal({ rolId: row.original.id, rolNombre: row.original.nombre })
             }
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            title="Clonar rol"
+            aria-label={`Clonar rol ${row.original?.nombre}`}
             onClick={() =>
               setClonarModal({ rolId: row.original.id, rolNombre: row.original.nombre })
             }
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="destructive"
             size="sm"
+            aria-label={`Eliminar rol ${row.original?.nombre}`}
             onClick={async () => {
               if (!confirm(`¿Eliminar el rol "${row.original?.nombre}"?`)) return;
               try {
@@ -137,7 +139,7 @@ export default function RolesTable() {
               }
             }}
           >
-            <Trash className="w-4 h-4" />
+            <Trash className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       ),
@@ -165,7 +167,7 @@ export default function RolesTable() {
 
   const headerActions = (
     <Button onClick={() => router.push("/dashboard/roles/crear")}>
-      <Plus className="w-4 h-4 mr-1" /> Nuevo Rol
+      <Plus className="w-4 h-4 mr-1" aria-hidden="true" /> Nuevo Rol
     </Button>
   );
 

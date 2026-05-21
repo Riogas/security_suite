@@ -60,24 +60,40 @@ export function ModernStat({
       bar: "from-muted/30 to-muted/50",
       glow: "",
       blob: "bg-muted",
+      trend: {
+        positive: "text-green-500",
+        negative: "text-red-500",
+      },
     },
     success: {
       icon: "bg-green-500/10 text-green-500",
       bar: "from-green-400 to-emerald-500",
       glow: "hover:shadow-green-500/10",
       blob: "bg-green-500",
+      trend: {
+        positive: "text-green-500",
+        negative: "text-red-500",
+      },
     },
     warning: {
       icon: "bg-yellow-500/10 text-yellow-500",
       bar: "from-yellow-400 to-orange-400",
       glow: "hover:shadow-yellow-500/10",
       blob: "bg-yellow-500",
+      trend: {
+        positive: "text-green-500",
+        negative: "text-red-500",
+      },
     },
     danger: {
       icon: "bg-red-500/10 text-red-500",
       bar: "from-red-400 to-rose-500",
       glow: "hover:shadow-red-500/10",
       blob: "bg-red-500",
+      trend: {
+        positive: "text-green-500",
+        negative: "text-red-500",
+      },
     },
   };
 
@@ -114,7 +130,7 @@ export function ModernStat({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.09 + 0.35 }}
                 className={`flex items-center gap-0.5 text-xs font-medium ${
-                  trend.isPositive ? "text-green-500" : "text-red-500"
+                  trend.isPositive ? cfg.trend.positive : cfg.trend.negative
                 }`}
               >
                 {trend.isPositive ? (

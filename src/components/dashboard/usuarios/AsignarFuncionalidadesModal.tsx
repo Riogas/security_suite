@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,7 +92,7 @@ function buildCambios(estados: FuncLocalState[]): CambioAccesoDB[] {
     const seleccionado = f.overrideSeleccionado;
     const hayCambio =
       seleccionado === "none"
-        ? original !== null // quitar override
+        ? original !== null
         : original?.efecto !== seleccionado ||
           isoToDateInput(original?.fechaDesde) !== f.fechaDesde ||
           isoToDateInput(original?.fechaHasta) !== f.fechaHasta;
@@ -251,7 +244,6 @@ export default function AsignarFuncionalidadesModal({
     );
   }, [estados, searchTerm]);
 
-  // Paginación sobre la lista filtrada (plana)
   const totalFiltrados = filtrados.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltrados / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -261,7 +253,6 @@ export default function AsignarFuncionalidadesModal({
     return filtrados.slice(start, start + pageSize);
   }, [filtrados, currentPage, pageSize]);
 
-  // Agrupar por aplicación (sobre los items de la página actual)
   const porAplicacion = useMemo(() => {
     const grupos = new Map<string, FuncLocalState[]>();
     for (const f of paginados) {
@@ -278,27 +269,38 @@ export default function AsignarFuncionalidadesModal({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        className="max-w-6xl w-[95vw] max-h-[85vh] overflow-hidden flex flex-col"
-        data-no-loading="true"
-      >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Asignar Funcionalidades - {userName}
-          </DialogTitle>
-          <DialogDescription>
-            Gestioná los accesos directos del usuario, independientes de sus roles.
-            &quot;Sin override&quot; significa que rige lo que digan los roles asignados.
-          </DialogDescription>
-        </DialogHeader>
-
+    <ModalShell
+      open={isOpen}
+      onOpenChange={handleClose}
+      title={`Asignar Funcionalidades — ${userName}`}
+      description='Gestioná los accesos directos del usuario, independientes de sus roles. "Sin override" significa que rige lo que digan los roles asignados.'
+      icon={Shield}
+      size="xl"
+      scrollableBody={false}
+      data-no-loading="true"
+      footer={
+        <>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            <X className="w-4 h-4 mr-2" aria-hidden="true" />
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving || loading}>
+            <Save className="w-4 h-4 mr-2" aria-hidden="true" />
+            {saving
+              ? "Guardando..."
+              : totalCambios > 0
+                ? `Guardar ${totalCambios} cambio(s)`
+                : "Guardar"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4 h-full">
         {/* Buscador */}
         <div className="space-y-2 shrink-0">
           <Label htmlFor="search-func">Buscar funcionalidad</Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             <Input
               id="search-func"
               placeholder="Filtrar por nombre o aplicación..."
@@ -310,7 +312,7 @@ export default function AsignarFuncionalidadesModal({
         </div>
 
         {/* Lista */}
-        <div className="flex-1 overflow-auto border rounded-lg">
+        <div className="overflow-auto border rounded-lg flex-1 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="text-center">
@@ -330,14 +332,12 @@ export default function AsignarFuncionalidadesModal({
                 const appNombre = appKey.split(":").slice(1).join(":");
                 return (
                   <div key={appKey}>
-                    {/* Encabezado de grupo */}
                     <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-4 py-2 border-b">
                       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         {appNombre}
                       </span>
                     </div>
 
-                    {/* Filas de funcionalidad */}
                     <div className="divide-y">
                       {funcs.map((f) => (
                         <div
@@ -345,7 +345,6 @@ export default function AsignarFuncionalidadesModal({
                           className="p-4 hover:bg-muted/30 transition-colors"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                            {/* Info izquierda */}
                             <div className="flex-1 space-y-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-medium text-sm">
@@ -357,9 +356,7 @@ export default function AsignarFuncionalidadesModal({
                               </div>
                             </div>
 
-                            {/* Controles derecha */}
                             <div className="flex flex-col gap-2 sm:items-end sm:min-w-[420px]">
-                              {/* Selector de override */}
                               <Select
                                 value={f.overrideSeleccionado}
                                 onValueChange={(val) =>
@@ -379,7 +376,6 @@ export default function AsignarFuncionalidadesModal({
                                 </SelectContent>
                               </Select>
 
-                              {/* Date pickers — solo si hay override */}
                               {f.overrideSeleccionado !== "none" && (
                                 <div className="flex gap-3 w-full sm:w-[420px]">
                                   <div className="flex-1 min-w-0 space-y-1">
@@ -469,7 +465,7 @@ export default function AsignarFuncionalidadesModal({
                 disabled={currentPage === 1}
                 aria-label="Primera página"
               >
-                <ChevronsLeft className="w-4 h-4" />
+                <ChevronsLeft className="w-4 h-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
@@ -479,7 +475,7 @@ export default function AsignarFuncionalidadesModal({
                 disabled={currentPage === 1}
                 aria-label="Página anterior"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </Button>
               <span className="px-2 text-xs">
                 Página{" "}
@@ -494,7 +490,7 @@ export default function AsignarFuncionalidadesModal({
                 disabled={currentPage === totalPages}
                 aria-label="Página siguiente"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="outline"
@@ -504,27 +500,12 @@ export default function AsignarFuncionalidadesModal({
                 disabled={currentPage === totalPages}
                 aria-label="Última página"
               >
-                <ChevronsRight className="w-4 h-4" />
+                <ChevronsRight className="w-4 h-4" aria-hidden="true" />
               </Button>
             </div>
           </div>
         )}
-
-        <DialogFooter className="flex gap-2 shrink-0">
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
-            <X className="w-4 h-4 mr-2" />
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
-            <Save className="w-4 h-4 mr-2" />
-            {saving
-              ? "Guardando..."
-              : totalCambios > 0
-                ? `Guardar ${totalCambios} cambio(s)`
-                : "Guardar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ModalShell>
   );
 }

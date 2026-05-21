@@ -96,6 +96,7 @@ export const SortableRow = memo(function SortableRow({
           size="icon"
           className="cursor-grab active:cursor-grabbing"
           {...(!disabled ? { ...listeners, ...attributes } : {})}
+          aria-label="Arrastrar para reordenar"
           title="Arrastrar para reordenar"
           disabled={disabled}
         >

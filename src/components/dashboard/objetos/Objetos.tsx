@@ -98,11 +98,12 @@ export default function ObjetosTable() {
           <Button
             variant="outline"
             size="sm"
+            aria-label={`Editar objeto ${row.original?.key ?? row.original?.id ?? ""}`}
             onClick={() =>
               router.push(`/dashboard/objetos/editar/${row.original?.id ?? ""}`)
             }
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="destructive"
@@ -120,7 +121,7 @@ export default function ObjetosTable() {
               }
             }}
           >
-            <Trash className="w-4 h-4" />
+            <Trash className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       ),

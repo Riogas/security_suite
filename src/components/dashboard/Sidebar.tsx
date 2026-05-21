@@ -273,9 +273,10 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           variant="ghost"
           size="icon"
           className="h-8 w-8 rounded-lg hover:bg-sidebar-accent"
+          aria-label={collapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
           onClick={() => setCollapsed(!collapsed)}
         >
-          <MenuIcon className="h-4 w-4" />
+          <MenuIcon className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 
