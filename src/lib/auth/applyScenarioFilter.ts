@@ -3,41 +3,63 @@ import { authLog } from "./logger";
 
 interface EscenarioPrefValue {
   Nombre: string;
-  Valor: number;
+  Valor: number | string;
 }
 
 /**
- * Parsea el valor JSON de una `RolPreferencia` con atributo `Escenario`
- * y devuelve los IDs de escenario configurados para ese rol.
- * Devuelve [] si el valor es nulo o inválido (falla silenciosa).
+ * Parsea el valor JSON de una preferencia `Escenario` y devuelve una lista
+ * normalizada `[{id, nombre}, ...]`. Tolera dos formatos en producción:
+ *
+ *   - Formato legacy (objeto):  `{"Montevideo":"1000","Cordoba":"2000"}`
+ *     — keys son nombres, values son ids (string o number).
+ *   - Formato nuevo (array):    `[{"Nombre":"Montevideo","Valor":1000}, ...]`
+ *
+ * Devuelve [] ante JSON inválido o tipos inesperados (falla silenciosa).
  */
-function parseRolEscenarios(valor: string | null | undefined): number[] {
+export function parseEscenariosFromValor(
+  valor: string | null | undefined
+): Array<{ id: number; nombre: string }> {
   if (!valor) return [];
   try {
-    const parsed: EscenarioPrefValue[] = JSON.parse(valor);
-    return parsed.map((e) => Number(e.Valor)).filter((n) => Number.isFinite(n));
+    const parsed = JSON.parse(valor);
+    // Legacy object: {"Nombre": "id", ...}
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.entries(parsed)
+        .map(([nombre, id]) => ({ nombre: String(nombre).trim(), id: Number(id) }))
+        .filter((e) => Number.isFinite(e.id));
+    }
+    // Array of {Nombre, Valor}
+    if (Array.isArray(parsed)) {
+      return (parsed as EscenarioPrefValue[])
+        .map((e) => ({ nombre: String(e?.Nombre ?? "").trim(), id: Number(e?.Valor) }))
+        .filter((e) => Number.isFinite(e.id));
+    }
+    return [];
   } catch {
     return [];
   }
 }
 
 /**
+ * Parsea el valor JSON de una `RolPreferencia` con atributo `Escenario`
+ * y devuelve los IDs de escenario configurados para ese rol.
+ * Soporta ambos formatos (objeto legacy + array nuevo).
+ */
+function parseRolEscenarios(valor: string | null | undefined): number[] {
+  return parseEscenariosFromValor(valor).map((e) => e.id);
+}
+
+/**
  * Parsea el valor JSON de una `UsuarioPreferencia` con atributo `Escenario`
  * y devuelve el primer escenario activo del usuario.
  * Devuelve null si no hay preferencia o el valor es inválido.
+ * Soporta ambos formatos (objeto legacy + array nuevo).
  */
 export function parseEscenarioFromPref(
   valor: string | null | undefined
 ): { id: number; nombre: string } | null {
-  if (!valor) return null;
-  try {
-    const parsed: EscenarioPrefValue[] = JSON.parse(valor);
-    const first = parsed[0];
-    if (!first || !Number.isFinite(Number(first.Valor))) return null;
-    return { id: Number(first.Valor), nombre: (first.Nombre ?? "").trim() };
-  } catch {
-    return null;
-  }
+  const all = parseEscenariosFromValor(valor);
+  return all[0] ?? null;
 }
 
 export interface ApplicableRolesResult {

@@ -1,13 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { authLog } from "./logger";
+import { parseEscenariosFromValor } from "./applyScenarioFilter";
 
 /**
  * Persiste o actualiza el escenario asignado al usuario como preferencia
- * `Escenario` con el formato JSON-string que ya consume el frontend
- * (TrackMovil, etc.):
+ * `Escenario`. Soporta dos formatos en producción:
  *
- *   atributo = 'Escenario'
- *   valor    = '[{"Nombre":"<nombre>","Valor":<id>}]'
+ *   - Legacy (objeto):  `{"Montevideo":"1000"}`     ← histórico, lo escribe SGM/GeneXus
+ *   - Nuevo (array):    `[{"Nombre":"Montevideo","Valor":1000}]`
+ *
+ * Política de escritura:
+ *   - Al UPDATE preservamos el formato que ya tiene la fila (no rompemos consumers
+ *     que leen formato legacy como TrackMovil).
+ *   - Al CREATE usamos el formato legacy objeto (lo más conservador para máxima
+ *     compatibilidad con consumers actuales).
  *
  * Política según `isExternal`:
  *
@@ -16,9 +22,10 @@ import { authLog } from "./logger";
  *     - Si no existe → INSERT con el dato de la fuente externa.
  *
  *   isExternal = true (usuario SGM/LDAP/GSIST):
- *     - Si ya existe y el valor coincide con AS400 → no-op.
- *     - Si ya existe y difiere → UPDATE con el valor de AS400 (refresh).
- *     - Si no existe → INSERT con el dato de AS400.
+ *     - Si ya existe y el ID de escenario coincide con AS400 (comparación
+ *       SEMÁNTICA, no string-raw) → no-op.
+ *     - Si ya existe y difiere → UPDATE preservando el formato existente.
+ *     - Si no existe → INSERT con formato objeto legacy.
  *
  * Casos base:
  *   - escenarioId / escenarioNom inválidos → no-op (no existe agencia/escenario).
@@ -35,7 +42,7 @@ export async function persistEscenarioPreference(
   const nombre = (escenarioNom ?? "").trim();
   if (!nombre) return;
 
-  const newValor = JSON.stringify([{ Nombre: nombre, Valor: Number(escenarioId) }]);
+  const newId = Number(escenarioId);
 
   try {
     const existing = await prisma.usuarioPreferencia.findFirst({
@@ -47,27 +54,37 @@ export async function persistEscenarioPreference(
         authLog.info("persistEscenarioPreference: ya existe (interno), no sobreescribo", { usuarioId });
         return;
       }
-      if (existing.valor === newValor) {
-        authLog.info("persistEscenarioPreference: AS400 == local, no toco", { usuarioId });
+      // Comparación semántica (no string-raw) para tolerar ambos formatos.
+      const currentIds = parseEscenariosFromValor(existing.valor).map((e) => e.id);
+      if (currentIds.length === 1 && currentIds[0] === newId) {
+        authLog.info("persistEscenarioPreference: AS400 == local (semantic), no toco", { usuarioId });
         return;
       }
+      // Preservar el formato existente al sobreescribir.
+      const existingIsArray = (existing.valor ?? "").trim().startsWith("[");
+      const newValor = existingIsArray
+        ? JSON.stringify([{ Nombre: nombre, Valor: newId }])
+        : JSON.stringify({ [nombre]: String(newId) });
       await prisma.usuarioPreferencia.update({
         where: { id: existing.id },
         data: { valor: newValor },
       });
       authLog.info("persistEscenarioPreference: actualizado desde AS400 (externo)", {
         usuarioId,
-        escenarioId,
+        escenarioId: newId,
         escenarioNom: nombre,
+        formato: existingIsArray ? "array" : "objeto",
         previo: existing.valor,
       });
       return;
     }
 
+    // Sin preferencia previa: INSERT en formato objeto legacy (máxima compatibilidad).
+    const newValor = JSON.stringify({ [nombre]: String(newId) });
     await prisma.usuarioPreferencia.create({
       data: { usuarioId, atributo: "Escenario", valor: newValor },
     });
-    authLog.info("persistEscenarioPreference: creado", { usuarioId, escenarioId, escenarioNom: nombre });
+    authLog.info("persistEscenarioPreference: creado", { usuarioId, escenarioId: newId, escenarioNom: nombre });
   } catch (err) {
     authLog.error("persistEscenarioPreference falló", {
       usuarioId,
