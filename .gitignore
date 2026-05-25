@@ -46,3 +46,9 @@ logs/
 
 # artefactos del pipeline /feature (specs, planes, reviews, metrics por run)
 .claude/runs/
+.claude/lessons.db.yaml
+.claude/*.draft.md
+.claude/*-draft.md
+
+# graphify — knowledge graph generado (regenerable con `graphify .`)
+graphify-out/
