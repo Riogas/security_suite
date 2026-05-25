@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import { type LucideIcon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogPortal,
-  DialogOverlay,
   DialogClose,
   DialogTitle,
   DialogDescription,
@@ -45,15 +44,16 @@ const toneFooterClasses: Record<Tone, string> = {
 
 // ── Animation variants ───────────────────────────────────────────────────────
 
-const EASING = [0.22, 1, 0.36, 1] as const;
+// Custom expo-out easing — matches herogreeting.tsx pattern
+const EASING = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
-const overlayVariants = {
+const overlayVariants: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
   exit: { opacity: 0, transition: { duration: 0.18, ease: "easeIn" } },
 };
 
-const contentVariants = {
+const contentVariants: Variants = {
   hidden: { opacity: 0, scale: 0.95, y: 8 },
   visible: {
     opacity: 1,
@@ -88,7 +88,8 @@ export interface ModalShellProps {
   className?: string;
   /** If true, clicking outside and Escape will not close the modal */
   preventClose?: boolean;
-  [key: string]: unknown;
+  /** Allow arbitrary data-* attributes for compatibility with existing callers */
+  [key: `data-${string}`]: unknown;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -106,16 +107,9 @@ export function ModalShell({
   scrollableBody = true,
   className,
   preventClose = false,
-  ...rest
 }: ModalShellProps) {
   const sizeClass = sizeClasses[size] ?? sizeClasses.md;
   const isFull = size === "full";
-
-  // Strip non-DOM props to avoid passing to DialogPrimitive.Content
-  const {
-    "data-no-loading": _noLoading,
-    ...domRest
-  } = rest as Record<string, unknown>;
 
   return (
     <Dialog open={open} onOpenChange={preventClose ? undefined : onOpenChange}>
@@ -134,36 +128,34 @@ export function ModalShell({
             />
 
             {/* Content */}
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-            >
+            <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
               <motion.div
                 className={cn(
                   "pointer-events-auto",
                   "relative flex flex-col",
                   "bg-card border border-border/50 shadow-2xl shadow-black/20 dark:shadow-black/40 rounded-2xl",
                   sizeClass,
-                  isFull ? "max-h-[90vh]" : "max-h-[90vh]",
+                  "max-h-[90vh]",
                   className,
                 )}
                 variants={contentVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="modal-shell-title"
-                aria-describedby={description ? "modal-shell-description" : undefined}
-                onClick={(e) => e.stopPropagation()}
-                {...(domRest as React.HTMLAttributes<HTMLDivElement>)}
               >
-                {/* Radix Dialog.Content (hidden, for a11y/Esc handling) */}
+                {/* Radix Dialog.Content for a11y / keyboard handling */}
                 <DialogPrimitive.Content
                   asChild
                   onInteractOutside={preventClose ? (e) => e.preventDefault() : undefined}
                   onEscapeKeyDown={preventClose ? (e) => e.preventDefault() : undefined}
                 >
-                  <div className="contents">
+                  <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="modal-shell-title"
+                    aria-describedby={description ? "modal-shell-description" : undefined}
+                    className="contents"
+                  >
                     {/* Header */}
                     <div className="shrink-0 flex items-start gap-3 px-6 pt-6 pb-4">
                       {Icon && (
