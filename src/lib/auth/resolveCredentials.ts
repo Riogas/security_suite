@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Usuario } from "@prisma/client";
 import {
   lookupAdmsec,
+  lookupAs400Agencia,
   validateAdmsec,
   validateAs400,
   validateLdap,
@@ -16,6 +17,7 @@ import { persistEscenarioPreference } from "./persistEscenarioPreference";
 import { persistEmpFleteraPreference } from "./persistEmpFleteraPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
 import { classifyUsername } from "./classifyUsername";
+import { getApplicableRoles, parseEscenarioFromPref } from "./applyScenarioFilter";
 import type {
   AdmsecLookupResult,
   ResolveResult,
@@ -147,6 +149,54 @@ async function validateAgainstAdmsec(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Helper: refrescar escenario desde USUMOBILE para usuarios LDAP/GSIST externos.
+// Usa el endpoint /api/auth/as400/lookup (sin credenciales) para obtener
+// escenarioId/escenarioNom del mismo JOIN que la validación SGM.
+// Si el usuario no tiene entrada en USUMOBILE devuelve null silenciosamente.
+// ────────────────────────────────────────────────────────────────────────────
+async function refreshEscenarioForExternal(
+  usuarioId: number,
+  username: string
+): Promise<void> {
+  const result = await lookupAs400Agencia(username);
+  if (result.outcome === "FOUND" && result.data) {
+    await persistEscenarioPreference(
+      usuarioId,
+      result.data.escenarioId,
+      result.data.escenarioNom,
+      true, // isExternal — sobreescribir si difiere
+    );
+  }
+  // NOT_FOUND / UNAVAILABLE → silencioso, no rompe el login.
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helper: aplicar filtro de roles por escenario y devolver el resultado.
+// Lee la preferencia de escenario del usuario (post-refresh) y filtra roles.
+// Retorna { escenario, applicable, filteredOut, totalAssigned }.
+// ────────────────────────────────────────────────────────────────────────────
+async function applyScenarioFilterForUser(
+  usuarioId: number,
+  username: string,
+): Promise<{
+  escenario: { id: number; nombre: string } | null;
+  applicable: Array<{ rolId: number; nombre: string; global: boolean }>;
+  filteredOut: Array<{ rolId: number; nombre: string; escenarios: number[] }>;
+  totalAssigned: number;
+}> {
+  const escPref = await prisma.usuarioPreferencia.findFirst({
+    where: { usuarioId, atributo: "Escenario" },
+  });
+  const escenario = parseEscenarioFromPref(escPref?.valor);
+  const { applicable, filteredOut, totalAssigned } = await getApplicableRoles(
+    usuarioId,
+    escenario?.id ?? null,
+    username,
+  );
+  return { escenario, applicable, filteredOut, totalAssigned };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Caso 1: usuario NO existe en PG → resolver según tipo (alfa vs numérico).
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -179,7 +229,29 @@ async function resolveNewAlphaUser(
   });
   await assignDespachoOnNewUser(usuario.id, username, branch.isDespacho);
   await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
-  return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
+  // Intentar obtener y persistir escenario desde USUMOBILE (sin credenciales).
+  await refreshEscenarioForExternal(usuario.id, username);
+
+  const { escenario, applicable, filteredOut, totalAssigned } =
+    await applyScenarioFilterForUser(usuario.id, username);
+
+  if (totalAssigned > 0 && applicable.length === 0) {
+    authLog.warn("login bloqueado: ningún rol aplica al escenario (nuevo usuario alfa)", {
+      username,
+      escenario,
+      filteredOut,
+    });
+    return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+  }
+
+  return {
+    ok: true,
+    verifiedBy: branch.verifiedBy,
+    usuarioId: usuario.id,
+    escenario,
+    rolesFilteredOut: filteredOut,
+    applicableRolIds: applicable.map((r) => r.rolId),
+  };
 }
 
 async function resolveNewNumericUser(
@@ -198,14 +270,35 @@ async function resolveNewNumericUser(
       desdeSistema: "SGM",
     });
     await assignDespachoOnNewUser(usuario.id, username, !!sgm.user?.hasRoleDespacho);
-    // INSERT-ONLY: persistir escenario y empresa fletera de SGM como preferencias
-    // solo cuando el usuario NO tiene valor previo para ese atributo. Si ya existe,
-    // se respeta lo configurado por el admin. No bloquean el login si fallan.
-    // EmpFletera viene del JOIN AGENCIA -> EFLETERA — si la agencia no tiene
-    // fletera vinculada, llega null y el helper es no-op.
-    await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
+    // Para usuarios SGM: persistir escenario con isExternal=true para habilitar refresh.
+    await persistEscenarioPreference(
+      usuario.id,
+      sgm.user?.escenarioId,
+      sgm.user?.escenarioNom,
+      true,
+    );
     await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
-    return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
+
+    const { escenario, applicable, filteredOut, totalAssigned } =
+      await applyScenarioFilterForUser(usuario.id, username);
+
+    if (totalAssigned > 0 && applicable.length === 0) {
+      authLog.warn("login bloqueado: ningún rol aplica al escenario (nuevo usuario numérico)", {
+        username,
+        escenario,
+        filteredOut,
+      });
+      return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+    }
+
+    return {
+      ok: true,
+      verifiedBy: "sgm",
+      usuarioId: usuario.id,
+      escenario,
+      rolesFilteredOut: filteredOut,
+      applicableRolIds: applicable.map((r) => r.rolId),
+    };
   }
 
   if (sgm.outcome === "INVALID_CREDS") {
@@ -238,7 +331,28 @@ async function resolveNewNumericUser(
   });
   await assignDespachoOnNewUser(usuario.id, username, branch.isDespacho);
   await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
-  return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
+  await refreshEscenarioForExternal(usuario.id, username);
+
+  const { escenario, applicable, filteredOut, totalAssigned } =
+    await applyScenarioFilterForUser(usuario.id, username);
+
+  if (totalAssigned > 0 && applicable.length === 0) {
+    authLog.warn("login bloqueado: ningún rol aplica al escenario (nuevo usuario numérico fallback)", {
+      username,
+      escenario,
+      filteredOut,
+    });
+    return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+  }
+
+  return {
+    ok: true,
+    verifiedBy: branch.verifiedBy,
+    usuarioId: usuario.id,
+    escenario,
+    rolesFilteredOut: filteredOut,
+    applicableRolIds: applicable.map((r) => r.rolId),
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -258,7 +372,27 @@ async function resolveExistingUser(
     if (usuario.password !== password) {
       return { ok: false, status: 401 };
     }
-    return { ok: true, verifiedBy: "local-db", usuarioId: usuario.id };
+    // Usuario interno: no refrescar escenario, no filtrar roles (escenario no aplica).
+    const { escenario, applicable, filteredOut, totalAssigned } =
+      await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+    if (totalAssigned > 0 && applicable.length === 0) {
+      authLog.warn("login bloqueado: ningún rol aplica al escenario (interno)", {
+        username: usuario.username,
+        escenario,
+        filteredOut,
+      });
+      return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+    }
+
+    return {
+      ok: true,
+      verifiedBy: "local-db",
+      usuarioId: usuario.id,
+      escenario,
+      rolesFilteredOut: filteredOut,
+      applicableRolIds: applicable.map((r) => r.rolId),
+    };
   }
 
   const desde = (usuario.desdeSistema || "").trim().toUpperCase();
@@ -266,14 +400,35 @@ async function resolveExistingUser(
   if (desde === "SGM") {
     const sgm = await validateAs400(usuario.username, password);
     if (sgm.outcome === "OK") {
-      // INSERT-ONLY: intentar persistir escenario y empresa fletera de SGM como
-      // preferencias en cada login OK. Los helpers NO sobreescriben: si ya existe
-      // un valor para el atributo, lo dejan intacto (respetan configuración del
-      // admin). Si SGM no devuelve el dato (agencia null o fletera no vinculada),
-      // el helper es no-op.
-      await persistEscenarioPreference(usuario.id, sgm.user?.escenarioId, sgm.user?.escenarioNom);
+      // Para usuarios SGM externos: refresh de escenario desde AS400 (sobreescribir si difiere).
+      await persistEscenarioPreference(
+        usuario.id,
+        sgm.user?.escenarioId,
+        sgm.user?.escenarioNom,
+        true, // isExternal
+      );
       await persistEmpFleteraPreference(usuario.id, sgm.user?.empFleteraId, sgm.user?.empFleteraNom);
-      return { ok: true, verifiedBy: "sgm", usuarioId: usuario.id };
+
+      const { escenario, applicable, filteredOut, totalAssigned } =
+        await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+      if (totalAssigned > 0 && applicable.length === 0) {
+        authLog.warn("login bloqueado: ningún rol aplica al escenario", {
+          username: usuario.username,
+          escenario,
+          filteredOut,
+        });
+        return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+      }
+
+      return {
+        ok: true,
+        verifiedBy: "sgm",
+        usuarioId: usuario.id,
+        escenario,
+        rolesFilteredOut: filteredOut,
+        applicableRolIds: applicable.map((r) => r.rolId),
+      };
     }
     if (sgm.outcome === "INVALID_CREDS") {
       return { ok: false, status: 401 };
@@ -286,7 +441,27 @@ async function resolveExistingUser(
     if (usuario.password !== password) {
       return { ok: false, status: 401 };
     }
-    return { ok: true, verifiedBy: "local-fallback", usuarioId: usuario.id };
+    // Fallback local: aplicar filtro de escenario igualmente.
+    const { escenario, applicable, filteredOut, totalAssigned } =
+      await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+    if (totalAssigned > 0 && applicable.length === 0) {
+      authLog.warn("login bloqueado: ningún rol aplica al escenario (SGM fallback local)", {
+        username: usuario.username,
+        escenario,
+        filteredOut,
+      });
+      return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+    }
+
+    return {
+      ok: true,
+      verifiedBy: "local-fallback",
+      usuarioId: usuario.id,
+      escenario,
+      rolesFilteredOut: filteredOut,
+      applicableRolIds: applicable.map((r) => r.rolId),
+    };
   }
 
   if (desde === "LDAP") {
@@ -311,7 +486,29 @@ async function resolveExistingUser(
         usuario,
         ldapResult: { outcome: ldap.outcome, user: { isDespacho: !!ldap.user?.isDespacho } },
       });
-      return { ok: true, verifiedBy: "ldap", usuarioId: usuario.id };
+      // Refrescar escenario desde USUMOBILE para usuarios LDAP externos.
+      await refreshEscenarioForExternal(usuario.id, usuario.username);
+
+      const { escenario, applicable, filteredOut, totalAssigned } =
+        await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+      if (totalAssigned > 0 && applicable.length === 0) {
+        authLog.warn("login bloqueado: ningún rol aplica al escenario (LDAP)", {
+          username: usuario.username,
+          escenario,
+          filteredOut,
+        });
+        return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+      }
+
+      return {
+        ok: true,
+        verifiedBy: "ldap",
+        usuarioId: usuario.id,
+        escenario,
+        rolesFilteredOut: filteredOut,
+        applicableRolIds: applicable.map((r) => r.rolId),
+      };
     }
     if (ldap.outcome === "INVALID_CREDS") {
       return { ok: false, status: 401 };
@@ -324,7 +521,26 @@ async function resolveExistingUser(
     if (usuario.password !== password) {
       return { ok: false, status: 401 };
     }
-    return { ok: true, verifiedBy: "local-fallback", usuarioId: usuario.id };
+    const { escenario, applicable, filteredOut, totalAssigned } =
+      await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+    if (totalAssigned > 0 && applicable.length === 0) {
+      authLog.warn("login bloqueado: ningún rol aplica al escenario (LDAP fallback local)", {
+        username: usuario.username,
+        escenario,
+        filteredOut,
+      });
+      return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+    }
+
+    return {
+      ok: true,
+      verifiedBy: "local-fallback",
+      usuarioId: usuario.id,
+      escenario,
+      rolesFilteredOut: filteredOut,
+      applicableRolIds: aplicableMapear(applicable),
+    };
   }
 
   if (desde === "GSIST") {
@@ -352,7 +568,29 @@ async function resolveExistingUser(
       }
       // Aplicar reglas de grupo ADMSEC (root, rol 48, rol 50) según política.
       await applyAdmsecGroupRoles({ usuario, groups: branch.groups });
-      return { ok: true, verifiedBy: branch.verifiedBy, usuarioId: usuario.id };
+      // Refrescar escenario desde USUMOBILE para usuarios GSIST externos.
+      await refreshEscenarioForExternal(usuario.id, usuario.username);
+
+      const { escenario, applicable, filteredOut, totalAssigned } =
+        await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+      if (totalAssigned > 0 && applicable.length === 0) {
+        authLog.warn("login bloqueado: ningún rol aplica al escenario (GSIST)", {
+          username: usuario.username,
+          escenario,
+          filteredOut,
+        });
+        return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+      }
+
+      return {
+        ok: true,
+        verifiedBy: branch.verifiedBy,
+        usuarioId: usuario.id,
+        escenario,
+        rolesFilteredOut: filteredOut,
+        applicableRolIds: applicable.map((r) => r.rolId),
+      };
     }
     if (branch.reason === "INVALID") {
       return { ok: false, status: 401 };
@@ -364,7 +602,26 @@ async function resolveExistingUser(
     if (usuario.password !== password) {
       return { ok: false, status: 401 };
     }
-    return { ok: true, verifiedBy: "local-fallback", usuarioId: usuario.id };
+    const { escenario, applicable, filteredOut, totalAssigned } =
+      await applyScenarioFilterForUser(usuario.id, usuario.username);
+
+    if (totalAssigned > 0 && applicable.length === 0) {
+      authLog.warn("login bloqueado: ningún rol aplica al escenario (GSIST fallback local)", {
+        username: usuario.username,
+        escenario,
+        filteredOut,
+      });
+      return { ok: false, status: 403, outcome: "FORBIDDEN_SCENARIO", message: "No tenés permisos para el escenario actual" };
+    }
+
+    return {
+      ok: true,
+      verifiedBy: "local-fallback",
+      usuarioId: usuario.id,
+      escenario,
+      rolesFilteredOut: filteredOut,
+      applicableRolIds: applicable.map((r) => r.rolId),
+    };
   }
 
   // desdeSistema desconocido en un externo → estado inconsistente.
@@ -373,6 +630,11 @@ async function resolveExistingUser(
     desdeSistema: usuario.desdeSistema,
   });
   return { ok: false, status: 500, message: "Configuración de usuario inválida" };
+}
+
+// Pequeño helper de alias para el path LDAP fallback (evita typo al cerrar la rama).
+function aplicableMapear(applicable: Array<{ rolId: number }>): number[] {
+  return applicable.map((r) => r.rolId);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
