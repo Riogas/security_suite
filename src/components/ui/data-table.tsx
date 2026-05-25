@@ -194,7 +194,7 @@ export function DataTable<T>({
       {/* Table */}
       <div className="border rounded-lg overflow-x-auto">
         <Table aria-busy={loading} role="table">
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-card z-10">
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((header) => (
