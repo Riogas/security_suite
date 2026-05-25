@@ -1,0 +1,52 @@
+# Build / deps
+node_modules/
+.next/
+dist/
+build/
+out/
+.turbo/
+.cache/
+
+# Generated
+*.tsbuildinfo
+next-env.d.ts
+*.generated.*
+.prisma/
+
+# Logs / tmp
+*.log
+tmp/
+temp/
+
+# PM2 / runtime
+.pm2/
+pids/
+*.pid
+
+# As400 submodule deps
+as400-api/node_modules/
+as400-api/dist/
+as400-api/build/
+
+# Graphify itself
+graphify-out/
+
+# Claude Code local config / sessions / runs (not project source)
+.claude/
+
+# Static assets (no semantic value)
+public/
+
+# Lockfiles (noise, no semantic value)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Editor
+.vscode/
+.idea/
+
+# Env
+.env
+.env.*
+!.env.example

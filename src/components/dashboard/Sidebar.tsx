@@ -1,13 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Menu as MenuIcon, ChevronDown, ChevronRight, Shield } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Menu as MenuIcon, ChevronDown, ChevronRight, Shield, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { apiMenu, apiMenuDB } from "@/services/api";
 import { iconMap } from "./iconMap";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppLoading } from "@/hooks/useAppLoading";
+import { useUser } from "@/hooks/useUser";
 
 interface Props {
   collapsed: boolean;
@@ -93,6 +95,13 @@ function normalizeTree(items: ApiMenuItem[] | undefined): NormalizedMenuItem[] {
   return norm;
 }
 
+function getInitials(nombre: string): string {
+  if (!nombre || nombre.trim() === "") return "U";
+  const words = nombre.trim().split(" ").filter((w) => w.length > 0);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return nombre.substring(0, 2).toUpperCase();
+}
+
 export function Sidebar({ collapsed, setCollapsed }: Props) {
   const [menuTree, setMenuTree] = useState<NormalizedMenuItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +109,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const loadingApp = useAppLoading();
+  const { user } = useUser();
 
   useEffect(() => {
     let mounted = true;
@@ -150,6 +160,13 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
     };
   }, []);
 
+  const handleLogout = () => {
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+  };
+
   function renderItem(item: NormalizedMenuItem, depth = 0, i = 0) {
     const Icon = iconMap[item.icon] || MenuIcon;
     const hasChildren = item.children && item.children.length > 0;
@@ -173,7 +190,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
             onClick={() => setOpen((s) => ({ ...s, [item.key]: !s[item.key] }))}
             title={item.label}
           >
-            <Icon className="w-4 h-4 shrink-0" />
+            <Icon className="size-5 shrink-0" />
             {!collapsed && (
               <span className="flex-1 text-left truncate">{item.label}</span>
             )}
@@ -231,7 +248,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           }}
           title={item.label}
         >
-          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "opacity-100" : "opacity-60"}`} />
+          <Icon className={`size-5 shrink-0 ${isActive ? "opacity-100" : "opacity-60"}`} />
           {!collapsed && item.label}
         </Button>
       </motion.div>
@@ -273,9 +290,10 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           variant="ghost"
           size="icon"
           className="h-8 w-8 rounded-lg hover:bg-sidebar-accent"
+          aria-label={collapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
           onClick={() => setCollapsed(!collapsed)}
         >
-          <MenuIcon className="h-4 w-4" />
+          <MenuIcon className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 
@@ -297,6 +315,46 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           menuTree.map((item, i) => renderItem(item, 0, i))
         )}
       </nav>
+
+      {/* Footer: user card + logout */}
+      <div className="border-t border-sidebar-border px-2 py-3">
+        {!collapsed ? (
+          <div className="flex items-center gap-2 px-2">
+            <Avatar className="size-8 shrink-0">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+                {user?.nombre ? getInitials(user.nombre) : "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate leading-none">
+                {user?.nombre || "Usuario"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                {user?.username || ""}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-lg hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Cerrar sesión"
+              onClick={handleLogout}
+            >
+              <LogOut className="size-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-full h-9 rounded-lg hover:bg-destructive/10 hover:text-destructive"
+            aria-label="Cerrar sesión"
+            onClick={handleLogout}
+          >
+            <LogOut className="size-4" />
+          </Button>
+        )}
+      </div>
     </aside>
   );
 }

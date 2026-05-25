@@ -13,12 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Moon, Sun, LogOut, Settings, User as UserIcon } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
 import { useState, useEffect } from "react";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { useUser } from "@/hooks/useUser";
 import { motion } from "framer-motion";
 
@@ -97,7 +91,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 h-16 px-6 flex items-center justify-end border-b border-border/60 bg-card/75 backdrop-blur-md shadow-sm gap-4">
+    <header className="sticky top-0 z-40 h-16 px-6 flex items-center justify-end border-b border-border/60 bg-card/75 backdrop-blur-md shadow-sm gap-3">
       {/* Nombre de usuario pill */}
       {mounted && user?.nombre && (
         <motion.div
@@ -114,6 +108,34 @@ export function Navbar() {
           {user.nombre}
         </motion.div>
       )}
+
+      {/* Standalone theme toggle */}
+      {mounted && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-lg"
+          onClick={toggleTheme}
+          aria-label="Cambiar tema"
+          title="Cambiar tema"
+        >
+          <motion.span
+            key={theme}
+            initial={{ rotate: -30, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center justify-center"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </motion.span>
+        </Button>
+      )}
+
+      {/* Avatar dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="rounded-full p-0 h-9 w-9 relative">
@@ -121,6 +143,11 @@ export function Navbar() {
               <AvatarImage src="/avatar.png" alt="Avatar" />
               <AvatarFallback className="text-sm font-medium">{userInitials}</AvatarFallback>
             </Avatar>
+            {/* Status dot */}
+            <span
+              className="absolute bottom-0 right-0 size-2.5 rounded-full bg-green-500 ring-2 ring-background"
+              aria-hidden="true"
+            />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -132,21 +159,16 @@ export function Navbar() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>
-            <UserIcon className="mr-2 h-4 w-4" /> Perfil
+            <UserIcon className="mr-2 h-4 w-4" /> Mi perfil
           </DropdownMenuItem>
           <DropdownMenuItem>
             <Settings className="mr-2 h-4 w-4" /> Configuración
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={toggleTheme}>
-            {mounted &&
-              (theme === "dark" ? (
-                <><Sun className="mr-2 h-4 w-4" /> Tema Claro</>
-              ) : (
-                <><Moon className="mr-2 h-4 w-4" /> Tema Oscuro</>
-              ))}
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500">
+          <DropdownMenuItem
+            onClick={handleLogout}
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+          >
             <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
           </DropdownMenuItem>
         </DropdownMenuContent>

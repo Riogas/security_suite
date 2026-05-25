@@ -1,27 +1,23 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  Users,
-  Shield,
-  Settings,
-  FileText,
-  UserPlus,
   ShieldCheck,
+  UserPlus,
+  Shield,
+  FileText,
+  Settings,
   BarChart3,
   Download,
 } from "lucide-react";
+import Link from "next/link";
 
 interface QuickAction {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
-  variant: "default" | "outline" | "secondary";
+  icon: React.ComponentType<{ className?: string }>;
   href: string;
-  badge?: string;
   disabled?: boolean;
 }
 
@@ -34,111 +30,95 @@ export function QuickActionsWidget({
     {
       id: "1",
       title: "Crear Usuario",
-      description: "Agregar nuevo usuario al sistema",
+      description: "Agregar nuevo usuario",
       icon: UserPlus,
-      variant: "default",
       href: "/dashboard/usuarios/crear",
-      badge: "Nuevo",
     },
     {
       id: "2",
       title: "Gestionar Roles",
-      description: "Administrar roles y permisos",
+      description: "Roles y permisos",
       icon: Shield,
-      variant: "outline",
       href: "/dashboard/roles",
     },
     {
       id: "3",
       title: "Ver Eventos",
-      description: "Revisar logs del sistema",
+      description: "Logs del sistema",
       icon: FileText,
-      variant: "outline",
       href: "/dashboard/eventos",
     },
     {
       id: "4",
       title: "Configuración",
-      description: "Ajustes del sistema",
+      description: "Ajustes generales",
       icon: Settings,
-      variant: "outline",
       href: "/dashboard/configuracion",
       disabled: true,
     },
     {
       id: "5",
       title: "Reportes",
-      description: "Generar reportes de seguridad",
+      description: "Seguridad y accesos",
       icon: BarChart3,
-      variant: "secondary",
       href: "/dashboard/reportes",
     },
     {
       id: "6",
-      title: "Exportar Datos",
-      description: "Descargar información del sistema",
+      title: "Exportar",
+      description: "Descargar datos",
       icon: Download,
-      variant: "secondary",
       href: "/dashboard/exportar",
     },
   ],
 }: QuickActionsWidgetProps) {
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center space-x-2">
-          <ShieldCheck className="w-5 h-5" />
-          <span>Acciones Rápidas</span>
+    <Card className="h-full rounded-2xl border">
+      <CardHeader className="pb-3 px-6 pt-6">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          Acciones Rápidas
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+      <CardContent className="px-6 pb-6">
+        <div className="grid grid-cols-2 gap-2">
           {actions.map((action) => {
             const Icon = action.icon;
 
+            const inner = (
+              <div className="flex flex-col items-start gap-2 p-3 w-full">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium leading-tight">{action.title}</p>
+                  <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+            );
+
+            if (action.disabled) {
+              return (
+                <div
+                  key={action.id}
+                  className="rounded-xl border bg-muted/20 opacity-50 cursor-not-allowed"
+                >
+                  {inner}
+                </div>
+              );
+            }
+
             return (
-              <Button
+              <Link
                 key={action.id}
-                variant={action.variant}
-                className="h-auto p-4 justify-start space-x-3 relative group transition-all hover:scale-[1.02]"
-                disabled={action.disabled}
-                asChild={!action.disabled}
+                href={action.href}
+                className="rounded-xl border bg-card transition-all hover:bg-muted/40 hover:shadow-sm hover:-translate-y-0.5 duration-150"
               >
-                {action.disabled ? (
-                  <div className="flex items-start space-x-3 w-full opacity-50">
-                    <Icon className="w-5 h-5 mt-1 flex-shrink-0" />
-                    <div className="text-left flex-1">
-                      <div className="font-medium text-sm">{action.title}</div>
-                      <div className="text-xs opacity-70 mt-0.5">
-                        {action.description}
-                      </div>
-                      {action.badge && (
-                        <Badge variant="outline" className="mt-2 text-xs">
-                          {action.badge}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <a
-                    href={action.href}
-                    className="flex items-start space-x-3 w-full"
-                  >
-                    <Icon className="w-5 h-5 mt-1 flex-shrink-0" />
-                    <div className="text-left flex-1">
-                      <div className="font-medium text-sm">{action.title}</div>
-                      <div className="text-xs opacity-70 mt-0.5">
-                        {action.description}
-                      </div>
-                      {action.badge && (
-                        <Badge variant="outline" className="mt-2 text-xs">
-                          {action.badge}
-                        </Badge>
-                      )}
-                    </div>
-                  </a>
-                )}
-              </Button>
+                {inner}
+              </Link>
             );
           })}
         </div>

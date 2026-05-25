@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -18,28 +9,34 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { DataTable } from "@/components/ui/data-table";
+import { BadgeEstado } from "@/components/ui/badge-estado";
+import { type ColumnDef } from "@tanstack/react-table";
 import { apiObjetosDB, apiEliminarObjetoDB } from "@/services/api";
 import { Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+type ObjetoRow = {
+  id: number;
+  key?: string;
+  label?: string;
+  path?: string;
+  tipo?: string;
+  estado: string;
+};
+
 export default function ObjetosTable() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<ObjetoRow[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  // Nuevo: filtros adicionales
   const [esPublico, setEsPublico] = useState(false);
   const [tipo, setTipo] = useState("");
-  const [pageIndex, setPageIndex] = useState(0);
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   // debounce
@@ -48,105 +45,65 @@ export default function ObjetosTable() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const fetcher = async (opts: {
-    filtro: string;
-    estado: string;
-    esPublico: string;
-    tipo: string;
-    page: number;
-    pageSize: number;
-    signal?: AbortSignal;
-  }) => {
-    const res = await apiObjetosDB({
-      filtro: opts.filtro,
-      estado: opts.estado || undefined,
-      esPublico: opts.esPublico || undefined,
-      tipo: opts.tipo || undefined,
-      page: opts.page,
-      pageSize: opts.pageSize,
-    });
-    const items = res?.items || [];
-    const total = Number(res?.total ?? items.length);
-    return { items, total };
-  };
-
   // load
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
       try {
-        const { items, total } = await fetcher({
+        const res = await apiObjetosDB({
           filtro: debouncedSearch,
-          estado: estado === "A" ? "A" : estado === "I" ? "I" : "",
-          esPublico: esPublico ? "S" : "",
-          tipo,
-          page: pageIndex + 1,
+          estado: estado === "todos" ? undefined : estado,
+          esPublico: esPublico ? "S" : undefined,
+          tipo: tipo || undefined,
+          page,
           pageSize,
-          signal: ac.signal,
         });
-        setRows(items);
-        setTotalPages(Math.max(1, Math.ceil(Number(total) / pageSize)) || 0);
-      } catch (e: any) {
-        if (e?.name !== "AbortError")
+        setRows(res?.items ?? []);
+        setTotal(Number(res?.total ?? 0));
+      } catch (e: unknown) {
+        if ((e as { name?: string })?.name !== "AbortError")
           console.error("Error cargando objetos:", e);
       }
     })();
     return () => ac.abort();
-  }, [
-    debouncedSearch,
-    estado,
-    esPublico,
-    tipo,
-    pageIndex,
-    pageSize,
-  ]);
+  }, [debouncedSearch, estado, esPublico, tipo, page, pageSize]);
 
-  const columns: any[] = [
+  const columns: ColumnDef<ObjetoRow, unknown>[] = [
     {
       id: "key",
       header: "Clave",
-      cell: ({ row }: { row: { original: any } }) => row.original?.key ?? "",
+      cell: ({ row }) => row.original?.key ?? "",
     },
     {
       id: "label",
       header: "Etiqueta",
-      cell: ({ row }: { row: { original: any } }) => row.original?.label ?? "",
+      cell: ({ row }) => row.original?.label ?? "",
     },
     {
       id: "path",
       header: "Path",
-      cell: ({ row }: { row: { original: any } }) => row.original?.path ?? "",
+      cell: ({ row }) => row.original?.path ?? "",
     },
     { accessorKey: "tipo", header: "Tipo" },
     {
-      accessorKey: "estado",
+      id: "estado",
       header: "Estado",
-      cell: ({ row }: { row: { original: any } }) => {
-        const activo = row.original?.estado === "A";
-        return (
-          <Badge
-            className={
-              activo ? "bg-green-900 text-green-200" : "bg-red-900 text-red-200"
-            }
-          >
-            {activo ? "Activo" : "Inactivo"}
-          </Badge>
-        );
-      },
+      cell: ({ row }) => <BadgeEstado estado={row.original?.estado ?? ""} />,
     },
     {
-      accessorKey: "acciones",
+      id: "acciones",
       header: "Acciones",
-      cell: ({ row }: { row: { original: any } }) => (
+      cell: ({ row }) => (
         <div className="space-x-2">
           <Button
             variant="outline"
             size="sm"
+            aria-label={`Editar objeto ${row.original?.key ?? row.original?.id ?? ""}`}
             onClick={() =>
               router.push(`/dashboard/objetos/editar/${row.original?.id ?? ""}`)
             }
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
           <Button
             variant="destructive"
@@ -157,185 +114,85 @@ export default function ObjetosTable() {
               if (!confirm(`¿Eliminar el objeto "${obj.key}"?`)) return;
               try {
                 await apiEliminarObjetoDB(obj.id);
-                setRows((prev) => prev.filter((r: any) => r.id !== obj.id));
+                setRows((prev) => prev.filter((r) => r.id !== obj.id));
                 toast.success("Objeto eliminado");
               } catch {
                 toast.error("Error al eliminar el objeto");
               }
             }}
           >
-            <Trash className="w-4 h-4" />
+            <Trash className="w-4 h-4" aria-hidden="true" />
           </Button>
         </div>
       ),
     },
   ];
 
-  const table = useReactTable({
-    data: rows as any[],
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: totalPages,
-    state: { pagination: { pageIndex, pageSize } },
-    onPaginationChange: (updater: any) => {
-      if (typeof updater === "function") {
-        const next = updater({ pageIndex, pageSize });
-        setPageIndex(next.pageIndex);
-        setPageSize(next.pageSize);
-      } else {
-        setPageIndex(updater.pageIndex);
-        setPageSize(updater.pageSize);
-      }
-    },
-  });
+  const filters = (
+    <>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={esPublico}
+          onCheckedChange={(v) => {
+            setEsPublico(v);
+            setPage(1);
+          }}
+        />
+        <span className="text-sm">Es público</span>
+      </div>
+      <Select
+        value={estado}
+        onValueChange={(v) => {
+          setEstado(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-32">
+          {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="A">Activo</SelectItem>
+          <SelectItem value="I">Inactivo</SelectItem>
+          <SelectItem value="todos">Todos</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={tipo}
+        onValueChange={(v) => {
+          setTipo(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-32">{tipo || "Tipo"}</SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">Todos</SelectItem>
+          {["MENU", "PAGE", "FEATURE"].map((t) => (
+            <SelectItem key={t} value={t}>
+              {t}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
 
   return (
-    <div>
-      <div className="flex justify-between items-end mb-4">
-        <Input
-          placeholder="Búsqueda..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPageIndex(0);
-          }}
-          className="w-1/2"
-        />
-        <div className="flex gap-4 items-end">
-          {/* Es publico */}
-          <div className="flex items-center gap-2">
-            <Switch
-              checked={esPublico}
-              onCheckedChange={(v) => {
-                setEsPublico(v);
-                setPageIndex(0);
-              }}
-            />
-            <span>Es publico</span>
-          </div>
-          <Select
-            value={estado}
-            onValueChange={(v) => {
-              setEstado(v);
-              setPageIndex(0);
-            }}
-          >
-            <SelectTrigger>
-              {estado === "A"
-                ? "Activo"
-                : estado === "I"
-                  ? "Inactivo"
-                  : "Estado"}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A">Activo</SelectItem>
-              <SelectItem value="I">Inactivo</SelectItem>
-              <SelectItem value="todos">Todos</SelectItem>
-            </SelectContent>
-          </Select>
-          {/* Nuevo: Tipo */}
-          <Select
-            value={tipo}
-            onValueChange={(v) => {
-              setTipo(v);
-              setPageIndex(0);
-            }}
-          >
-            <SelectTrigger>{tipo || "Tipo"}</SelectTrigger>
-            <SelectContent>
-              {["MENU", "PAGE", "FEATURE"].map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        <div className="flex justify-between items-center mt-2 p-2">
-          <div className="flex items-center gap-2">
-            <span>Registros por página</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => {
-                const ps = Number(v);
-                setPageSize(ps);
-                table.setPageSize(ps);
-                setPageIndex(0);
-              }}
-            >
-              <SelectTrigger>{pageSize}</SelectTrigger>
-              <SelectContent>
-                {[10, 25, 50].map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <span>
-            Página {pageIndex + 1} de {table.getPageCount()}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => table.setPageIndex(0)}
-              disabled={pageIndex === 0}
-            >
-              «
-            </Button>
-            <Button
-              onClick={() => table.previousPage()}
-              disabled={pageIndex === 0}
-            >
-              ‹
-            </Button>
-            <Button
-              onClick={() => table.nextPage()}
-              disabled={pageIndex >= table.getPageCount() - 1}
-            >
-              ›
-            </Button>
-            <Button
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={pageIndex >= table.getPageCount() - 1}
-            >
-              »
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      loading={loading}
+      total={total}
+      page={page}
+      pageSize={pageSize}
+      onPageChange={setPage}
+      onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      searchValue={search}
+      onSearchChange={(v) => { setSearch(v); setPage(1); }}
+      searchPlaceholder="Búsqueda..."
+      filters={filters}
+      emptyTitle="Sin objetos"
+      emptyDescription="No se encontraron objetos con los filtros actuales."
+      pageSizeOptions={[10, 25, 50]}
+    />
   );
 }

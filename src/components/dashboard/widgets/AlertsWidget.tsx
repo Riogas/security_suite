@@ -1,8 +1,7 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Shield, Clock, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Shield, Clock, CheckCircle2, ArrowRight } from "lucide-react";
 
 interface AlertType {
   id: string;
@@ -16,6 +15,16 @@ interface AlertsWidgetProps {
   alerts?: AlertType[];
   maxAlerts?: number;
 }
+
+const alertConfig: Record<
+  AlertType["type"],
+  { icon: React.ComponentType<{ className?: string }>; dot: string; label: string }
+> = {
+  security: { icon: Shield, dot: "bg-destructive", label: "Seguridad" },
+  warning: { icon: AlertTriangle, dot: "bg-warning", label: "Advertencia" },
+  info: { icon: Clock, dot: "bg-primary", label: "Info" },
+  success: { icon: CheckCircle2, dot: "bg-success", label: "OK" },
+};
 
 export function AlertsWidget({
   alerts = [
@@ -43,91 +52,70 @@ export function AlertsWidget({
   ],
   maxAlerts = 5,
 }: AlertsWidgetProps) {
-  const getAlertConfig = (type: AlertType["type"]) => {
-    const configs = {
-      security: {
-        icon: Shield,
-        color: "bg-red-50 text-red-700 border-red-200",
-        badgeColor: "bg-red-100 text-red-700",
-      },
-      warning: {
-        icon: AlertTriangle,
-        color: "bg-yellow-50 text-yellow-700 border-yellow-200",
-        badgeColor: "bg-yellow-100 text-yellow-700",
-      },
-      info: {
-        icon: Clock,
-        color: "bg-blue-50 text-blue-700 border-blue-200",
-        badgeColor: "bg-blue-100 text-blue-700",
-      },
-      success: {
-        icon: CheckCircle2,
-        color: "bg-green-50 text-green-700 border-green-200",
-        badgeColor: "bg-green-100 text-green-700",
-      },
-    };
-    return configs[type];
-  };
-
   const displayAlerts = alerts.slice(0, maxAlerts);
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
+    <Card className="h-full rounded-2xl border">
+      <CardHeader className="pb-3 px-6 pt-6">
         <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center space-x-2">
-            <AlertTriangle className="w-5 h-5" />
-            <span>Alertas del Sistema</span>
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            Alertas del Sistema
           </span>
           {alerts.length > maxAlerts && (
-            <Badge variant="outline" className="text-xs">
+            <span className="text-xs text-muted-foreground">
               +{alerts.length - maxAlerts} más
-            </Badge>
+            </span>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+
+      <CardContent className="px-6 pb-6">
         {displayAlerts.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-green-500" />
-            <p>No hay alertas activas</p>
+          <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground gap-2">
+            <CheckCircle2 className="h-10 w-10 text-success opacity-70" />
+            <p className="text-sm font-medium">Todo en orden</p>
+            <p className="text-xs">No hay alertas activas</p>
           </div>
         ) : (
-          displayAlerts.map((alert) => {
-            const config = getAlertConfig(alert.type);
-            const Icon = config.icon;
+          <div className="space-y-3">
+            {displayAlerts.map((alert) => {
+              const cfg = alertConfig[alert.type];
+              const Icon = cfg.icon;
 
-            return (
-              <div
-                key={alert.id}
-                className={`p-3 rounded-lg border transition-all hover:shadow-sm ${config.color}`}
-              >
-                <div className="flex items-start space-x-3">
-                  <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-medium truncate">
-                        {alert.title}
-                      </h4>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${config.badgeColor}`}
-                      >
-                        {alert.type}
-                      </Badge>
+              return (
+                <div
+                  key={alert.id}
+                  className="group flex items-start gap-3 rounded-xl border bg-muted/30 px-4 py-3 transition-all hover:bg-muted/50 hover:shadow-sm"
+                >
+                  {/* Severity dot + icon */}
+                  <div className="relative mt-0.5 flex-shrink-0">
+                    <span className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ${cfg.dot}`} />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-card border">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-                    <p className="text-xs opacity-80 mb-1">
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{alert.title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
                       {alert.description}
                     </p>
-                    <div className="flex items-center space-x-1 text-xs opacity-60">
-                      <Clock className="w-3 h-3" />
+                    <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground/70">
+                      <Clock className="h-3 w-3" />
                       <span>{alert.timestamp}</span>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+
+            {/* Footer link */}
+            <button className="flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs text-muted-foreground transition-colors hover:text-foreground">
+              Ver todas las alertas
+              <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -1701,6 +1701,13 @@ export const apiActualizarRolDB = async (
 export const apiEliminarRolDB = async (id: number) =>
   dbFetch(`/api/db/roles/${id}`, { method: "DELETE" });
 
+export const apiClonarRolDB = async (id: number, nombre: string) =>
+  dbFetch(`/api/db/roles/${id}/clonar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nombre }),
+  });
+
 // Roles de un usuario
 export const apiRolesUsuarioDB = async (usuarioId: number) =>
   dbFetch(`/api/db/usuarios/${usuarioId}/roles`);
@@ -1843,6 +1850,21 @@ export const apiGuardarAtributoDB = async (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ atributo, valor }),
   });
+export interface SugerenciasAtributosResponse {
+  success: true;
+  atributos: string[];
+  porAtributo: Record<
+    string,
+    {
+      keys: string[];
+      valoresPorKey: Record<string, string[]>;
+    }
+  >;
+}
+
+export const apiObtenerSugerenciasAtributosDB =
+  async (): Promise<SugerenciasAtributosResponse> =>
+    dbFetch("/api/db/usuario-preferencias/sugerencias");
 
 
 // =====================================================================
@@ -1952,6 +1974,50 @@ export const apiGuardarAccesoDB = async (data: {
 export const apiEliminarAccesoDB = async (usuarioId: number, funcionalidadId: number) =>
   dbFetch(`/api/db/accesos?usuarioId=${usuarioId}&funcionalidadId=${funcionalidadId}`, {
     method: "DELETE",
+  });
+
+
+// -- Accesos por usuario (modal Asignar Funcionalidades) --
+
+export interface FuncionalidadConEstadoDB {
+  funcionalidadId: number;
+  funcionalidadNombre: string;
+  aplicacionId: number;
+  aplicacionNombre: string;
+  viaRoles: string[];
+  accesoDirecto: {
+    efecto: "grant" | "deny";
+    fechaDesde: string | null;
+    fechaHasta: string | null;
+  } | null;
+}
+
+export interface AccesosUsuarioDBResponse {
+  success: boolean;
+  items: FuncionalidadConEstadoDB[];
+}
+
+export const apiObtenerAccesosUsuarioDB = async (
+  usuarioId: number
+): Promise<AccesosUsuarioDBResponse> =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/accesos`);
+
+export interface CambioAccesoDB {
+  funcionalidadId: number;
+  efecto?: "grant" | "deny";
+  fechaDesde?: string | null;
+  fechaHasta?: string | null;
+  remove?: boolean;
+}
+
+export const apiActualizarAccesosUsuarioDB = async (
+  usuarioId: number,
+  cambios: CambioAccesoDB[]
+) =>
+  dbFetch(`/api/db/usuarios/${usuarioId}/accesos`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cambios }),
   });
 
 // ─── Acciones DB ─────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
-import { DashboardHeader } from "@/components/dashboard/widgets/DashboardHeader";
-import { ModernStat } from "@/components/dashboard/stats/ModernStat";
+import { HeroGreeting } from "@/components/dashboard/widgets/HeroGreeting";
+import { KpiCard } from "@/components/dashboard/stats/KpiCard";
 import { EnhancedBarChart } from "@/components/dashboard/charts/EnhancedBarChart";
 import { EnhancedLineChart } from "@/components/dashboard/charts/EnhancedLineChart";
 import { AlertsWidget } from "@/components/dashboard/widgets/AlertsWidget";
@@ -12,42 +12,40 @@ import { ServerInfoWidget } from "@/components/dashboard/widgets/ServerInfoWidge
 import { Users, LogIn, AlertTriangle, Activity } from "lucide-react";
 
 export default function DashboardPage() {
-  // Datos de ejemplo para las estadísticas
-  const statsData = [
+  const kpis = [
     {
       title: "Usuarios Activos",
       value: "142",
-      subtitle: "+12% desde el mes pasado",
+      subtitle: "Total registrados en el sistema",
       trend: { value: 12, isPositive: true },
       icon: Users,
-      color: "default" as const,
+      accent: "primary" as const,
     },
     {
       title: "Accesos Hoy",
-      value: "1,284",
-      subtitle: "+8% desde ayer",
+      value: "1284",
+      subtitle: "+8% respecto a ayer",
       trend: { value: 8, isPositive: true },
       icon: LogIn,
-      color: "success" as const,
+      accent: "success" as const,
     },
     {
       title: "Alertas Pendientes",
       value: "3",
-      subtitle: "-2 desde ayer",
-      trend: { value: 2, isPositive: false },
+      subtitle: "2 menos que ayer",
+      trend: { value: 40, isPositive: false },
       icon: AlertTriangle,
-      color: "warning" as const,
+      accent: "warning" as const,
     },
     {
       title: "Uptime Sistema",
       value: "99.9%",
       subtitle: "Últimos 30 días",
       icon: Activity,
-      color: "success" as const,
+      accent: "info" as const,
     },
   ];
 
-  // Datos para gráficas
   const barChartData = [
     { label: "Lun", value: 180 },
     { label: "Mar", value: 220 },
@@ -59,34 +57,29 @@ export default function DashboardPage() {
   ];
 
   const lineChartSeries = [45, 30, 85, 120, 95, 70, 55];
-  const lineChartLabels = [
-    "00:00",
-    "04:00",
-    "08:00",
-    "12:00",
-    "16:00",
-    "20:00",
-    "24:00",
-  ];
+  const lineChartLabels = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <DashboardHeader systemStatus="active" lastUpdated="2 min" />
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-4 md:space-y-6">
 
-      {/* Estadísticas principales */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statsData.map((stat, index) => (
-          <ModernStat key={index} {...stat} index={index} />
+      {/* Row 1 — Hero (full width) */}
+      <div>
+        <HeroGreeting />
+      </div>
+
+      {/* Row 2 — KPI Cards (4 columns on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi, i) => (
+          <KpiCard key={kpi.title} {...kpi} index={i} />
         ))}
       </div>
 
-      {/* Gráficas principales */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Row 3 — Charts */}
+      <div className="grid gap-4 lg:grid-cols-2">
         <EnhancedBarChart
           data={barChartData}
           title="Accesos por Día"
-          description="Actividad de accesos en los últimos 7 días"
+          description="Actividad de los últimos 7 días"
         />
         <EnhancedLineChart
           series={lineChartSeries}
@@ -96,24 +89,20 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Widgets de información */}
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-        <div className="lg:col-span-1">
-          <AlertsWidget />
-        </div>
-        <div className="lg:col-span-1">
+      {/* Row 4 — Bento: Activities (wide) + Alerts (narrow) */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
           <RecentActivitiesWidget />
         </div>
-        <div className="lg:col-span-1">
-          <SystemStatusWidget />
-        </div>
-        <div className="lg:col-span-1">
-          <ServerInfoWidget />
+        <div className="lg:col-span-4">
+          <AlertsWidget />
         </div>
       </div>
 
-      {/* Acciones rápidas */}
-      <div className="grid gap-6">
+      {/* Row 5 — System Status + Server Info + Quick Actions */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SystemStatusWidget />
+        <ServerInfoWidget />
         <QuickActionsWidget />
       </div>
     </div>

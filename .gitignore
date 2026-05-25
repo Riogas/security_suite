@@ -30,9 +30,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — nunca commitear (incluye .env.production con secretos reales)
 .env*
-!.env.production
 
 # vercel
 .vercel
@@ -44,3 +43,12 @@ next-env.d.ts
 # logs
 logs/
 *.log
+
+# artefactos del pipeline /feature (specs, planes, reviews, metrics por run)
+.claude/runs/
+.claude/lessons.db.yaml
+.claude/*.draft.md
+.claude/*-draft.md
+
+# graphify — knowledge graph generado (regenerable con `graphify .`)
+graphify-out/

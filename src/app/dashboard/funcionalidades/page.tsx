@@ -1,28 +1,31 @@
 "use client";
 
-import FuncionalidadesTable from "@/components/dashboard/funcionalidades/Funcionalidades";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { usePageTransition } from "@/hooks/usePageTransition";
 
+import { PageHeader } from "@/components/ui/page-header";
+import FuncionalidadesTable from "@/components/dashboard/funcionalidades/Funcionalidades";
+
 export default function Page() {
-  const router = useRouter();
   const { navigateWithLoading } = usePageTransition();
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Funcionalidades</h1>
-        <Button
-          onClick={() =>
-            navigateWithLoading("/dashboard/funcionalidades/crear", {
-              loadingText: "Preparando formulario...",
-            })
-          }
-        >
-          Nueva funcionalidad
-        </Button>
-      </div>
+    <div className="p-6">
+      <PageHeader
+        title="Funcionalidades"
+        description="Gestión de funcionalidades disponibles en el sistema."
+        actions={
+          <Button
+            onClick={() =>
+              navigateWithLoading("/dashboard/funcionalidades/crear", {
+                loadingText: "Preparando formulario...",
+              })
+            }
+          >
+            Nueva funcionalidad
+          </Button>
+        }
+      />
       <FuncionalidadesTable />
     </div>
   );

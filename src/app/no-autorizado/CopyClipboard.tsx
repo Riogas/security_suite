@@ -28,11 +28,12 @@ export default function CopyClipboard({
   return (
     <button
       onClick={handleClick}
-      className="inline-flex items-center gap-2 rounded-lg border border-[#2f394d] px-3 py-1.5 text-xs hover:bg-[#2a3446]"
+      className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs hover:bg-muted transition-colors"
       title="Copiar detalles"
+      aria-label="Copiar detalles al portapapeles"
       type="button"
     >
-      <Copy size={14} />
+      <Copy size={14} aria-hidden="true" />
       {label}
     </button>
   );

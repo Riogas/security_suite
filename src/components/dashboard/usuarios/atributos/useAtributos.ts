@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import {
   apiAtributosDB,
   apiGuardarAtributosDB,
+  apiObtenerSugerenciasAtributosDB,
+  SugerenciasAtributosResponse,
 } from "@/services/api";
 
 interface CampoValor {
@@ -27,6 +29,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sugerencias, setSugerencias] = useState<SugerenciasAtributosResponse | null>(null);
 
   // Generar JSON a partir de los campos
   const generarJsonValor = (campos: CampoValor[]): string => {
@@ -88,6 +91,17 @@ export function useAtributos(userId: number, isOpen: boolean) {
 
     // Si todo falla, retornar como campo simple
     return [{ id: "valor", valor: valor }];
+  };
+
+  // Cargar sugerencias para comboboxes (una sola vez cuando el modal se abre)
+  const cargarSugerencias = async () => {
+    try {
+      const data = await apiObtenerSugerenciasAtributosDB();
+      setSugerencias(data);
+    } catch (error) {
+      console.error("Error al cargar sugerencias:", error);
+      // No mostrar toast — es funcionalidad de mejora, no bloqueante
+    }
   };
 
   // Cargar atributos existentes del usuario
@@ -231,9 +245,11 @@ export function useAtributos(userId: number, isOpen: boolean) {
   useEffect(() => {
     if (isOpen) {
       cargarAtributos();
+      cargarSugerencias();
     } else {
       // Al cerrar el modal, limpiar todos los atributos para que se recarguen al abrir
       setAtributos([]);
+      setSugerencias(null);
     }
   }, [isOpen]);
 
@@ -249,6 +265,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
     editandoId,
     saving,
     loading,
+    sugerencias,
 
     // Funciones
     crearAtributo,

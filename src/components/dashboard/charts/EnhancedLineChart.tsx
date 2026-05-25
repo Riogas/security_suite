@@ -30,42 +30,42 @@ export function EnhancedLineChart({
     })
     .join(" ");
 
-  const avg = series.reduce((a, b) => a + b, 0) / series.length;
+  const firstPt = points.split(" ")[0];
+  const lastX = pad + (series.length - 1) * stepX;
+  const avg = Math.round(series.reduce((a, b) => a + b, 0) / series.length);
 
   return (
-    <Card className="transition-all duration-200 hover:shadow-md border-0 shadow-sm bg-gradient-to-br from-card to-card/80">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+    <Card className="rounded-2xl border transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+      <CardHeader className="px-6 pt-6 pb-2">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+            <CardTitle className="text-sm font-semibold">{title}</CardTitle>
             {description && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {description}
-              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Promedio</div>
-            <div className="text-sm font-medium">{Math.round(avg)}</div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-xs text-muted-foreground">Promedio</p>
+            <p className="text-sm font-semibold tabular-nums">{avg}</p>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+
+      <CardContent className="px-6 pb-6">
         <div className="overflow-x-auto">
-          <svg width={width} height={height} className="text-primary">
+          <svg
+            width={width}
+            height={height}
+            className="text-primary"
+            aria-label={title}
+          >
             <defs>
-              <linearGradient
-                id="lineGradient"
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" />
+              <linearGradient id="lineAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.15" />
                 <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
               </linearGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <filter id="lineGlow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
                 <feMerge>
                   <feMergeNode in="coloredBlur" />
                   <feMergeNode in="SourceGraphic" />
@@ -73,48 +73,59 @@ export function EnhancedLineChart({
               </filter>
             </defs>
 
-            {/* Área bajo la curva */}
-            <path
-              d={`M ${points.split(" ")[0]} L ${points} L ${pad + (series.length - 1) * stepX},${height - pad} L ${pad},${height - pad} Z`}
-              fill="url(#lineGradient)"
-            />
-
-            {/* Línea principal */}
-            <polyline
-              points={points}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              filter="url(#glow)"
-              className="drop-shadow-sm"
-            />
-
-            {/* Puntos de datos */}
-            {series.map((v, i) => {
-              const x = pad + i * stepX;
-              const y = height - pad - (v / max) * (height - pad * 2);
+            {/* Subtle grid lines */}
+            {[0.25, 0.5, 0.75].map((frac) => {
+              const y = height - pad - frac * (height - pad * 2);
               return (
-                <circle
-                  key={i}
-                  cx={x}
-                  cy={y}
-                  r="4"
-                  fill="currentColor"
-                  className="drop-shadow-sm cursor-pointer hover:r-5 transition-all"
+                <line
+                  key={frac}
+                  x1={pad}
+                  y1={y}
+                  x2={width - pad}
+                  y2={y}
+                  strokeDasharray="3,3"
+                  className="stroke-border/30"
                 />
               );
             })}
 
-            {/* Línea base */}
+            {/* Area fill */}
+            <path
+              d={`M ${firstPt} L ${points} L ${lastX},${height - pad} L ${pad},${height - pad} Z`}
+              fill="url(#lineAreaGradient)"
+            />
+
+            {/* Main line */}
+            <polyline
+              points={points}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              filter="url(#lineGlow)"
+            />
+
+            {/* Data dots */}
+            {series.map((v, i) => {
+              const x = pad + i * stepX;
+              const y = height - pad - (v / max) * (height - pad * 2);
+              return (
+                <g key={i}>
+                  <circle cx={x} cy={y} r="4" fill="currentColor" className="cursor-pointer" />
+                  <circle cx={x} cy={y} r="7" fill="currentColor" opacity="0" className="cursor-pointer hover:opacity-10 transition-opacity" />
+                </g>
+              );
+            })}
+
+            {/* Baseline */}
             <line
               x1={pad}
               y1={height - pad}
               x2={width - pad}
               y2={height - pad}
-              className="stroke-muted-foreground/20"
-              strokeDasharray="2,2"
+              strokeDasharray="2,4"
+              className="stroke-border/40"
             />
 
             {/* Labels */}
@@ -122,9 +133,10 @@ export function EnhancedLineChart({
               <text
                 key={l + i}
                 x={pad + i * stepX}
-                y={height - 2}
+                y={height - 4}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[10px] font-medium"
+                fontSize="10"
+                className="fill-muted-foreground"
               >
                 {l}
               </text>
