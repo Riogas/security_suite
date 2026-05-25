@@ -18,6 +18,7 @@ import { persistEmpFleteraPreference } from "./persistEmpFleteraPreference";
 import { upsertExternalUser } from "./upsertExternalUser";
 import { classifyUsername } from "./classifyUsername";
 import { getApplicableRoles, parseEscenarioFromPref } from "./applyScenarioFilter";
+import { ensureDefaultEscenario } from "./ensureDefaultEscenario";
 import type {
   AdmsecLookupResult,
   ResolveResult,
@@ -184,6 +185,13 @@ async function applyScenarioFilterForUser(
   filteredOut: Array<{ rolId: number; nombre: string; escenarios: number[] }>;
   totalAssigned: number;
 }> {
+  // Si el usuario no tiene escenario en usuario_preferencias (ni AS400 lo
+  // pobló para externos), creamos uno por defecto (env DEFAULT_ESCENARIO_ID,
+  // default 1000). De esta forma el filtro de escenario siempre tiene un valor
+  // contra el cual evaluar, y no terminamos con FORBIDDEN_SCENARIO por falta
+  // de configuración inicial.
+  await ensureDefaultEscenario(usuarioId, username);
+
   const escPref = await prisma.usuarioPreferencia.findFirst({
     where: { usuarioId, atributo: "Escenario" },
   });
