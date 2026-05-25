@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { authLog } from "./logger";
 
+// ID del rol "Root" (admin total). Configurable por env para mantener consistencia
+// con applyAdmsecGroupRoles.ts. Si un usuario tiene este rol asignado en
+// usuario_roles, bypasea completamente el filtro de escenario: todos sus roles
+// aplican sin importar el escenario activo, y se permite el login aunque
+// no tenga preferencia de escenario configurada.
+//
+// Nota: este bypass es por el ROL como tal (id en usuario_roles), no por el
+// flag legacy `usuarios.es_root` — son cosas distintas. Un usuario puede tener
+// uno, el otro, los dos o ninguno.
+const ROL_ROOT_ID = parseInt(process.env.PG_ROL_ROOT_ID || "52", 10);
+
 interface EscenarioPrefValue {
   Nombre: string;
   Valor: number | string;
@@ -94,6 +105,28 @@ export async function getApplicableRoles(
       },
     },
   });
+
+  // Bypass por rol Root asignado: si el usuario tiene el rol id PG_ROL_ROOT_ID
+  // (default 52), todos sus roles aplican como GLOBALES sin importar el escenario
+  // del usuario ni los Escenarios configurados en cada rol. Root = admin total.
+  const hasRootRol = assigned.some((ur) => ur.rolId === ROL_ROOT_ID);
+  if (hasRootRol) {
+    authLog.info("getApplicableRoles: bypass por rol Root asignado", {
+      username,
+      usuarioId,
+      escenarioId,
+      totalRoles: assigned.length,
+    });
+    return {
+      applicable: assigned.map((ur) => ({
+        rolId: ur.rolId,
+        nombre: ur.rol.nombre,
+        global: true,
+      })),
+      filteredOut: [],
+      totalAssigned: assigned.length,
+    };
+  }
 
   const applicable: ApplicableRolesResult["applicable"] = [];
   const filteredOut: ApplicableRolesResult["filteredOut"] = [];
