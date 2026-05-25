@@ -2,18 +2,26 @@ import { prisma } from "@/lib/prisma";
 import { authLog } from "./logger";
 
 /**
- * Persiste el escenario asignado al usuario en SGM como preferencia
+ * Persiste o actualiza el escenario asignado al usuario como preferencia
  * `Escenario` con el formato JSON-string que ya consume el frontend
  * (TrackMovil, etc.):
  *
  *   atributo = 'Escenario'
  *   valor    = '[{"Nombre":"<nombre>","Valor":<id>}]'
  *
- * Casos:
- *   - escenarioId / escenarioNom inválidos → no-op (no existe agencia/escenario en SGM).
- *   - Ya existe una preferencia 'Escenario' para el usuario → no-op: se respeta
- *     lo configurado por el admin en security_suite y NO se sobreescribe.
- *   - No existe preferencia 'Escenario' para el usuario → INSERT con el dato de SGM.
+ * Política según `isExternal`:
+ *
+ *   isExternal = false (usuario interno):
+ *     - Si ya existe preferencia → no-op (se respeta lo configurado por el admin).
+ *     - Si no existe → INSERT con el dato de la fuente externa.
+ *
+ *   isExternal = true (usuario SGM/LDAP/GSIST):
+ *     - Si ya existe y el valor coincide con AS400 → no-op.
+ *     - Si ya existe y difiere → UPDATE con el valor de AS400 (refresh).
+ *     - Si no existe → INSERT con el dato de AS400.
+ *
+ * Casos base:
+ *   - escenarioId / escenarioNom inválidos → no-op (no existe agencia/escenario).
  *   - Errores de Prisma se loguean y no propagan: la preferencia es complementaria
  *     y no debe romper el login.
  */
@@ -21,10 +29,13 @@ export async function persistEscenarioPreference(
   usuarioId: number,
   escenarioId: number | null | undefined,
   escenarioNom: string | null | undefined,
+  isExternal = false,
 ): Promise<void> {
   if (escenarioId == null || !Number.isFinite(Number(escenarioId))) return;
   const nombre = (escenarioNom ?? "").trim();
   if (!nombre) return;
+
+  const newValor = JSON.stringify([{ Nombre: nombre, Valor: Number(escenarioId) }]);
 
   try {
     const existing = await prisma.usuarioPreferencia.findFirst({
@@ -32,15 +43,31 @@ export async function persistEscenarioPreference(
     });
 
     if (existing) {
-      authLog.info("persistEscenarioPreference: ya existe, no se sobreescribe", { usuarioId });
+      if (!isExternal) {
+        authLog.info("persistEscenarioPreference: ya existe (interno), no sobreescribo", { usuarioId });
+        return;
+      }
+      if (existing.valor === newValor) {
+        authLog.info("persistEscenarioPreference: AS400 == local, no toco", { usuarioId });
+        return;
+      }
+      await prisma.usuarioPreferencia.update({
+        where: { id: existing.id },
+        data: { valor: newValor },
+      });
+      authLog.info("persistEscenarioPreference: actualizado desde AS400 (externo)", {
+        usuarioId,
+        escenarioId,
+        escenarioNom: nombre,
+        previo: existing.valor,
+      });
       return;
     }
 
-    const valor = JSON.stringify([{ Nombre: nombre, Valor: Number(escenarioId) }]);
     await prisma.usuarioPreferencia.create({
-      data: { usuarioId, atributo: "Escenario", valor },
+      data: { usuarioId, atributo: "Escenario", valor: newValor },
     });
-    authLog.info("persistEscenarioPreference ok", { usuarioId, escenarioId, escenarioNom: nombre });
+    authLog.info("persistEscenarioPreference: creado", { usuarioId, escenarioId, escenarioNom: nombre });
   } catch (err) {
     authLog.error("persistEscenarioPreference falló", {
       usuarioId,

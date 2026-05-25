@@ -108,9 +108,18 @@ export type ResolveResult =
       // Si el usuario fue creado/actualizado durante el flujo, viene la fila de PG.
       // Si ya existía, también viene la fila (post-upsert eventual).
       usuarioId: number;
+      // Escenario activo del usuario al momento del login (post-refresh).
+      // null si el usuario no tiene preferencia de escenario configurada.
+      escenario: { id: number; nombre: string } | null;
+      // Roles filtrados por escenario (informativo, para logs/UI futura).
+      rolesFilteredOut?: Array<{ rolId: number; nombre: string; escenarios: number[] }>;
+      // IDs de roles que aplican al escenario activo (subset de todos los asignados).
+      // null si no se ejecutó filtro (e.g. usuario interno sin escenario).
+      applicableRolIds: number[] | null;
     }
   | {
       ok: false;
       status: 400 | 401 | 403 | 500;
+      outcome?: "FORBIDDEN_SCENARIO";
       message?: string;
     };
