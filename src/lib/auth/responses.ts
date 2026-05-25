@@ -34,18 +34,31 @@ export function serverError(message = "Error interno del servidor") {
 }
 
 // Construye la respuesta de éxito y, de paso, actualiza fechaUltimoLogin (solo en éxito).
+// `applicableRolIds`: si no es null, filtra los roles del usuario al subconjunto aplicable
+//   según el escenario activo. null significa sin filtro (todos los roles aplican).
+// `escenario`: escenario activo del usuario al momento del login, para incluirlo en la respuesta.
 export async function buildSuccessResponse(
   usuarioId: number,
   sistema: string,
-  verifiedBy: VerifiedBy
+  verifiedBy: VerifiedBy,
+  applicableRolIds: number[] | null = null,
+  escenario: { id: number; nombre: string } | null = null,
 ) {
+  // Construimos la cláusula where de roles: si hay filtro por escenario, solo traemos
+  // los roles que aplican. Esto asegura que el JWT y el payload no incluyen roles
+  // de escenarios distintos al activo.
+  const rolesWhere =
+    applicableRolIds != null
+      ? { usuarioId, rolId: { in: applicableRolIds } }
+      : { usuarioId };
+
   const [usuario, roles, preferencias, accesos] = await Promise.all([
     prisma.usuario.update({
       where: { id: usuarioId },
       data: { fechaUltimoLogin: new Date() },
     }),
     prisma.usuarioRol.findMany({
-      where: { usuarioId },
+      where: rolesWhere,
       include: {
         rol: {
           include: {
@@ -111,6 +124,7 @@ export async function buildSuccessResponse(
       email: usuario.email || "",
       isRoot: usuario.esRoot || "N",
     },
+    escenario,
     roles: roles.map((ur) => ({
       rolId: ur.rolId,
       rolNombre: ur.rol.nombre,
