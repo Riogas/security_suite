@@ -15,6 +15,7 @@ import { apiAplicacionesDB, apiEliminarAplicacionDB, type AplicacionDB } from "@
 import { Pencil, Trash, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function AplicacionesTable() {
   const [rows, setRows] = useState<AplicacionDB[]>([]);
@@ -25,6 +26,8 @@ export default function AplicacionesTable() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState<AplicacionDB | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   // debounce
@@ -61,15 +64,18 @@ export default function AplicacionesTable() {
     if (app?.id) router.push(`/dashboard/aplicaciones/editar/${app.id}`);
   };
 
-  const handleDelete = async (app: AplicacionDB) => {
-    if (!app?.id) return;
-    if (!confirm(`¿Eliminar la aplicación "${app.nombre}"?`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm?.id) return;
+    setDeleting(true);
     try {
-      await apiEliminarAplicacionDB(app.id);
-      setRows((prev) => prev.filter((r) => r.id !== app.id));
+      await apiEliminarAplicacionDB(deleteConfirm.id);
+      setRows((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
       toast.success("Aplicación eliminada");
+      setDeleteConfirm(null);
     } catch {
       toast.error("Error al eliminar la aplicación");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -106,7 +112,7 @@ export default function AplicacionesTable() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => handleDelete(row.original)}
+            onClick={() => setDeleteConfirm(row.original)}
           >
             <Trash className="w-4 h-4" />
           </Button>
@@ -141,23 +147,36 @@ export default function AplicacionesTable() {
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={rows}
-      loading={loading}
-      total={total}
-      page={page}
-      pageSize={pageSize}
-      onPageChange={setPage}
-      onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
-      searchValue={search}
-      onSearchChange={(v) => { setSearch(v); setPage(1); }}
-      searchPlaceholder="Búsqueda..."
-      filters={estadoFilter}
-      headerActions={headerActions}
-      emptyTitle="Sin aplicaciones"
-      emptyDescription="No se encontraron aplicaciones con los filtros actuales."
-      pageSizeOptions={[10, 25, 50]}
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={rows}
+        loading={loading}
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        searchValue={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder="Búsqueda..."
+        filters={estadoFilter}
+        headerActions={headerActions}
+        emptyTitle="Sin aplicaciones"
+        emptyDescription="No se encontraron aplicaciones con los filtros actuales."
+        pageSizeOptions={[10, 25, 50]}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirm !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}
+        title={`¿Eliminar la aplicación "${deleteConfirm?.nombre}"?`}
+        description="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={handleDeleteConfirm}
+        loading={deleting}
+      />
+    </>
   );
 }

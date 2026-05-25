@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import AtributosRolModal from "@/components/dashboard/roles/AtributosRolModal";
 import ClonarRolModal from "@/components/dashboard/roles/ClonarRolModal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function RolesTable() {
   const [rows, setRows] = useState<RolDB[]>([]);
@@ -29,6 +30,8 @@ export default function RolesTable() {
   const [total, setTotal] = useState(0);
   const [atributosModal, setAtributosModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
   const [clonarModal, setClonarModal] = useState<{ rolId: number; rolNombre: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<RolDB | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const router = useRouter();
 
@@ -71,6 +74,21 @@ export default function RolesTable() {
       setRefreshKey((k) => k + 1);
     } else {
       throw new Error(res?.error || "Error al clonar el rol");
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await apiEliminarRolDB(deleteConfirm.id);
+      setRows((prev) => prev.filter((r) => r.id !== deleteConfirm.id));
+      toast.success("Rol eliminado");
+      setDeleteConfirm(null);
+    } catch {
+      toast.error("Error al eliminar el rol");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -128,16 +146,7 @@ export default function RolesTable() {
             variant="destructive"
             size="sm"
             aria-label={`Eliminar rol ${row.original?.nombre}`}
-            onClick={async () => {
-              if (!confirm(`¿Eliminar el rol "${row.original?.nombre}"?`)) return;
-              try {
-                await apiEliminarRolDB(row.original.id);
-                setRows((prev) => prev.filter((r) => r.id !== row.original.id));
-                toast.success("Rol eliminado");
-              } catch {
-                toast.error("Error al eliminar el rol");
-              }
-            }}
+            onClick={() => setDeleteConfirm(row.original)}
           >
             <Trash className="w-4 h-4" aria-hidden="true" />
           </Button>
@@ -209,6 +218,17 @@ export default function RolesTable() {
           onClonar={handleClonar}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteConfirm !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}
+        title={`¿Eliminar el rol "${deleteConfirm?.nombre}"?`}
+        description="Esta acción no se puede deshacer. El rol será eliminado permanentemente."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={handleDeleteConfirm}
+        loading={deleting}
+      />
     </>
   );
 }

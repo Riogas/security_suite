@@ -3,7 +3,7 @@
 import React from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
-import { Save, X, Settings } from "lucide-react";
+import { Save, X, Tag } from "lucide-react";
 import CrearAtributoPanel from "./atributos/CrearAtributoPanel";
 import ListaAtributosPanel from "./atributos/ListaAtributosPanel";
 import { useAtributos } from "./atributos/useAtributos";
@@ -40,9 +40,6 @@ export default function AtributosModal({
     limpiarEstado,
   } = useAtributos(userId, isOpen);
 
-  // Debug
-  console.log("[AtributosModal] atributos:", atributos.length, "saving:", saving);
-
   const handleClose = () => {
     limpiarEstado();
     onClose();
@@ -61,7 +58,7 @@ export default function AtributosModal({
       onOpenChange={handleClose}
       title={`Gestionar Atributos — ${userName}`}
       description="Crea atributos personalizados con campos ID-Valor para el usuario."
-      icon={Settings}
+      icon={Tag}
       size="full"
       scrollableBody={false}
       data-no-loading="true"

@@ -14,6 +14,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
 import { apiUsuarios, apiImportarUsuario, apiUsuariosDB, apiEliminarUsuarioDB } from "@/services/api";
 import VerPermisosModal from "@/components/dashboard/usuarios/VerPermisosModal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Pencil,
   Trash,
@@ -47,6 +48,8 @@ export default function UsuariosTable() {
   const [importedUsers, setImportedUsers] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [permisosModal, setPermisosModal] = useState<{ userId: number; userName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<UsuarioRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
   // debounce
@@ -216,15 +219,20 @@ export default function UsuariosTable() {
     }
   };
 
-  const handleDeleteUser = async (row: UsuarioRow) => {
-    const id = getUserId(row);
-    if (!id || !confirm("¿Estás seguro de desactivar este usuario?")) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    const id = getUserId(deleteConfirm);
+    if (!id) return;
+    setDeleting(true);
     try {
       await apiEliminarUsuarioDB(id);
       toast.success("Usuario desactivado correctamente");
       setRows((prev) => prev.filter((r) => getUserId(r) !== id));
+      setDeleteConfirm(null);
     } catch (error: unknown) {
       toast.error("Error al desactivar: " + (error as Error).message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -370,7 +378,7 @@ export default function UsuariosTable() {
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => handleDeleteUser(row.original)}
+                onClick={() => setDeleteConfirm(row.original)}
               >
                 <Trash className="w-4 h-4" />
               </Button>
@@ -458,6 +466,17 @@ export default function UsuariosTable() {
           userName={permisosModal.userName}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteConfirm !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}
+        title="¿Desactivar este usuario?"
+        description={`El usuario "${deleteConfirm ? getUserName(deleteConfirm) : ""}" será desactivado. Esta acción puede revertirse manualmente.`}
+        confirmLabel="Desactivar"
+        tone="danger"
+        onConfirm={handleDeleteConfirm}
+        loading={deleting}
+      />
     </>
   );
 }

@@ -33,15 +33,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, Link2, GripVertical } from "lucide-react";
+import { RefreshCw, Link2, GripVertical, Box } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ModalShell } from "@/components/ui/modal-shell";
 import {
   DndContext,
   closestCenter,
@@ -1163,8 +1157,8 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
               </Table>
             </div>
 
-            {/* Modal de relación de acción */}
-            <Dialog
+            {/* Modal de relación de acción — ahora via ModalShell */}
+            <ModalShell
               open={relationOpen}
               onOpenChange={(open) => {
                 setRelationOpen(open);
@@ -1173,153 +1167,153 @@ export default function ObjetoForm({ initialData, onSubmit }: ObjetoFormProps) {
                   setRelationAllItems([]);
                 }
               }}
+              title="Seleccionar objeto relacionado"
+              icon={Box}
+              size="lg"
+              scrollableBody={false}
+              footer={
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (relationRow !== null) {
+                        const uid = form.acciones[relationRow]?.uid;
+                        upsertAccion(relationRow, { accionrelacion: "" });
+                        if (uid)
+                          setRelationLabels((prev) => {
+                            const copy = { ...prev };
+                            delete copy[uid];
+                            return copy;
+                          });
+                        else
+                          setRelationLabels((prev) => {
+                            const copy = { ...prev };
+                            delete copy["free-row"];
+                            return copy;
+                          });
+                      }
+                      setRelationOpen(false);
+                    }}
+                  >
+                    Limpiar relación
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setRelationOpen(false)}
+                  >
+                    Cerrar
+                  </Button>
+                </>
+              }
             >
-              <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
-                <DialogHeader>
-                  <DialogTitle>Seleccionar objeto relacionado</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3 flex flex-col min-h-0 overflow-hidden">
-                  <div className="flex gap-2 shrink-0">
-                    <Input
-                      placeholder="Filtrar por clave..."
-                      value={relationSearch}
-                      onChange={(e) => setRelationSearch(e.target.value)}
-                    />
-                  </div>
-                  <div className="border rounded-md overflow-auto min-h-0 flex-1">
-                    <Table>
-                      <TableHeader>
+              <div className="space-y-3 flex flex-col min-h-0" style={{ height: "60vh" }}>
+                <div className="flex gap-2 shrink-0">
+                  <Input
+                    placeholder="Filtrar por clave..."
+                    value={relationSearch}
+                    onChange={(e) => setRelationSearch(e.target.value)}
+                  />
+                </div>
+                <div className="border rounded-md overflow-auto min-h-0 flex-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ObjetoKey</TableHead>
+                        <TableHead>ObjetoTipo</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relationItems.length === 0 ? (
                         <TableRow>
-                          <TableHead>ObjetoKey</TableHead>
-                          <TableHead>ObjetoTipo</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead></TableHead>
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-muted-foreground"
+                          >
+                            {relationLoading
+                              ? "Cargando..."
+                              : "Sin resultados"}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {relationItems.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={4}
-                              className="text-center text-muted-foreground"
-                            >
-                              {relationLoading
-                                ? "Cargando..."
-                                : "Sin resultados"}
+                      ) : (
+                        relationItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-mono">
+                              {item.key}
+                            </TableCell>
+                            <TableCell>{item.tipo}</TableCell>
+                            <TableCell>{item.estado}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (relationRow !== null) {
+                                    const uid =
+                                      form.acciones[relationRow]?.uid;
+                                    upsertAccion(relationRow, {
+                                      accionrelacion: String(item.id),
+                                    });
+                                    if (uid) {
+                                      setRelationLabels((prev) => ({
+                                        ...prev,
+                                        [uid]: item.key,
+                                      }));
+                                    } else {
+                                      // Fila libre
+                                      setRelationLabels((prev) => ({
+                                        ...prev,
+                                        ["free-row"]: item.key,
+                                      }));
+                                    }
+                                  }
+                                  setRelationOpen(false);
+                                }}
+                              >
+                                Seleccionar
+                              </Button>
                             </TableCell>
                           </TableRow>
-                        ) : (
-                          relationItems.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-mono">
-                                {item.key}
-                              </TableCell>
-                              <TableCell>{item.tipo}</TableCell>
-                              <TableCell>{item.estado}</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (relationRow !== null) {
-                                      const uid =
-                                        form.acciones[relationRow]?.uid;
-                                      upsertAccion(relationRow, {
-                                        accionrelacion: String(item.id),
-                                      });
-                                      if (uid) {
-                                        setRelationLabels((prev) => ({
-                                          ...prev,
-                                          [uid]: item.key,
-                                        }));
-                                      } else {
-                                        // Fila libre
-                                        setRelationLabels((prev) => ({
-                                          ...prev,
-                                          ["free-row"]: item.key,
-                                        }));
-                                      }
-                                    }
-                                    setRelationOpen(false);
-                                  }}
-                                >
-                                  Seleccionar
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 shrink-0">
-                    <span>
-                      Página {relationPage} de {relationTotalPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setRelationPage(1)}
-                        disabled={relationPage === 1}
-                      >
-                        «
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setRelationPage((p) => Math.max(1, p - 1))}
-                        disabled={relationPage === 1}
-                      >
-                        ‹
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setRelationPage((p) => Math.min(relationTotalPages, p + 1))}
-                        disabled={relationPage >= relationTotalPages}
-                      >
-                        ›
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 shrink-0">
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex items-center justify-between pt-2 shrink-0">
+                  <span>
+                    Página {relationPage} de {relationTotalPages}
+                  </span>
+                  <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        if (relationRow !== null) {
-                          const uid = form.acciones[relationRow]?.uid;
-                          upsertAccion(relationRow, { accionrelacion: "" });
-                          if (uid)
-                            setRelationLabels((prev) => {
-                              const copy = { ...prev };
-                              delete copy[uid];
-                              return copy;
-                            });
-                          else
-                            setRelationLabels((prev) => {
-                              const copy = { ...prev };
-                              delete copy["free-row"];
-                              return copy;
-                            });
-                        }
-                        setRelationOpen(false);
-                      }}
+                      onClick={() => setRelationPage(1)}
+                      disabled={relationPage === 1}
                     >
-                      Limpiar relación
+                      «
                     </Button>
                     <Button
                       type="button"
-                      onClick={() => setRelationOpen(false)}
+                      variant="outline"
+                      onClick={() => setRelationPage((p) => Math.max(1, p - 1))}
+                      disabled={relationPage === 1}
                     >
-                      Cerrar
+                      ‹
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRelationPage((p) => Math.min(relationTotalPages, p + 1))}
+                      disabled={relationPage >= relationTotalPages}
+                    >
+                      ›
                     </Button>
                   </div>
                 </div>
-                <DialogFooter />
-              </DialogContent>
-            </Dialog>
+              </div>
+            </ModalShell>
 
             {/* Paginación acciones */}
             <div className="flex items-center justify-between pt-2">

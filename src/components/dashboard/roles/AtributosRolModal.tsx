@@ -3,7 +3,7 @@
 import React from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
-import { Save, X, Settings } from "lucide-react";
+import { Save, X, Tags } from "lucide-react";
 import CrearAtributoPanel from "@/components/dashboard/usuarios/atributos/CrearAtributoPanel";
 import ListaAtributosPanel from "@/components/dashboard/usuarios/atributos/ListaAtributosPanel";
 import { useAtributosRol } from "./atributos/useAtributosRol";
@@ -57,7 +57,7 @@ export default function AtributosRolModal({
       onOpenChange={handleClose}
       title={`Gestionar Atributos — ${rolNombre}`}
       description="Crea atributos personalizados con campos ID-Valor para el rol."
-      icon={Settings}
+      icon={Tags}
       size="full"
       scrollableBody={false}
       data-no-loading="true"
