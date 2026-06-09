@@ -60,13 +60,6 @@ type AdmsecBranchResult = AdmsecBranchSuccess | AdmsecBranchFailure;
 // fletera más abajo en el flujo.
 const ACCESS_DENIED_NOT_DESPACHO = "No tiene acceso a este sistema";
 
-// Un usuario con esRoot='S' (o boolean true si la columna migró a boolean) bypasea
-// el chequeo de rol Despacho.
-// La validación de credenciales (password contra fuente externa) NO se bypasea.
-function isRootUser(usuario: Usuario): boolean {
-  return String(usuario.esRoot ?? "").trim().toUpperCase() === "S";
-}
-
 async function validateAgainstAdmsec(
   username: string,
   password: string,
@@ -475,20 +468,10 @@ async function resolveExistingUser(
   if (desde === "LDAP") {
     const ldap = await validateLdap(usuario.username, password);
     if (ldap.outcome === "OK") {
-      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho), salvo esRoot.
-      if (!ldap.user?.isDespacho) {
-        if (isRootUser(usuario)) {
-          authLog.info("acceso permitido por esRoot, bypass de chequeo Despacho", {
-            username: usuario.username,
-            verifiedBy: "ldap",
-          });
-        } else {
-          authLog.info("acceso denegado: existing LDAP user sin rol Despacho", {
-            username: usuario.username,
-          });
-          return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
-        }
-      }
+      // El acceso a la app NO se decide por pertenencia al grupo Despacho:
+      // el control fino por ruta/funcionalidad lo hace el frontend (proxy.ts)
+      // contra la API de permisos. Acá solo validamos credenciales y asignamos
+      // los roles que correspondan más abajo.
       // Escenario B: asignar Despacho si corresponde.
       await assignDespachoIfEligible({
         usuario,
@@ -555,21 +538,10 @@ async function resolveExistingUser(
     // Misma lógica que el subárbol ADMSEC del caso 1.
     const branch = await validateAgainstAdmsec(usuario.username, password);
     if (branch.ok) {
-      // Sin rol Despacho → denegar acceso (LDAP/GSIST exige Despacho), salvo esRoot.
-      if (!branch.isDespacho) {
-        if (isRootUser(usuario)) {
-          authLog.info("acceso permitido por esRoot, bypass de chequeo Despacho", {
-            username: usuario.username,
-            verifiedBy: branch.verifiedBy,
-          });
-        } else {
-          authLog.info("acceso denegado: existing GSIST/LDAP user sin rol Despacho", {
-            username: usuario.username,
-            verifiedBy: branch.verifiedBy,
-          });
-          return { ok: false, status: 403, message: ACCESS_DENIED_NOT_DESPACHO };
-        }
-      }
+      // El acceso a la app NO se decide por pertenencia al grupo Despacho:
+      // el control fino por ruta/funcionalidad lo hace el frontend (proxy.ts)
+      // contra la API de permisos. Acá solo validamos credenciales y asignamos
+      // los roles que correspondan más abajo.
       // Si validó por LDAP, también puede aplicar Escenario B.
       if (branch.verifiedBy === "ldap" && branch.ldapResult) {
         await assignDespachoIfEligible({ usuario, ldapResult: branch.ldapResult });
