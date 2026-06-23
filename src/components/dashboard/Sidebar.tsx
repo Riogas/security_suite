@@ -114,37 +114,53 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
   useEffect(() => {
     let mounted = true;
 
+    // último segmento de una ruta → clave estable para deduplicar entre fuentes
+    const lastSeg = (p?: string) =>
+      String(p ?? "")
+        .split("/")
+        .filter(Boolean)
+        .pop()
+        ?.toLowerCase() ?? "";
+
     (async () => {
       try {
-        // Intentar GeneXus primero, con fallback a DB
-        let rawMenu: ApiMenuItem[] | undefined;
+        // 1) Menú de GeneXus (fuente principal)
+        let geneXusMenu: ApiMenuItem[] = [];
         try {
           const data = await apiMenu();
           if (data?.resp) {
             try {
               const inner = JSON.parse(String(data.resp));
-              rawMenu = inner?.menu ?? inner?.sdtPuntosMenu ?? [];
+              geneXusMenu = inner?.menu ?? inner?.sdtPuntosMenu ?? [];
             } catch {
-              rawMenu = [];
+              geneXusMenu = [];
             }
           } else if (Array.isArray(data?.menu)) {
-            rawMenu = data.menu;
+            geneXusMenu = data.menu;
           } else if (Array.isArray(data?.sdtPuntosMenu)) {
-            rawMenu = data.sdtPuntosMenu;
-          } else {
-            rawMenu = [];
+            geneXusMenu = data.sdtPuntosMenu;
           }
         } catch {
-          // GeneXus no disponible → usar menú desde DB
-          console.warn("[Sidebar] GeneXus no disponible, usando menú desde DB");
-          try {
-            const dbData = await apiMenuDB();
-            rawMenu = Array.isArray(dbData?.menu) ? dbData.menu : [];
-          } catch (dbErr) {
-            console.error("[Sidebar] Error cargando menú desde DB:", dbErr);
-            rawMenu = [];
-          }
+          console.warn("[Sidebar] GeneXus no disponible, usando solo menú DB");
         }
+
+        // 2) Menú de la DB (Postgres). Aporta funcionalidades nuevas gestionadas
+        //    solo en Postgres (ej. Solicitudes) y sirve de fallback si GeneXus cayó.
+        let dbMenu: ApiMenuItem[] = [];
+        try {
+          const dbData = await apiMenuDB();
+          dbMenu = Array.isArray(dbData?.menu) ? dbData.menu : [];
+        } catch (dbErr) {
+          console.error("[Sidebar] Error cargando menú desde DB:", dbErr);
+        }
+
+        // 3) Merge: GeneXus como base + ítems DB cuya ruta no esté ya presente
+        const presentes = new Set(geneXusMenu.map((it) => lastSeg(it.path)));
+        const soloDB = dbMenu.filter((it) => {
+          const seg = lastSeg(it.path);
+          return seg && !presentes.has(seg);
+        });
+        const rawMenu = [...geneXusMenu, ...soloDB];
 
         const normalized = normalizeTree(rawMenu);
         if (mounted) setMenuTree(normalized);
