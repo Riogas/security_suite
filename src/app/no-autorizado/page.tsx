@@ -5,6 +5,7 @@ import Link from "next/link";
 import { headers, cookies } from "next/headers";
 import CopyClipboard from "./CopyClipboard";
 import CurrentDateTime from "./CurrentDateTime";
+import SolicitarAcceso from "./SolicitarAcceso";
 
 type Search = Record<string, string | string[] | undefined>;
 type PageProps = { searchParams: Promise<Search> };
@@ -94,19 +95,22 @@ export default async function NoAutorizado({ searchParams }: PageProps) {
           </div>
         )}
 
-        <div className="flex w-full gap-3">
-          <Link
-            href="/"
-            className="flex-1 px-5 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition text-center"
-          >
-            Volver al inicio
-          </Link>
-          <a
-            href={mailto}
-            className="flex-1 px-5 py-2 rounded-lg bg-secondary text-secondary-foreground font-semibold hover:bg-secondary/80 transition text-center"
-          >
-            Solicitar acceso
-          </a>
+        <div className="flex w-full flex-col gap-3">
+          <SolicitarAcceso ruta={ruta} nombre={nombre} code={code} />
+          <div className="flex w-full gap-3">
+            <Link
+              href="/"
+              className="flex-1 px-5 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition text-center"
+            >
+              Volver al inicio
+            </Link>
+            <a
+              href={mailto}
+              className="flex-1 px-5 py-2 rounded-lg bg-secondary text-secondary-foreground font-semibold hover:bg-secondary/80 transition text-center"
+            >
+              Avisar por email
+            </a>
+          </div>
         </div>
       </div>
     </div>

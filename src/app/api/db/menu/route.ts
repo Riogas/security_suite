@@ -13,6 +13,7 @@ const FUNCIONALIDAD_ROUTE_MAP: Record<string, { path: string; icon: string; orde
   funcionalidades:{ path: "/dashboard/funcionalidades", icon: "settings",    order: 4 },
   accesos:        { path: "/dashboard/accesos",         icon: "lock",        order: 5 },
   objetos:        { path: "/dashboard/objetos",         icon: "layers",      order: 6 },
+  solicitudes:    { path: "/dashboard/solicitudes",     icon: "inbox",       order: 7 },
   dashboard:      { path: "/dashboard",                 icon: "home",        order: 0 },
 };
 
