@@ -13,7 +13,8 @@
  * Uso:
  *   pnpm seed:solicitudes
  *   pnpm seed:solicitudes --app=3
- *   pnpm seed:solicitudes --grant-root   (otorga la funcionalidad a todos los es_root='S')
+ *   pnpm seed:solicitudes --grant-root          (otorga a todos los es_root='S')
+ *   pnpm seed:solicitudes --grant-user=jgomez   (otorga a usuarios puntuales, coma-separados)
  */
 
 import * as dotenv from "dotenv";
@@ -157,6 +158,30 @@ async function main() {
       });
     }
     console.log(`  ✓ Funcionalidad otorgada a ${roots.length} usuario(s) root`);
+  }
+
+  // 6. (opcional) Otorgar a usuarios puntuales por username
+  const grantUserArg = getArg("grant-user");
+  if (grantUserArg) {
+    const usernames = grantUserArg.split(",").map((u) => u.trim()).filter(Boolean);
+    for (const uname of usernames) {
+      const u = await prisma.usuario.findFirst({
+        where: { username: { equals: uname, mode: "insensitive" }, estado: "A" },
+        select: { id: true, username: true },
+      });
+      if (!u) {
+        console.warn(`  ⚠ Usuario "${uname}" no encontrado o inactivo — omitido`);
+        continue;
+      }
+      await prisma.acceso.upsert({
+        where: {
+          funcionalidadId_usuarioId: { funcionalidadId: funcionalidad.id, usuarioId: u.id },
+        },
+        update: { efecto: "grant", creadoEn: "seed" },
+        create: { funcionalidadId: funcionalidad.id, usuarioId: u.id, efecto: "grant", creadoEn: "seed" },
+      });
+      console.log(`  ✓ Funcionalidad otorgada a ${u.username}`);
+    }
   }
 
   console.log("✔ Seed completo.");
