@@ -32,7 +32,7 @@ export default function ObjetosTable() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
   const [esPublico, setEsPublico] = useState(false);
-  const [tipo, setTipo] = useState("");
+  const [tipo, setTipo] = useState("todos");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -54,7 +54,7 @@ export default function ObjetosTable() {
           filtro: debouncedSearch,
           estado: estado === "todos" ? undefined : estado,
           esPublico: esPublico ? "S" : undefined,
-          tipo: tipo || undefined,
+          tipo: tipo === "todos" ? undefined : tipo,
           page,
           pageSize,
         });
@@ -163,9 +163,9 @@ export default function ObjetosTable() {
           setPage(1);
         }}
       >
-        <SelectTrigger className="w-32">{tipo || "Tipo"}</SelectTrigger>
+        <SelectTrigger className="w-32">{tipo === "todos" ? "Tipo" : tipo}</SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Todos</SelectItem>
+          <SelectItem value="todos">Todos</SelectItem>
           {["MENU", "PAGE", "FEATURE"].map((t) => (
             <SelectItem key={t} value={t}>
               {t}
