@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { EFECTOS_ALLOW, resolveAplicacionId } from "@/lib/permisos";
 
 // =====================================================================
 // POST /api/db/permisos
@@ -155,7 +156,7 @@ async function evaluarPermiso(
     where: {
       usuarioId,
       funcionalidadId: { in: funcIds },
-      efecto:          "ALLOW",
+      efecto:          { in: EFECTOS_ALLOW },
       OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
       AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
     },
@@ -179,13 +180,14 @@ async function evaluarPermiso(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { aplicacion, permisos: permisosArray, ...singleItem } = body as {
-      aplicacion?: string;
-      permisos?:   PermisoInput[];
+    const { aplicacion, AplicacionId, permisos: permisosArray, ...singleItem } = body as {
+      aplicacion?:  string;
+      AplicacionId?: number | string;
+      permisos?:    PermisoInput[];
     } & PermisoInput;
 
-    if (!aplicacion) {
-      return NextResponse.json({ error: "MISSING_PARAMS", detail: "aplicacion es requerido" }, { status: 400 });
+    if (!aplicacion && AplicacionId == null) {
+      return NextResponse.json({ error: "MISSING_PARAMS", detail: "AplicacionId o aplicacion es requerido" }, { status: 400 });
     }
 
     // Auth
@@ -234,16 +236,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Aplicacion
-    const app = await prisma.aplicacion.findFirst({
-      where: { nombre: { equals: String(aplicacion).trim(), mode: "insensitive" }, estado: "A" },
-      select: { id: true },
-    });
+    // Aplicacion — acepta AplicacionId (número) o aplicacion (nombre)
+    const appId = await resolveAplicacionId(AplicacionId, aplicacion);
 
-    if (!app) {
+    if (!appId) {
       const d: PermisoResultado = { permitido: "DENIED", razon: "APP_NOT_FOUND", objetoKey: "" };
       return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d);
     }
+    const app = { id: appId };
 
     // Roles activos (calculado una vez, reutilizado en batch)
     const now = new Date();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
+import { EFECTOS_ALLOW } from "@/lib/permisos";
 
 const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
 
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
 
       // También incluir accesos directos del usuario (efecto ALLOW)
       const accesosDirectos = await prisma.acceso.findMany({
-        where: { usuarioId: userId, efecto: "ALLOW" },
+        where: { usuarioId: userId, efecto: { in: EFECTOS_ALLOW } },
         select: { funcionalidadId: true },
       });
       const directIds = accesosDirectos.map((a) => a.funcionalidadId);
