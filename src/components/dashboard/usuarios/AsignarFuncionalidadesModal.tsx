@@ -312,7 +312,7 @@ export default function AsignarFuncionalidadesModal({
         </div>
 
         {/* Lista */}
-        <div className="overflow-auto border rounded-lg flex-1 min-h-0">
+        <div className="overflow-auto border rounded-lg flex-1 min-h-0 max-h-[calc(90vh-340px)]">
           {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="text-center">
