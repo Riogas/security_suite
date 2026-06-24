@@ -4,8 +4,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { type ColumnDef } from "@tanstack/react-table";
-import { apiAccesosDB, apiEliminarAccesoDB, type AccesoDB } from "@/services/api";
+import {
+  apiAccesosDB,
+  apiEliminarAccesoDB,
+  apiAplicacionesDB,
+  type AccesoDB,
+  type AplicacionDB,
+} from "@/services/api";
 import { Trash } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,6 +25,8 @@ export default function PermisosTable() {
   const [allRows, setAllRows] = useState<AccesoDB[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [aplicacionId, setAplicacionId] = useState("todos");
+  const [aplicaciones, setAplicaciones] = useState<AplicacionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -22,6 +36,18 @@ export default function PermisosTable() {
     const id = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(id);
   }, [search]);
+
+  // cargar aplicaciones para el filtro
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiAplicacionesDB({ estado: "A", pageSize: 1000 });
+        setAplicaciones(res?.items ?? []);
+      } catch (e) {
+        console.error("Error cargando aplicaciones:", e);
+      }
+    })();
+  }, []);
 
   // load all accesos (client-side pagination)
   useEffect(() => {
@@ -41,15 +67,18 @@ export default function PermisosTable() {
   // client-side filter + paginate
   const filtered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
-    if (!q) return allRows;
-    return allRows.filter(
-      (a) =>
+    const appId = aplicacionId === "todos" ? null : Number(aplicacionId);
+    return allRows.filter((a) => {
+      if (appId !== null && a.funcionalidad?.aplicacion?.id !== appId) return false;
+      if (!q) return true;
+      return (
         a.funcionalidad?.nombre?.toLowerCase().includes(q) ||
         a.usuario?.username?.toLowerCase().includes(q) ||
         a.usuario?.nombre?.toLowerCase().includes(q) ||
-        a.funcionalidad?.aplicacion?.nombre?.toLowerCase().includes(q),
-    );
-  }, [allRows, debouncedSearch]);
+        a.funcionalidad?.aplicacion?.nombre?.toLowerCase().includes(q)
+      );
+    });
+  }, [allRows, debouncedSearch, aplicacionId]);
 
   const pageSlice = useMemo(
     () => filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -131,6 +160,29 @@ export default function PermisosTable() {
       searchValue={search}
       onSearchChange={(v) => { setSearch(v); setPage(1); }}
       searchPlaceholder="Buscar acceso..."
+      filters={
+        <Select
+          value={aplicacionId}
+          onValueChange={(v) => {
+            setAplicacionId(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-44">
+            {aplicacionId === "todos"
+              ? "Aplicación"
+              : aplicaciones.find((a) => String(a.id) === aplicacionId)?.nombre ?? "Aplicación"}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas</SelectItem>
+            {aplicaciones.map((a) => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {a.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
       emptyTitle="Sin permisos"
       emptyDescription="No se encontraron accesos con los filtros actuales."
       pageSizeOptions={[10, 25, 50]}
