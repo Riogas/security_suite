@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
 // ── Árbol jerárquico desde objetos MENU/SUBMENU y sus ObjetoAcciones ─────────
 async function construirArbol(
   aplicacionId: number,
-  funcionalidades: { objetoKey: string | null; accionKey: string | null }[],
+  funcionalidades: { id: number; objetoKey: string | null; accionKey: string | null }[],
   gating: boolean,
 ): Promise<MenuNode[]> {
   const objetos = await prisma.objeto.findMany({
@@ -151,11 +151,33 @@ async function construirArbol(
   const objetosByKey = new Map(objetos.map((o) => [o.key.toLowerCase(), o]));
   const objetosById = new Map(objetos.map((o) => [o.id, o]));
 
-  // Set de puntos accesibles: "objetoKey|accionKey" (accionKey puede ser codigo o key)
+  // Set de puntos accesibles: "objetoKey|accionKey" (accionKey puede ser codigo o key).
+  // Se arma desde DOS fuentes:
+  //  (1) los campos desnormalizados objetoKey/accionKey de la funcionalidad
+  //      (algunas funcs solo tienen esto, sin vínculos), y
+  //  (2) la tabla FuncionalidadObjetoAccion, que es donde realmente vive el
+  //      conjunto COMPLETO de objeto+acción que otorga una funcionalidad
+  //      (una funcionalidad puede otorgar varios puntos del menú).
   const accesibles = new Set<string>();
   for (const f of funcionalidades) {
     if (f.objetoKey && f.accionKey) {
       accesibles.add(`${f.objetoKey.toLowerCase()}|${f.accionKey}`);
+    }
+  }
+  const funcIds = funcionalidades.map((f) => f.id);
+  if (funcIds.length > 0) {
+    const links = await prisma.funcionalidadObjetoAccion.findMany({
+      where: { funcionalidadId: { in: funcIds } },
+      select: {
+        objeto: { select: { key: true } },
+        objetoAccion: { select: { key: true, codigo: true } },
+      },
+    });
+    for (const l of links) {
+      if (!l.objeto || !l.objetoAccion) continue;
+      const ok = l.objeto.key.toLowerCase();
+      if (l.objetoAccion.codigo) accesibles.add(`${ok}|${l.objetoAccion.codigo}`);
+      if (l.objetoAccion.key) accesibles.add(`${ok}|${l.objetoAccion.key}`);
     }
   }
   const esAccesible = (parentKey: string, accion: { key: string; codigo: string | null }) => {
