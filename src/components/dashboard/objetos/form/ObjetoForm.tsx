@@ -35,7 +35,7 @@ import IconPicker, { type IconName } from "@/components/dashboard/iconpicker";
 export type EstadoCode = "A" | "I";
 export type TipoCode = "PAGE" | "FEATURE";
 
-type Accion = { uid: string; key: string; descripcion: string; codigo: string };
+type Accion = { uid: string; key: string; descripcion: string; codigo: string; path: string };
 
 export type ObjetoFormState = {
   objetoid: string;
@@ -82,6 +82,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
       key: a.key ?? a.accionkey ?? "",
       descripcion: a.descripcion ?? a.acciondescripcion ?? "",
       codigo: a.codigo ?? a.accioncodigo ?? "",
+      path: a.path ?? a.accionpath ?? "",
     }));
 
   const [form, setForm] = useState<ObjetoFormState>({
@@ -144,7 +145,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
     const codigo = key && form.objetokey ? await generarAccionCodigo(form.objetokey, key) : "";
     setForm((p) => ({
       ...p,
-      acciones: [...p.acciones, { uid: genUid(), key, descripcion, codigo }],
+      acciones: [...p.acciones, { uid: genUid(), key, descripcion, codigo, path: "" }],
     }));
   };
 
@@ -182,6 +183,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
           key: a.key.trim(),
           descripcion: a.descripcion || null,
           codigo: a.codigo || null,
+          path: a.path?.trim() || null,
           creadoEn,
         }));
 
@@ -348,7 +350,9 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Las acciones que las funcionalidades pueden otorgar sobre este objeto. El
-            código se genera automáticamente.
+            código se genera automáticamente. La <strong>ruta</strong> admite patrones
+            con parámetros — ej. <code>/clientes/:id</code>, <code>/clientes/:id/editar</code> —
+            para que el permiso aplique a cualquier id.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -376,16 +380,17 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[28%]">Clave</TableHead>
+                  <TableHead className="w-[18%]">Clave</TableHead>
                   <TableHead>Descripción</TableHead>
-                  <TableHead className="w-[180px]">Código</TableHead>
+                  <TableHead className="w-[26%]">Ruta (patrón)</TableHead>
+                  <TableHead className="w-[150px]">Código</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {form.acciones.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
                       Sin acciones. Agregá una con los botones de arriba.
                     </TableCell>
                   </TableRow>
@@ -404,6 +409,14 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
                           value={a.descripcion}
                           onChange={(e) => updateAccion(a.uid, { descripcion: e.target.value })}
                           placeholder="Descripción"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={a.path}
+                          onChange={(e) => updateAccion(a.uid, { path: e.target.value })}
+                          placeholder="/clientes/:id"
+                          className="font-mono text-xs"
                         />
                       </TableCell>
                       <TableCell>
