@@ -2063,8 +2063,12 @@ export const apiSetAccionesFuncionalidadDB = async (
 
 // ─── Menú DB ─────────────────────────────────────────────────────────────────
 
-export const apiMenuDB = async (): Promise<{ success: boolean; menu: any[] }> =>
-  dbFetch("/api/db/menu");
+export const apiMenuDB = async (
+  aplicacionId?: number,
+): Promise<{ success: boolean; menu: any[] }> =>
+  dbFetch(
+    aplicacionId ? `/api/db/menu?aplicacionId=${aplicacionId}` : "/api/db/menu",
+  );
 
 // ─── Permisos DB ─────────────────────────────────────────────────────────────
 

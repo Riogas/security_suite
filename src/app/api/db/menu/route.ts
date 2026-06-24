@@ -27,8 +27,13 @@ function normalizeKey(nombre: string): string {
 // Si no hay auth, devuelve todas las funcionalidades activas (modo fallback para sidebar).
 export async function GET(request: NextRequest) {
   try {
+    // aplicacionId: query param ?aplicacionId= tiene prioridad; si no, el del env.
+    const qpAplicacionId = new URL(request.url).searchParams.get("aplicacionId");
     const aplicacionId = Number(
-      process.env.NEXT_PUBLIC_APLICACION_ID || process.env.APLICACION_ID || 0,
+      qpAplicacionId ||
+        process.env.NEXT_PUBLIC_APLICACION_ID ||
+        process.env.APLICACION_ID ||
+        0,
     );
 
     // Intentar extraer usuario del JWT para filtrar por roles
