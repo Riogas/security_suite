@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -198,11 +198,6 @@ export default function RoleForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(initialData)]);
-
-  const estadoLabel = useMemo(
-    () => (form.rolestado === "A" ? "Activo" : "Inactivo"),
-    [form.rolestado],
-  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -498,9 +493,7 @@ export default function RoleForm({
                   onValueChange={(v: EstadoCode) => setField("rolestado", v)}
                 >
                   <SelectTrigger id="rolestado">
-                    <SelectValue placeholder="Estado">
-                      {estadoLabel}
-                    </SelectValue>
+                    <SelectValue placeholder="Estado" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="A">Activo</SelectItem>
@@ -538,12 +531,7 @@ export default function RoleForm({
                   }}
                 >
                   <SelectTrigger id="aplicacionid">
-                    <SelectValue placeholder="Aplicación">
-                      {
-                        appOptions.find((a) => a.value === form.aplicacionid)
-                          ?.label
-                      }
-                    </SelectValue>
+                    <SelectValue placeholder="Aplicación" />
                   </SelectTrigger>
                   <SelectContent>
                     {appOptions.map((opt) => (

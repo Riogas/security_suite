@@ -234,9 +234,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
               <Label htmlFor="aplicacionid">Aplicación</Label>
               <Select value={form.aplicacionid} onValueChange={(v) => setField("aplicacionid", v)}>
                 <SelectTrigger id="aplicacionid">
-                  <SelectValue placeholder="Aplicación">
-                    {appOptions.find((a) => a.value === form.aplicacionid)?.label}
-                  </SelectValue>
+                  <SelectValue placeholder="Aplicación" />
                 </SelectTrigger>
                 <SelectContent>
                   {appOptions.map((opt) => (
@@ -255,7 +253,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
                 onValueChange={(v: TipoCode) => setField("objetotipo", v)}
               >
                 <SelectTrigger id="objetotipo">
-                  <SelectValue>{form.objetotipo}</SelectValue>
+                  <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PAGE">PAGE</SelectItem>
@@ -271,7 +269,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
                 onValueChange={(v: EstadoCode) => setField("objetoestado", v)}
               >
                 <SelectTrigger id="objetoestado">
-                  <SelectValue>{form.objetoestado === "A" ? "Activo" : "Inactivo"}</SelectValue>
+                  <SelectValue placeholder="Estado" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="A">Activo</SelectItem>
