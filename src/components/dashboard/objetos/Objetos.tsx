@@ -92,6 +92,13 @@ export default function ObjetosTable() {
 
   const columns: ColumnDef<ObjetoRow, unknown>[] = [
     {
+      id: "aplicacion",
+      header: "Aplicación",
+      cell: ({ row }) =>
+        row.original?.aplicacion?.nombre ??
+        (row.original?.aplicacionId ? `#${row.original.aplicacionId}` : "—"),
+    },
+    {
       id: "key",
       header: "Clave",
       cell: ({ row }) => row.original?.key ?? "",
@@ -105,13 +112,6 @@ export default function ObjetosTable() {
       id: "path",
       header: "Path",
       cell: ({ row }) => row.original?.path ?? "",
-    },
-    {
-      id: "aplicacion",
-      header: "Aplicación",
-      cell: ({ row }) =>
-        row.original?.aplicacion?.nombre ??
-        (row.original?.aplicacionId ? `#${row.original.aplicacionId}` : "—"),
     },
     { accessorKey: "tipo", header: "Tipo" },
     {
