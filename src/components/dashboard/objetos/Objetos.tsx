@@ -11,6 +11,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
+import { Badge } from "@/components/ui/badge";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   apiObjetosDB,
@@ -21,6 +22,13 @@ import {
 import { Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+
+const TIPO_CHIP: Record<string, string> = {
+  MENU: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300",
+  SUBMENU: "bg-violet-500/15 text-violet-600 dark:text-violet-300",
+  PAGE: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+  FEATURE: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+};
 
 type ObjetoRow = {
   id: number;
@@ -113,7 +121,20 @@ export default function ObjetosTable() {
       header: "Path",
       cell: ({ row }) => row.original?.path ?? "",
     },
-    { accessorKey: "tipo", header: "Tipo" },
+    {
+      id: "tipo",
+      header: "Tipo",
+      cell: ({ row }) => {
+        const t = row.original?.tipo ?? "";
+        return t ? (
+          <Badge variant="secondary" className={`text-[10px] ${TIPO_CHIP[t] ?? ""}`}>
+            {t}
+          </Badge>
+        ) : (
+          ""
+        );
+      },
+    },
     {
       id: "estado",
       header: "Estado",
@@ -195,7 +216,7 @@ export default function ObjetosTable() {
         <SelectTrigger className="w-32">{tipo === "todos" ? "Tipo" : tipo}</SelectTrigger>
         <SelectContent>
           <SelectItem value="todos">Todos</SelectItem>
-          {["MENU", "PAGE", "FEATURE"].map((t) => (
+          {["MENU", "SUBMENU", "PAGE", "FEATURE"].map((t) => (
             <SelectItem key={t} value={t}>
               {t}
             </SelectItem>
