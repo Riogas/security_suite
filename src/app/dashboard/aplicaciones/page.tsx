@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +13,7 @@ export default function AplicacionesPage() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={LayoutGrid}
         title="Aplicaciones"
         description="Administración de aplicaciones integradas al sistema."
         actions={

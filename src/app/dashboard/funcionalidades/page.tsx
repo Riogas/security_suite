@@ -1,5 +1,6 @@
 "use client";
 
+import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePageTransition } from "@/hooks/usePageTransition";
 
@@ -12,6 +13,7 @@ export default function Page() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={Settings2}
         title="Funcionalidades"
         description="Gestión de funcionalidades disponibles en el sistema."
         actions={
