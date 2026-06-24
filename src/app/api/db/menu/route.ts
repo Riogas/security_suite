@@ -142,13 +142,14 @@ async function construirArbol(
       tipo: true,
       orden: true,
       acciones: {
-        select: { id: true, key: true, label: true, path: true, icon: true, codigo: true },
+        select: { id: true, key: true, label: true, path: true, icon: true, codigo: true, relacion: true },
         orderBy: { id: "asc" },
       },
     },
   });
 
   const objetosByKey = new Map(objetos.map((o) => [o.key.toLowerCase(), o]));
+  const objetosById = new Map(objetos.map((o) => [o.id, o]));
 
   // Set de puntos accesibles: "objetoKey|accionKey" (accionKey puede ser codigo o key)
   const accesibles = new Set<string>();
@@ -175,7 +176,10 @@ async function construirArbol(
     const nodes: MenuNode[] = [];
     let i = 0;
     for (const accion of objeto.acciones) {
-      const childObj = objetosByKey.get(accion.key.toLowerCase());
+      // El enlace acción → sub-objeto es por `relacion` (id); fallback por key.
+      const childObj =
+        (accion.relacion != null ? objetosById.get(accion.relacion) : undefined) ??
+        objetosByKey.get(accion.key.toLowerCase());
       const isContainer =
         childObj && (childObj.tipo === "SUBMENU" || childObj.tipo === "MENU");
 
