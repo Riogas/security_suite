@@ -143,7 +143,7 @@ async function construirArbol(
       orden: true,
       acciones: {
         select: { id: true, key: true, label: true, path: true, icon: true, codigo: true, relacion: true },
-        orderBy: { id: "asc" },
+        orderBy: [{ orden: "asc" }, { id: "asc" }],
       },
     },
   });

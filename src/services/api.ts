@@ -2070,6 +2070,51 @@ export const apiMenuDB = async (
     aplicacionId ? `/api/db/menu?aplicacionId=${aplicacionId}` : "/api/db/menu",
   );
 
+// ─── Menu Builder (estructura MENU/SUBMENU como árbol) ───────────────────────
+
+export type MenuNodeKind = "GROUP" | "SUBMENU" | "LINK";
+
+export interface MenuBuilderNode {
+  nodeKind: MenuNodeKind;
+  objetoId?: number;
+  objetoAccionId?: number;
+  key: string;
+  label: string;
+  path: string;
+  icon: string;
+  estado: "A" | "I";
+  targetObjetoId?: number | null;
+  children?: MenuBuilderNode[];
+}
+
+export interface MenuBuilderRecurso {
+  id: number;
+  key: string;
+  label: string | null;
+  path: string | null;
+  tipo: string;
+}
+
+export interface MenuBuilderResponse {
+  success: boolean;
+  tree: MenuBuilderNode[];
+  recursos: MenuBuilderRecurso[];
+}
+
+export const apiMenuBuilderGet = async (
+  aplicacionId: number,
+): Promise<MenuBuilderResponse> =>
+  dbFetch(`/api/db/menu/builder?aplicacionId=${aplicacionId}`);
+
+export const apiMenuBuilderSave = async (
+  aplicacionId: number,
+  tree: MenuBuilderNode[],
+) =>
+  dbFetch("/api/db/menu/builder", {
+    method: "PUT",
+    body: JSON.stringify({ aplicacionId, tree }),
+  });
+
 // ─── Permisos DB ─────────────────────────────────────────────────────────────
 
 export const apiPermisosDB = async (payload: {
