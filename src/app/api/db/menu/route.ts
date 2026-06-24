@@ -95,21 +95,79 @@ export async function GET(request: NextRequest) {
 
     const funcionalidades = await prisma.funcionalidad.findMany({
       where,
+      select: { id: true, nombre: true, objetoKey: true },
       orderBy: { nombre: "asc" },
     });
 
-    // Construir árbol de menú
+    const funcIds = funcionalidades.map((f) => f.id);
+
+    // Resolver el Objeto representativo de cada funcionalidad (fuente de verdad
+    // de path/label/icon/key). Se prioriza el vínculo FuncionalidadObjetoAccion.
+    type ObjMenu = {
+      key: string;
+      label: string | null;
+      path: string | null;
+      icon: string | null;
+      tipo: string;
+      orden: number;
+    };
+    const objetoPorFunc = new Map<number, ObjMenu>();
+    const score = (o: ObjMenu) =>
+      (o.path ? 2 : 0) + (o.tipo === "MENU" || o.tipo === "PAGE" ? 1 : 0);
+
+    if (funcIds.length > 0) {
+      const links = await prisma.funcionalidadObjetoAccion.findMany({
+        where: { funcionalidadId: { in: funcIds }, objeto: { estado: "A" } },
+        select: {
+          funcionalidadId: true,
+          objeto: {
+            select: { key: true, label: true, path: true, icon: true, tipo: true, orden: true },
+          },
+        },
+      });
+      for (const l of links) {
+        if (!l.objeto) continue;
+        const prev = objetoPorFunc.get(l.funcionalidadId);
+        if (!prev || score(l.objeto) > score(prev)) {
+          objetoPorFunc.set(l.funcionalidadId, l.objeto);
+        }
+      }
+
+      // Fallback por objetoKey para funcionalidades sin vínculo en la tabla
+      const faltantes = funcionalidades.filter(
+        (f) => !objetoPorFunc.has(f.id) && f.objetoKey,
+      );
+      if (faltantes.length > 0) {
+        const keys = [...new Set(faltantes.map((f) => f.objetoKey as string))];
+        const objs = await prisma.objeto.findMany({
+          where: {
+            key: { in: keys },
+            estado: "A",
+            ...(aplicacionId ? { aplicacionId } : {}),
+          },
+          select: { key: true, label: true, path: true, icon: true, tipo: true, orden: true },
+        });
+        const byKey = new Map(objs.map((o) => [o.key, o]));
+        for (const f of faltantes) {
+          const o = byKey.get(f.objetoKey as string);
+          if (o) objetoPorFunc.set(f.id, o);
+        }
+      }
+    }
+
+    // Construir árbol de menú. Prioridad: Objeto > FUNCIONALIDAD_ROUTE_MAP > derivado del nombre
     const menuItems = funcionalidades
       .map((func) => {
-        const key = normalizeKey(func.nombre);
-        const route = FUNCIONALIDAD_ROUTE_MAP[key];
+        const obj = objetoPorFunc.get(func.id);
+        const nameKey = normalizeKey(func.nombre);
+        const route = FUNCIONALIDAD_ROUTE_MAP[nameKey];
         return {
-          key: func.nombre.toLowerCase().replace(/\s+/g, "-"),
-          label: func.nombre,
-          path: route?.path ?? `/dashboard/${key}`,
-          icon: route?.icon ?? "menu",
-          type: "PAGE",
-          order: route?.order ?? 99,
+          key: obj?.key ?? func.nombre.toLowerCase().replace(/\s+/g, "-"),
+          label: obj?.label ?? func.nombre,
+          path: obj?.path ?? route?.path ?? `/dashboard/${nameKey}`,
+          icon: obj?.icon ?? route?.icon ?? "menu",
+          type: obj?.tipo ?? "PAGE",
+          order: obj?.orden ?? route?.order ?? 99,
           children: [],
         };
       })

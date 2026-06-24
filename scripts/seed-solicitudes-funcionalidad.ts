@@ -62,7 +62,7 @@ async function main() {
         tipo: "PAGE",
         key: "solicitudes",
         label: "Solicitudes de acceso",
-        path: "/solicitudes",
+        path: "/dashboard/solicitudes",
         estado: "A",
         esPublico: "N",
         orden: 7,
