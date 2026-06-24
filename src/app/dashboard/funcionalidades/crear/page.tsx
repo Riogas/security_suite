@@ -1,16 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import FuncionalidadForm from "@/components/dashboard/funcionalidades/FuncionalidadForm";
 
 export default function CrearFuncionalidadPage() {
-  const handleSubmit = (data: any) => {
-    console.log("submit crear funcionalidad", data);
-  };
+  const router = useRouter();
   return (
     <FuncionalidadForm
       mode="create"
-      onSave={handleSubmit}
-      onCancel={() => history.back()}
+      onSave={() => router.push("/dashboard/funcionalidades")}
+      onCancel={() => router.push("/dashboard/funcionalidades")}
     />
   );
 }

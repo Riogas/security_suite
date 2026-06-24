@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
   apiAplicacionesDB,
   apiObjetosDB,
@@ -274,6 +275,12 @@ export default function FuncionalidadForm({
         await apiSetAccionesFuncionalidadDB(funcId, objetoItems);
       }
 
+      toast.success(
+        mode === "edit"
+          ? "Funcionalidad actualizada correctamente"
+          : "Funcionalidad creada correctamente",
+      );
+
       if (onSave) {
         onSave({ ...formData, selectedItems, id: funcId });
       }
@@ -281,6 +288,7 @@ export default function FuncionalidadForm({
       const msg = error?.message || "Error desconocido al guardar";
       console.error("Error guardando funcionalidad:", error);
       setSaveError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
