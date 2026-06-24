@@ -12,7 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
 import { type ColumnDef } from "@tanstack/react-table";
-import { apiObjetosDB, apiEliminarObjetoDB } from "@/services/api";
+import {
+  apiObjetosDB,
+  apiEliminarObjetoDB,
+  apiAplicacionesDB,
+  type AplicacionDB,
+} from "@/services/api";
 import { Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -24,6 +29,8 @@ type ObjetoRow = {
   path?: string;
   tipo?: string;
   estado: string;
+  aplicacionId?: number;
+  aplicacion?: { id: number; nombre: string };
 };
 
 export default function ObjetosTable() {
@@ -33,6 +40,8 @@ export default function ObjetosTable() {
   const [estado, setEstado] = useState("todos");
   const [esPublico, setEsPublico] = useState(false);
   const [tipo, setTipo] = useState("todos");
+  const [aplicacionId, setAplicacionId] = useState("todos");
+  const [aplicaciones, setAplicaciones] = useState<AplicacionDB[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -45,6 +54,18 @@ export default function ObjetosTable() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // cargar aplicaciones para el filtro
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiAplicacionesDB({ estado: "A", pageSize: 1000 });
+        setAplicaciones(res?.items ?? []);
+      } catch (e) {
+        console.error("Error cargando aplicaciones:", e);
+      }
+    })();
+  }, []);
+
   // load
   useEffect(() => {
     const ac = new AbortController();
@@ -55,6 +76,7 @@ export default function ObjetosTable() {
           estado: estado === "todos" ? undefined : estado,
           esPublico: esPublico ? "S" : undefined,
           tipo: tipo === "todos" ? undefined : tipo,
+          aplicacionId: aplicacionId === "todos" ? undefined : Number(aplicacionId),
           page,
           pageSize,
         });
@@ -66,7 +88,7 @@ export default function ObjetosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, esPublico, tipo, page, pageSize]);
+  }, [debouncedSearch, estado, esPublico, tipo, aplicacionId, page, pageSize]);
 
   const columns: ColumnDef<ObjetoRow, unknown>[] = [
     {
@@ -83,6 +105,13 @@ export default function ObjetosTable() {
       id: "path",
       header: "Path",
       cell: ({ row }) => row.original?.path ?? "",
+    },
+    {
+      id: "aplicacion",
+      header: "Aplicación",
+      cell: ({ row }) =>
+        row.original?.aplicacion?.nombre ??
+        (row.original?.aplicacionId ? `#${row.original.aplicacionId}` : "—"),
     },
     { accessorKey: "tipo", header: "Tipo" },
     {
@@ -169,6 +198,27 @@ export default function ObjetosTable() {
           {["MENU", "PAGE", "FEATURE"].map((t) => (
             <SelectItem key={t} value={t}>
               {t}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={aplicacionId}
+        onValueChange={(v) => {
+          setAplicacionId(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-44">
+          {aplicacionId === "todos"
+            ? "Aplicación"
+            : aplicaciones.find((a) => String(a.id) === aplicacionId)?.nombre ?? "Aplicación"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todas</SelectItem>
+          {aplicaciones.map((a) => (
+            <SelectItem key={a.id} value={String(a.id)}>
+              {a.nombre}
             </SelectItem>
           ))}
         </SelectContent>
