@@ -5,6 +5,13 @@ import {
   resolveAplicacionId,
   usuarioPuedeAprobar,
 } from "@/lib/permisos";
+import {
+  normPath,
+  patternToRegex,
+  specificity,
+  esNumerico,
+  recursoKeyDesdeRuta,
+} from "@/lib/routePattern";
 
 // =====================================================================
 // /api/db/solicitudes
@@ -58,28 +65,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Resolver o auto-crear el Objeto
-    let objeto = await prisma.objeto.findFirst({
-      where: { aplicacionId, key: objetoKey, tipo: objetoTipo },
-      select: { id: true },
-    });
+    // 1. Resolver o auto-crear el Objeto.
+    //    Importante: NO crear objetos con ids dinámicos (/moviles/10 -> "10").
+    //    a) Si la ruta matchea un patrón de acción existente -> usar ese objeto.
+    //    b) Si no, derivar la key del recurso REAL (primer segmento no numérico).
+    //    c) Solo crear si la key es un nombre real; el path queda como base (/dashboard/<key>).
+    let objeto: { id: number } | null = null;
     let objetoCreado = false;
+    const pathNorm = objetoPath ? normPath(String(objetoPath)) : null;
+
+    // (a) match por patrón contra acciones existentes
+    if (pathNorm && pathNorm !== "/") {
+      const acciones = await prisma.objetoAccion.findMany({
+        where: { path: { not: null }, objeto: { aplicacionId, estado: "A" } },
+        select: { objetoId: true, path: true },
+      });
+      const cand = acciones.filter((a) => a.path && patternToRegex(a.path).test(pathNorm));
+      if (cand.length > 0) {
+        cand.sort((a, b) => specificity(b.path as string) - specificity(a.path as string));
+        objeto = await prisma.objeto.findUnique({ where: { id: cand[0].objetoId }, select: { id: true } });
+      }
+    }
+
+    // (b/c) resolver por key real (no numérica)
     if (!objeto) {
-      objeto = await prisma.objeto.create({
-        data: {
-          aplicacionId,
-          tipo: objetoTipo,
-          key: objetoKey,
-          label: objetoKey,
-          path: objetoPath ? String(objetoPath).slice(0, 255) : null,
-          estado: "A",
-          esPublico: "N",
-          orden: 0,
-          creadoEn: usuario.username,
-        },
+      let resourceKey = objetoKey;
+      if (!resourceKey || esNumerico(resourceKey)) {
+        resourceKey = recursoKeyDesdeRuta(pathNorm ?? objetoKey);
+      }
+      if (!resourceKey || esNumerico(resourceKey)) {
+        return NextResponse.json(
+          { success: false, error: "RUTA_INVALIDA", detail: "No se pudo determinar un recurso real para la ruta" },
+          { status: 400 },
+        );
+      }
+
+      objeto = await prisma.objeto.findFirst({
+        where: { aplicacionId, key: resourceKey, tipo: objetoTipo },
         select: { id: true },
       });
-      objetoCreado = true;
+      if (!objeto) {
+        objeto = await prisma.objeto.create({
+          data: {
+            aplicacionId,
+            tipo: objetoTipo,
+            key: resourceKey,
+            label: resourceKey,
+            path: `/dashboard/${resourceKey}`,
+            estado: "A",
+            esPublico: "N",
+            orden: 0,
+            creadoEn: usuario.username,
+          },
+          select: { id: true },
+        });
+        objetoCreado = true;
+      }
     }
 
     // 2. ObjetoAccion (opcional)

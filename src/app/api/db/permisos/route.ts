@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { EFECTOS_ALLOW, resolveAplicacionId } from "@/lib/permisos";
+import { normPath, patternToRegex, specificity } from "@/lib/routePattern";
 
 // =====================================================================
 // POST /api/db/permisos
@@ -66,36 +67,6 @@ type PermisoResultado = {
 };
 
 // ── Matching de rutas por patrón (:param / *) ───────────────────────────────
-// Normaliza una ruta: asegura "/" inicial, quita prefijo /dashboard y "/" final.
-function normPath(p: string): string {
-  let s = (p || "").trim();
-  if (!s) return "/";
-  if (!s.startsWith("/")) s = "/" + s;
-  if (s.toLowerCase().startsWith("/dashboard")) s = s.slice("/dashboard".length) || "/";
-  s = s.replace(/\/+$/, "");
-  return s || "/";
-}
-
-// Convierte un patrón (ej. /clientes/:id/editar) a regex. ":x" → un segmento; "*" → resto.
-function patternToRegex(pattern: string): RegExp {
-  const parts = normPath(pattern)
-    .split("/")
-    .map((seg) => {
-      if (seg.startsWith(":")) return "[^/]+";
-      if (seg === "*") return ".*";
-      return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    });
-  return new RegExp("^" + parts.join("/") + "$", "i");
-}
-
-// Especificidad: más segmentos literales = más específico; menos params desempata.
-function specificity(pattern: string): number {
-  const segs = normPath(pattern).split("/").filter(Boolean);
-  const params = segs.filter((s) => s.startsWith(":") || s === "*").length;
-  const literales = segs.length - params;
-  return literales * 100 - params;
-}
-
 type AccionMatch = {
   objetoId: number;
   esPublico: string;

@@ -40,6 +40,7 @@ export default function EditarObjetoPage() {
             key: a.key ?? "",
             descripcion: a.descripcion ?? "",
             codigo: a.codigo ?? "",
+            path: a.path ?? "",
           })),
         };
         if (mounted) setInitialData(data);
