@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,6 +12,7 @@ export default function ObjetosPage() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={Layers}
         title="Objetos"
         description="Administración de objetos y estructura del menú del sistema."
         actions={

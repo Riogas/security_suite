@@ -36,9 +36,12 @@ import { authLog } from "@/lib/auth/logger";
  * Post-validación (antes de buildSuccessResponse):
  *  - assignDistribuidorIfNeeded: si el usuario tiene FWL_Distribuidor activo,
  *    asigna también el rol Distribuidor (idempotente).
+ *  - Filtro de escenario: si el usuario tiene escenario configurado, solo los
+ *    roles que aplican al escenario se incluyen en la respuesta (JWT + payload).
+ *    Si ningún rol aplica → FORBIDDEN_SCENARIO (403).
  *
  * Body: { UserName, Password, Sistema? }
- * Respuesta éxito: { success, token, user, verifiedBy, roles, preferencias, accesos }
+ * Respuesta éxito: { success, token, user, verifiedBy, roles, preferencias, accesos, escenario }
  *   verifiedBy ∈ { local-db, sgm, gsist, gsist-fallback, ldap, local-fallback }
  */
 export async function POST(request: NextRequest) {
@@ -58,6 +61,10 @@ export async function POST(request: NextRequest) {
     const result = await resolveCredentials(username, String(Password));
 
     if (!result.ok) {
+      if (result.outcome === "FORBIDDEN_SCENARIO") {
+        authLog.warn("login rechazado: FORBIDDEN_SCENARIO", { username });
+        return forbidden(result.message || "No tenés permisos para el escenario actual");
+      }
       switch (result.status) {
         case 400:
           return badRequest(result.message || "Solicitud inválida");
@@ -70,13 +77,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    authLog.info("login OK", { username, verifiedBy: result.verifiedBy, usuarioId: result.usuarioId });
+    authLog.info("login OK", {
+      username,
+      verifiedBy: result.verifiedBy,
+      usuarioId: result.usuarioId,
+      escenario: result.escenario,
+      applicableRolIds: result.applicableRolIds,
+    });
 
     // Post-validación: asignar roles implícitos antes de armar la respuesta,
     // para que el JWT y el payload ya los incluyan.
     await assignDistribuidorIfNeeded(result.usuarioId, username);
 
-    return buildSuccessResponse(result.usuarioId, sistema, result.verifiedBy);
+    return buildSuccessResponse(
+      result.usuarioId,
+      sistema,
+      result.verifiedBy,
+      result.applicableRolIds,
+      result.escenario,
+    );
   } catch (error) {
     authLog.error("login error inesperado", { message: (error as Error)?.message });
     return serverError();

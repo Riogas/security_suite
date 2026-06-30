@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { EFECTOS_ALLOW, resolveAplicacionId } from "@/lib/permisos";
+import { normPath, patternToRegex, specificity } from "@/lib/routePattern";
 
 // =====================================================================
 // POST /api/db/permisos
@@ -64,6 +66,44 @@ type PermisoResultado = {
   funcionalidadId?: number;
 };
 
+// ── Matching de rutas por patrón (:param / *) ───────────────────────────────
+type AccionMatch = {
+  objetoId: number;
+  esPublico: string;
+  oa: { id: number; key: string; codigo: string | null };
+};
+
+// Busca, entre las ObjetoAcciones de la app con `path` definido, la que matchea
+// la ruta concreta por patrón. Devuelve la más específica.
+async function matchObjetoPath(
+  aplicacionId: number,
+  objetoPath: string,
+): Promise<AccionMatch | null> {
+  const target = normPath(objetoPath);
+  const acciones = await prisma.objetoAccion.findMany({
+    where: { path: { not: null }, objeto: { aplicacionId, estado: "A" } },
+    select: {
+      id: true,
+      key: true,
+      codigo: true,
+      path: true,
+      objetoId: true,
+      objeto: { select: { esPublico: true } },
+    },
+  });
+
+  const candidatos = acciones.filter((a) => a.path && patternToRegex(a.path).test(target));
+  if (candidatos.length === 0) return null;
+
+  candidatos.sort((a, b) => specificity(b.path as string) - specificity(a.path as string));
+  const chosen = candidatos[0];
+  return {
+    objetoId: chosen.objetoId,
+    esPublico: chosen.objeto.esPublico,
+    oa: { id: chosen.id, key: chosen.key, codigo: chosen.codigo },
+  };
+}
+
 async function evaluarPermiso(
   aplicacionId: number,
   usuarioId:    number,
@@ -84,7 +124,13 @@ async function evaluarPermiso(
   const deny = (razon: string, extra: Partial<Base> = {}): PermisoResultado =>
     ({ ...base, ...extra, permitido: "DENIED",  razon });
 
-  // Objeto
+  // Objeto + ObjetoAccion. Estrategia: primero por key (exacto, comportamiento
+  // histórico); si falla y hay ObjetoPath, fallback a matching por PATRÓN
+  // (:param/*) — esto resuelve rutas dinámicas como /clientes/1, /clientes/5/editar.
+  let objetoId: number;
+  let objetoEsPublico: string;
+  let oa: { id: number; key: string; codigo: string | null } | null = null;
+
   const objeto = await prisma.objeto.findFirst({
     where: {
       aplicacionId,
@@ -95,24 +141,41 @@ async function evaluarPermiso(
     select: { id: true, esPublico: true },
   });
 
-  if (!objeto)                  return deny("OBJETO_NOT_FOUND");
-  if (objeto.esPublico === "S") return ok("PUBLIC_OBJECT");
+  if (objeto) {
+    objetoId = objeto.id;
+    objetoEsPublico = objeto.esPublico;
 
-  // ObjetoAccion
-  const accionFilter: Record<string, unknown>[] = [];
-  if (accionKey)  accionFilter.push({ key:    { equals: accionKey, mode: "insensitive" } });
-  if (accionCod)  accionFilter.push({ codigo: { equals: accionCod } });
-  if (objetoPath) accionFilter.push({ path:   { equals: objetoPath } });
+    const accionFilter: Record<string, unknown>[] = [];
+    if (accionKey)  accionFilter.push({ key:    { equals: accionKey, mode: "insensitive" } });
+    if (accionCod)  accionFilter.push({ codigo: { equals: accionCod } });
+    if (objetoPath) accionFilter.push({ path:   { equals: objetoPath } });
 
-  const oa = await prisma.objetoAccion.findFirst({
-    where: {
-      objetoId: objeto.id,
-      ...(accionFilter.length > 0 ? { OR: accionFilter } : {}),
-    },
-    select: { id: true, key: true, codigo: true },
-  });
+    oa = await prisma.objetoAccion.findFirst({
+      where: {
+        objetoId: objeto.id,
+        ...(accionFilter.length > 0 ? { OR: accionFilter } : {}),
+      },
+      select: { id: true, key: true, codigo: true },
+    });
 
-  if (accionFilter.length > 0 && !oa) return deny("OBJETO_ACCION_NOT_FOUND");
+    if (accionFilter.length > 0 && !oa) {
+      // No matcheó por key/código/path exacto → probar patrón
+      const m = objetoPath ? await matchObjetoPath(aplicacionId, objetoPath) : null;
+      if (!m) return deny("OBJETO_ACCION_NOT_FOUND");
+      objetoId = m.objetoId;
+      objetoEsPublico = m.esPublico;
+      oa = m.oa;
+    }
+  } else {
+    // Objeto no encontrado por key → resolver por patrón de ruta
+    const m = objetoPath ? await matchObjetoPath(aplicacionId, objetoPath) : null;
+    if (!m) return deny("OBJETO_NOT_FOUND");
+    objetoId = m.objetoId;
+    objetoEsPublico = m.esPublico;
+    oa = m.oa;
+  }
+
+  if (objetoEsPublico === "S") return ok("PUBLIC_OBJECT");
 
   const resolved: Base = {
     objetoKey,
@@ -127,7 +190,7 @@ async function evaluarPermiso(
   // FuncionalidadObjetoAccion -> Funcionalidades
   const funcLinks = await prisma.funcionalidadObjetoAccion.findMany({
     where: {
-      objetoId: objeto.id,
+      objetoId: objetoId,
       ...(oa ? { objetoAccionId: oa.id } : {}),
       funcionalidad: {
         aplicacionId,
@@ -155,7 +218,7 @@ async function evaluarPermiso(
     where: {
       usuarioId,
       funcionalidadId: { in: funcIds },
-      efecto:          "ALLOW",
+      efecto:          { in: EFECTOS_ALLOW },
       OR:  [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
       AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
     },
@@ -179,13 +242,14 @@ async function evaluarPermiso(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { aplicacion, permisos: permisosArray, ...singleItem } = body as {
-      aplicacion?: string;
-      permisos?:   PermisoInput[];
+    const { aplicacion, AplicacionId, permisos: permisosArray, ...singleItem } = body as {
+      aplicacion?:  string;
+      AplicacionId?: number | string;
+      permisos?:    PermisoInput[];
     } & PermisoInput;
 
-    if (!aplicacion) {
-      return NextResponse.json({ error: "MISSING_PARAMS", detail: "aplicacion es requerido" }, { status: 400 });
+    if (!aplicacion && AplicacionId == null) {
+      return NextResponse.json({ error: "MISSING_PARAMS", detail: "AplicacionId o aplicacion es requerido" }, { status: 400 });
     }
 
     // Auth
@@ -234,16 +298,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Aplicacion
-    const app = await prisma.aplicacion.findFirst({
-      where: { nombre: { equals: String(aplicacion).trim(), mode: "insensitive" }, estado: "A" },
-      select: { id: true },
-    });
+    // Aplicacion — acepta AplicacionId (número) o aplicacion (nombre)
+    const appId = await resolveAplicacionId(AplicacionId, aplicacion);
 
-    if (!app) {
+    if (!appId) {
       const d: PermisoResultado = { permitido: "DENIED", razon: "APP_NOT_FOUND", objetoKey: "" };
       return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d);
     }
+    const app = { id: appId };
 
     // Roles activos (calculado una vez, reutilizado en batch)
     const now = new Date();

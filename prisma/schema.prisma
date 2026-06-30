@@ -19,6 +19,7 @@ model Aplicacion {
   funcionalidades Funcionalidad[]
   objetos         Objeto[]
   roles           Rol[]
+  solicitudes     SolicitudPermiso[]
 
   @@map("aplicaciones")
 }
@@ -51,6 +52,7 @@ model Usuario {
   accesos            Acceso[]
   preferencias       UsuarioPreferencia[]
   roles              UsuarioRol[]
+  solicitudes        SolicitudPermiso[]
 
   @@index([email], map: "idx_usuarios_email")
   @@index([estado], map: "idx_usuarios_estado")
@@ -130,6 +132,7 @@ model Funcionalidad {
   objetoAcciones FuncionalidadObjetoAccion[]
   aplicacion    Aplicacion            @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   roles         RolFuncionalidad[]
+  solicitudes   SolicitudPermiso[]
 
   @@index([aplicacionId], map: "idx_funcionalidades_aplicacion")
   @@index([estado], map: "idx_funcionalidades_estado")
@@ -190,6 +193,7 @@ model Objeto {
   hijos         Objeto[]       @relation("ObjetoHijos")
   acciones      ObjetoAccion[]
   funcionalidades FuncionalidadObjetoAccion[]
+  solicitudes   SolicitudPermiso[]
 
   @@index([aplicacionId], map: "idx_objetos_aplicacion")
   @@index([estado], map: "idx_objetos_estado")
@@ -206,6 +210,7 @@ model ObjetoAccion {
   path        String? @db.VarChar(255)
   icon        String? @db.VarChar(60)
   relacion    Int?
+  orden       Int     @default(0)
   creadoEn    String? @map("creado_en") @db.VarChar(60)
   objeto      Objeto  @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   funcionalidades FuncionalidadObjetoAccion[]
@@ -239,4 +244,33 @@ model RolFuncionalidad {
   @@id([rolId, funcionalidadId])
   @@index([funcionalidadId], map: "idx_rol_funcionalidades_funcionalidad")
   @@map("rol_funcionalidades")
+}
+
+// Solicitud de acceso de autoservicio: un usuario pide permiso sobre un objeto+acción.
+// estado: PENDIENTE -> APROBADA | RECHAZADA | CANCELADA
+model SolicitudPermiso {
+  id                   Int            @id @default(autoincrement())
+  usuarioId            Int            @map("usuario_id")
+  aplicacionId         Int            @map("aplicacion_id")
+  objetoId             Int            @map("objeto_id")
+  objetoAccionId       Int?           @map("objeto_accion_id")
+  accionKey            String         @map("accion_key") @db.VarChar(60)
+  estado               String         @default("PENDIENTE") @db.VarChar(20)
+  motivoSolicitud      String?        @map("motivo_solicitud")
+  rutaSolicitada       String?        @map("ruta_solicitada") @db.VarChar(255)
+  accionCodigo         String?        @map("accion_codigo") @db.VarChar(20)
+  funcionalidadId      Int?           @map("funcionalidad_id")
+  resueltaPor          Int?           @map("resuelta_por")
+  fechaResolucion      DateTime?      @map("fecha_resolucion") @db.Timestamp(6)
+  comentarioResolucion String?        @map("comentario_resolucion")
+  fechaCreacion        DateTime       @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  usuario              Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  aplicacion           Aplicacion     @relation(fields: [aplicacionId], references: [id], onUpdate: NoAction)
+  objeto               Objeto         @relation(fields: [objetoId], references: [id], onUpdate: NoAction)
+  funcionalidad        Funcionalidad? @relation(fields: [funcionalidadId], references: [id], onUpdate: NoAction)
+
+  @@index([estado], map: "idx_solicitudes_permiso_estado")
+  @@index([usuarioId], map: "idx_solicitudes_permiso_usuario")
+  @@index([objetoId], map: "idx_solicitudes_permiso_objeto")
+  @@map("solicitudes_permiso")
 }

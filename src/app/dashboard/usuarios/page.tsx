@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -17,6 +17,7 @@ export default function UsuariosPage() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={Users}
         title="Usuarios"
         description="Administración de usuarios del sistema y sus accesos."
         actions={

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +13,7 @@ export default function RolesPage() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={Shield}
         title="Roles"
         description="Definición de roles y sus permisos asociados."
         actions={

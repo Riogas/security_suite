@@ -11,11 +11,24 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
+import { Badge } from "@/components/ui/badge";
 import { type ColumnDef } from "@tanstack/react-table";
-import { apiObjetosDB, apiEliminarObjetoDB } from "@/services/api";
+import {
+  apiObjetosDB,
+  apiEliminarObjetoDB,
+  apiAplicacionesDB,
+  type AplicacionDB,
+} from "@/services/api";
 import { Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+
+const TIPO_CHIP: Record<string, string> = {
+  MENU: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-300",
+  SUBMENU: "bg-violet-500/15 text-violet-600 dark:text-violet-300",
+  PAGE: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+  FEATURE: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+};
 
 type ObjetoRow = {
   id: number;
@@ -24,6 +37,8 @@ type ObjetoRow = {
   path?: string;
   tipo?: string;
   estado: string;
+  aplicacionId?: number;
+  aplicacion?: { id: number; nombre: string };
 };
 
 export default function ObjetosTable() {
@@ -32,7 +47,9 @@ export default function ObjetosTable() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
   const [esPublico, setEsPublico] = useState(false);
-  const [tipo, setTipo] = useState("");
+  const [tipo, setTipo] = useState("todos");
+  const [aplicacionId, setAplicacionId] = useState("todos");
+  const [aplicaciones, setAplicaciones] = useState<AplicacionDB[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -45,6 +62,18 @@ export default function ObjetosTable() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // cargar aplicaciones para el filtro
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiAplicacionesDB({ estado: "A", pageSize: 1000 });
+        setAplicaciones(res?.items ?? []);
+      } catch (e) {
+        console.error("Error cargando aplicaciones:", e);
+      }
+    })();
+  }, []);
+
   // load
   useEffect(() => {
     const ac = new AbortController();
@@ -54,7 +83,8 @@ export default function ObjetosTable() {
           filtro: debouncedSearch,
           estado: estado === "todos" ? undefined : estado,
           esPublico: esPublico ? "S" : undefined,
-          tipo: tipo || undefined,
+          tipo: tipo === "todos" ? undefined : tipo,
+          aplicacionId: aplicacionId === "todos" ? undefined : Number(aplicacionId),
           page,
           pageSize,
         });
@@ -66,9 +96,16 @@ export default function ObjetosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, esPublico, tipo, page, pageSize]);
+  }, [debouncedSearch, estado, esPublico, tipo, aplicacionId, page, pageSize]);
 
   const columns: ColumnDef<ObjetoRow, unknown>[] = [
+    {
+      id: "aplicacion",
+      header: "Aplicación",
+      cell: ({ row }) =>
+        row.original?.aplicacion?.nombre ??
+        (row.original?.aplicacionId ? `#${row.original.aplicacionId}` : "—"),
+    },
     {
       id: "key",
       header: "Clave",
@@ -84,7 +121,20 @@ export default function ObjetosTable() {
       header: "Path",
       cell: ({ row }) => row.original?.path ?? "",
     },
-    { accessorKey: "tipo", header: "Tipo" },
+    {
+      id: "tipo",
+      header: "Tipo",
+      cell: ({ row }) => {
+        const t = row.original?.tipo ?? "";
+        return t ? (
+          <Badge variant="secondary" className={`text-[10px] ${TIPO_CHIP[t] ?? ""}`}>
+            {t}
+          </Badge>
+        ) : (
+          ""
+        );
+      },
+    },
     {
       id: "estado",
       header: "Estado",
@@ -163,12 +213,33 @@ export default function ObjetosTable() {
           setPage(1);
         }}
       >
-        <SelectTrigger className="w-32">{tipo || "Tipo"}</SelectTrigger>
+        <SelectTrigger className="w-32">{tipo === "todos" ? "Tipo" : tipo}</SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Todos</SelectItem>
-          {["MENU", "PAGE", "FEATURE"].map((t) => (
+          <SelectItem value="todos">Todos</SelectItem>
+          {["MENU", "SUBMENU", "PAGE", "FEATURE"].map((t) => (
             <SelectItem key={t} value={t}>
               {t}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={aplicacionId}
+        onValueChange={(v) => {
+          setAplicacionId(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-44">
+          {aplicacionId === "todos"
+            ? "Aplicación"
+            : aplicaciones.find((a) => String(a.id) === aplicacionId)?.nombre ?? "Aplicación"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todas</SelectItem>
+          {aplicaciones.map((a) => (
+            <SelectItem key={a.id} value={String(a.id)}>
+              {a.nombre}
             </SelectItem>
           ))}
         </SelectContent>

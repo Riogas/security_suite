@@ -13,12 +13,13 @@ const DEBUG = process.env.DEBUG_MW === "1";
 // Rutas públicas que no requieren permisos (exactas)
 const PUBLIC_PATHS = ["/", "/login", "/no-autorizado"];
 
-// Prefijos públicos: cualquier ruta que comience con estos no requiere permisos
-const PUBLIC_PREFIXES = ["/dashboard"];
+// API de permisos. Por defecto usa el endpoint interno Postgres (/api/db/permisos).
+// Se puede sobreescribir con PERMISOS_API_URL (ej. para apuntar a otro host).
+const PERMISOS_API_URL_OVERRIDE = process.env.PERMISOS_API_URL || "";
 
-// API de permisos (¡no usa rewrites!)
-const PERMISOS_API_URL =
-  process.env.PERMISOS_API_URL || "http://localhost:8082/permisos";
+// Flag de rollout: si != "1", el guard NO bloquea (comportamiento histórico:
+// /dashboard abierto). Encender solo cuando objetos/funcionalidades estén seedeados.
+const PERMISOS_ENFORCE = process.env.PERMISOS_ENFORCE === "1";
 
 // Salt para generar códigos de pantalla (cambiarlo regenera todos los códigos)
 const ROUTE_SALT = process.env.ROUTE_SALT ?? "s";
@@ -105,6 +106,7 @@ function decodeJwtPayload(token: string): any | null {
 // API de permisos
 // =========================
 async function apiCheckPermisoEdge(
+  origin: string,
   pathname: string,
   code: string,
   token: string,
@@ -119,11 +121,11 @@ async function apiCheckPermisoEdge(
       ObjetoPath: getObjetoPath(pathname), // "/funcionalidades/crear"
     };
 
-    console.log("[Proxy] → Checando permiso");
-    console.log("[Proxy] URL:", PERMISOS_API_URL);
-    console.log("[Proxy] Body enviado:", body);
+    const url = PERMISOS_API_URL_OVERRIDE || `${origin}/api/db/permisos`;
 
-    const resp = await fetch(PERMISOS_API_URL, {
+    log("→ Checando permiso", url, body);
+
+    const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -132,11 +134,8 @@ async function apiCheckPermisoEdge(
       body: JSON.stringify(body),
     });
 
-    console.log("[Proxy] Status:", resp.status, resp.statusText);
-    console.log("[Proxy] Headers:", Object.fromEntries(resp.headers.entries()));
-
     const raw = await resp.text();
-    console.log("[Proxy] Raw body:", raw);
+    log("permiso status", resp.status, raw);
 
     if (!resp.ok) return false;
 
@@ -147,14 +146,17 @@ async function apiCheckPermisoEdge(
       // puede no ser JSON
     }
 
-    // Ajustar según respuesta real de tu backend:
+    // /api/db/permisos devuelve { permitido: "GRANTED" | "DENIED" }.
+    // Se aceptan también las formas legacy del backend GeneXus.
     const permitido =
+      json.permitido === "GRANTED" ||
       json.Permitido === true ||
+      json.permitido === true ||
       json.allowed === true ||
       json.ok === true ||
       json.Permitido === "S";
 
-    console.log("[Proxy] → permitido?", permitido);
+    log("→ permitido?", permitido);
     return permitido;
   } catch (err) {
     console.error("[Proxy] Error checando permiso:", err);
@@ -172,16 +174,27 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     log("→ request", pathname);
 
-    // 1) Excluir assets/sistema y rutas públicas sin chequear
+    // 0) Assets / sistema: nunca se chequean
     if (
-      PUBLIC_PATHS.includes(pathname) ||
-      PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/")) ||
       pathname.startsWith("/_next") ||
       pathname.startsWith("/static") ||
       pathname === "/favicon.ico" ||
       /\.[a-zA-Z0-9]+$/.test(pathname) // archivos de /public (png, svg, js, css, etc.)
     ) {
-      log("ruta pública / asset → Next()");
+      return NextResponse.next();
+    }
+
+    // 0b) Rollout: si el enforcement está apagado, no bloquear nada
+    // (comportamiento histórico: /dashboard abierto).
+    if (!PERMISOS_ENFORCE) {
+      const res = NextResponse.next();
+      res.headers.set("x-mw-hit", "disabled");
+      return res;
+    }
+
+    // 1) Rutas públicas exactas (login, etc.). Con enforcement encendido,
+    // /dashboard YA NO es público: cada pantalla se valida.
+    if (PUBLIC_PATHS.includes(pathname)) {
       const res = NextResponse.next();
       res.headers.set("x-mw-hit", "public");
       return res;
@@ -218,7 +231,7 @@ export async function proxy(request: NextRequest) {
   log("userName decodificado:", userName || "(vacío)");
 
   // 4) Consultar permisos con pathname + code + token  ✅
-  const permitido = await apiCheckPermisoEdge(pathname, code, token);
+  const permitido = await apiCheckPermisoEdge(request.nextUrl.origin, pathname, code, token);
   log("permiso?", permitido);
 
   if (!permitido) {

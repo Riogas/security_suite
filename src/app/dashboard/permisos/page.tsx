@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,6 +12,7 @@ export default function PermisosPage() {
   return (
     <div className="p-6">
       <PageHeader
+        icon={Lock}
         title="Permisos"
         description="Control de permisos y accesos por rol y usuario."
         actions={

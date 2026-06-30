@@ -2063,8 +2063,57 @@ export const apiSetAccionesFuncionalidadDB = async (
 
 // ─── Menú DB ─────────────────────────────────────────────────────────────────
 
-export const apiMenuDB = async (): Promise<{ success: boolean; menu: any[] }> =>
-  dbFetch("/api/db/menu");
+export const apiMenuDB = async (
+  aplicacionId?: number,
+): Promise<{ success: boolean; menu: any[] }> =>
+  dbFetch(
+    aplicacionId ? `/api/db/menu?aplicacionId=${aplicacionId}` : "/api/db/menu",
+  );
+
+// ─── Menu Builder (estructura MENU/SUBMENU como árbol) ───────────────────────
+
+export type MenuNodeKind = "GROUP" | "SUBMENU" | "LINK";
+
+export interface MenuBuilderNode {
+  nodeKind: MenuNodeKind;
+  objetoId?: number;
+  objetoAccionId?: number;
+  key: string;
+  label: string;
+  path: string;
+  icon: string;
+  estado: "A" | "I";
+  targetObjetoId?: number | null;
+  children?: MenuBuilderNode[];
+}
+
+export interface MenuBuilderRecurso {
+  id: number;
+  key: string;
+  label: string | null;
+  path: string | null;
+  tipo: string;
+}
+
+export interface MenuBuilderResponse {
+  success: boolean;
+  tree: MenuBuilderNode[];
+  recursos: MenuBuilderRecurso[];
+}
+
+export const apiMenuBuilderGet = async (
+  aplicacionId: number,
+): Promise<MenuBuilderResponse> =>
+  dbFetch(`/api/db/menu/builder?aplicacionId=${aplicacionId}`);
+
+export const apiMenuBuilderSave = async (
+  aplicacionId: number,
+  tree: MenuBuilderNode[],
+) =>
+  dbFetch("/api/db/menu/builder", {
+    method: "PUT",
+    body: JSON.stringify({ aplicacionId, tree }),
+  });
 
 // ─── Permisos DB ─────────────────────────────────────────────────────────────
 
@@ -2076,6 +2125,96 @@ export const apiPermisosDB = async (payload: {
   AccionKey?: string;
 }) =>
   dbFetch("/api/db/permisos", { method: "POST", body: JSON.stringify(payload) });
+
+// ─── Solicitudes de acceso (autoservicio + aprobación) ───────────────────────
+
+export type SolicitudEstado = "PENDIENTE" | "APROBADA" | "RECHAZADA" | "CANCELADA";
+
+export interface FuncionalidadCandidata {
+  id: number;
+  nombre: string;
+}
+
+export interface SolicitudPermisoItem {
+  id: number;
+  usuarioId: number;
+  aplicacionId: number;
+  objetoId: number;
+  objetoAccionId: number | null;
+  accionKey: string;
+  estado: SolicitudEstado;
+  motivoSolicitud: string | null;
+  rutaSolicitada: string | null;
+  accionCodigo: string | null;
+  funcionalidadId: number | null;
+  resueltaPor: number | null;
+  fechaResolucion: string | null;
+  comentarioResolucion: string | null;
+  fechaCreacion: string;
+  usuario?: { id: number; username: string; nombre: string | null; apellido: string | null; email: string | null };
+  aplicacion?: { id: number; nombre: string };
+  objeto?: { id: number; key: string; label: string | null; tipo: string; path: string | null };
+  funcionalidad?: { id: number; nombre: string } | null;
+  funcionalidadesCandidatas?: FuncionalidadCandidata[];
+  requiereVinculo?: boolean;
+}
+
+export interface SolicitudesDBResponse {
+  success: boolean;
+  items: SolicitudPermisoItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Crea una solicitud de acceso (auto-crea el objeto si no existe). Contrato PascalCase. */
+export const apiCrearSolicitud = async (payload: {
+  AplicacionId?: number;
+  ObjetoKey: string;
+  ObjetoTipo?: string;
+  AccionKey?: string;
+  AccionCodigo?: string;
+  ObjetoPath?: string;
+  Motivo?: string;
+}) =>
+  dbFetch("/api/db/solicitudes", { method: "POST", body: JSON.stringify(payload) });
+
+/** Lista solicitudes para el panel de aprobación (gated). */
+export const apiListarSolicitudes = async (opts?: {
+  estado?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<SolicitudesDBResponse> => {
+  const params = new URLSearchParams();
+  if (opts?.estado) params.set("estado", opts.estado);
+  if (opts?.search) params.set("search", opts.search);
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.pageSize) params.set("pageSize", String(opts.pageSize));
+  return dbFetch(`/api/db/solicitudes?${params}`);
+};
+
+/** Solicitudes del usuario autenticado. */
+export const apiMisSolicitudes = async () =>
+  dbFetch("/api/db/solicitudes/mias");
+
+/** Aprueba una solicitud, vinculando la funcionalidad y creando el acceso grant. */
+export const apiAprobarSolicitud = async (
+  id: number,
+  payload: { funcionalidadId: number; fechaDesde?: string | null; fechaHasta?: string | null; comentario?: string },
+) =>
+  dbFetch(`/api/db/solicitudes/${id}/aprobar`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+/** Rechaza una solicitud. */
+export const apiRechazarSolicitud = async (id: number, payload?: { comentario?: string }) =>
+  dbFetch(`/api/db/solicitudes/${id}/rechazar`, {
+    method: "POST",
+    body: JSON.stringify(payload ?? {}),
+  });
 
 // ─── Dual-write helper ──────────────────────────────────────────────────────
 

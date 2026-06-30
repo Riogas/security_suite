@@ -15,7 +15,9 @@ import { type ColumnDef } from "@tanstack/react-table";
 import {
   apiFuncionalidadesDB,
   apiEliminarFuncionalidadDB,
+  apiAplicacionesDB,
   type FuncionalidadDB,
+  type AplicacionDB,
 } from "@/services/api";
 import { Pencil, Plus, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -27,6 +29,8 @@ export default function FuncionalidadesTable() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
   const [esPublico, setEsPublico] = useState(false);
+  const [aplicacionId, setAplicacionId] = useState("todos");
+  const [aplicaciones, setAplicaciones] = useState<AplicacionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -38,6 +42,18 @@ export default function FuncionalidadesTable() {
     const id = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(id);
   }, [search]);
+
+  // cargar aplicaciones para el filtro
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiAplicacionesDB({ estado: "A", pageSize: 1000 });
+        setAplicaciones(res?.items ?? []);
+      } catch (e) {
+        console.error("Error cargando aplicaciones:", e);
+      }
+    })();
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm("¿Eliminar esta funcionalidad?")) return;
@@ -62,6 +78,7 @@ export default function FuncionalidadesTable() {
           filtro: debouncedSearch,
           estado: estado === "todos" ? undefined : estado,
           esPublico: esPublico ? true : undefined,
+          aplicacionId: aplicacionId === "todos" ? undefined : Number(aplicacionId),
           page,
           pageSize,
         });
@@ -73,9 +90,16 @@ export default function FuncionalidadesTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, esPublico, page, pageSize, loading]);
+  }, [debouncedSearch, estado, esPublico, aplicacionId, page, pageSize, loading]);
 
   const columns: ColumnDef<FuncionalidadDB, unknown>[] = [
+    {
+      id: "aplicacion",
+      header: "Aplicación",
+      cell: ({ row }) =>
+        row.original?.aplicacion?.nombre ??
+        (row.original?.aplicacionId ? `#${row.original.aplicacionId}` : "—"),
+    },
     {
       id: "nombre",
       header: "Funcionalidad",
@@ -152,6 +176,27 @@ export default function FuncionalidadesTable() {
           <SelectItem value="A">Activo</SelectItem>
           <SelectItem value="I">Inactivo</SelectItem>
           <SelectItem value="todos">Todos</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={aplicacionId}
+        onValueChange={(v) => {
+          setAplicacionId(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-44">
+          {aplicacionId === "todos"
+            ? "Aplicación"
+            : aplicaciones.find((a) => String(a.id) === aplicacionId)?.nombre ?? "Aplicación"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todas</SelectItem>
+          {aplicaciones.map((a) => (
+            <SelectItem key={a.id} value={String(a.id)}>
+              {a.nombre}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </>

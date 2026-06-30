@@ -11,7 +11,7 @@ import {
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
 import { type ColumnDef } from "@tanstack/react-table";
-import { apiRolesDB, apiEliminarRolDB, apiClonarRolDB, type RolDB } from "@/services/api";
+import { apiRolesDB, apiEliminarRolDB, apiClonarRolDB, apiAplicacionesDB, type RolDB, type AplicacionDB } from "@/services/api";
 import { Pencil, Trash, Plus, Settings, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,6 +24,8 @@ export default function RolesTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
+  const [aplicacionId, setAplicacionId] = useState("todos");
+  const [aplicaciones, setAplicaciones] = useState<AplicacionDB[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -41,6 +43,18 @@ export default function RolesTable() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // cargar aplicaciones para el filtro
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiAplicacionesDB({ estado: "A", pageSize: 1000 });
+        setAplicaciones(res?.items ?? []);
+      } catch (e) {
+        console.error("Error cargando aplicaciones:", e);
+      }
+    })();
+  }, []);
+
   // load
   useEffect(() => {
     const ac = new AbortController();
@@ -50,6 +64,7 @@ export default function RolesTable() {
         const res = await apiRolesDB({
           filtro: debouncedSearch,
           estado: estado === "todos" ? undefined : estado,
+          aplicacionId: aplicacionId === "todos" ? undefined : Number(aplicacionId),
           page,
           pageSize,
         });
@@ -63,7 +78,7 @@ export default function RolesTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, page, pageSize, refreshKey]);
+  }, [debouncedSearch, estado, aplicacionId, page, pageSize, refreshKey]);
 
   const handleClonar = async (nombre: string) => {
     if (!clonarModal) return;
@@ -156,22 +171,45 @@ export default function RolesTable() {
   ];
 
   const estadoFilter = (
-    <Select
-      value={estado}
-      onValueChange={(v) => {
-        setEstado(v);
-        setPage(1);
-      }}
-    >
-      <SelectTrigger className="w-36">
-        {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="A">Activo</SelectItem>
-        <SelectItem value="I">Inactivo</SelectItem>
-        <SelectItem value="todos">Todos</SelectItem>
-      </SelectContent>
-    </Select>
+    <>
+      <Select
+        value={estado}
+        onValueChange={(v) => {
+          setEstado(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-36">
+          {estado === "A" ? "Activo" : estado === "I" ? "Inactivo" : "Estado"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="A">Activo</SelectItem>
+          <SelectItem value="I">Inactivo</SelectItem>
+          <SelectItem value="todos">Todos</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={aplicacionId}
+        onValueChange={(v) => {
+          setAplicacionId(v);
+          setPage(1);
+        }}
+      >
+        <SelectTrigger className="w-44">
+          {aplicacionId === "todos"
+            ? "Aplicación"
+            : aplicaciones.find((a) => String(a.id) === aplicacionId)?.nombre ?? "Aplicación"}
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todas</SelectItem>
+          {aplicaciones.map((a) => (
+            <SelectItem key={a.id} value={String(a.id)}>
+              {a.nombre}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
   );
 
   const headerActions = (

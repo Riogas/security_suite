@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         orderBy: [{ orden: "asc" }, { key: "asc" }],
         skip,
         take: pageSize,
-        include: { acciones: true },
+        include: { acciones: true, aplicacion: { select: { id: true, nombre: true } } },
       }),
       prisma.objeto.count({ where }),
     ]);

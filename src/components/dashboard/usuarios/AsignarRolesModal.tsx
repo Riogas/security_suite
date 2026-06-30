@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Search, Save, X, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +30,7 @@ interface Rol {
   RolDescripcion: string;
   RolEstado: string;
   AplicacionId: string;
+  AplicacionNombre: string;
   RolNivel?: string | number;
   RolFchIns?: string;
   RolCreadoEn?: string;
@@ -62,6 +69,7 @@ export default function AsignarRolesModal({
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [aplicacionFiltro, setAplicacionFiltro] = useState("todos");
   const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
   const [roleDateRanges, setRoleDateRanges] = useState<
     Record<number, DateRange | undefined>
@@ -73,18 +81,29 @@ export default function AsignarRolesModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredRoles(roles);
-    } else {
-      const filtered = roles.filter(
-        (rol) =>
-          rol.RolNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          rol.RolDescripcion.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-      setFilteredRoles(filtered);
+  // Aplicaciones únicas derivadas de los roles cargados (para el filtro)
+  const aplicaciones = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of roles) {
+      if (r.AplicacionId) map.set(r.AplicacionId, r.AplicacionNombre || `#${r.AplicacionId}`);
     }
-  }, [searchTerm, roles]);
+    return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre }));
+  }, [roles]);
+
+  useEffect(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = roles.filter((rol) => {
+      if (aplicacionFiltro !== "todos" && rol.AplicacionId !== aplicacionFiltro)
+        return false;
+      if (!term) return true;
+      return (
+        rol.RolNombre.toLowerCase().includes(term) ||
+        rol.RolDescripcion.toLowerCase().includes(term) ||
+        rol.AplicacionNombre.toLowerCase().includes(term)
+      );
+    });
+    setFilteredRoles(filtered);
+  }, [searchTerm, aplicacionFiltro, roles]);
 
   const loadRoles = async () => {
     try {
@@ -124,6 +143,9 @@ export default function AsignarRolesModal({
         RolDescripcion: r.descripcion ?? "",
         RolEstado: r.estado,
         AplicacionId: String(r.aplicacionId),
+        AplicacionNombre:
+          (r as RolDB & { aplicacion?: { id: number; nombre: string } }).aplicacion?.nombre ??
+          `#${r.aplicacionId}`,
         RolNivel: r.nivel,
         RolFchIns: r.fechaCreacion,
         RolCreadoEn: r.creadoEn ?? undefined,
@@ -229,18 +251,38 @@ export default function AsignarRolesModal({
       }
     >
       <div className="flex flex-col space-y-4 h-full">
-        {/* Buscador */}
-        <div className="space-y-2">
-          <Label htmlFor="search-roles">Buscar Rol</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-            <Input
-              id="search-roles"
-              placeholder="Buscar por nombre o descripción..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        {/* Buscador + filtro por aplicación */}
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="search-roles">Buscar Rol</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+              <Input
+                id="search-roles"
+                placeholder="Buscar por nombre, descripción o aplicación..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Aplicación</Label>
+            <Select value={aplicacionFiltro} onValueChange={setAplicacionFiltro}>
+              <SelectTrigger className="w-full sm:w-48">
+                {aplicacionFiltro === "todos"
+                  ? "Todas"
+                  : aplicaciones.find((a) => a.id === aplicacionFiltro)?.nombre ?? "Aplicación"}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas</SelectItem>
+                {aplicaciones.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -281,6 +323,9 @@ export default function AsignarRolesModal({
                       >
                         {rol.RolNombre}
                       </label>
+                      <Badge variant="outline" className="text-xs">
+                        {rol.AplicacionNombre}
+                      </Badge>
                       {rol.asignado && (
                         <Badge
                           variant="secondary"
