@@ -191,6 +191,17 @@ async function construirArbol(
 
   type Obj = (typeof objetos)[number];
 
+  // Un punto de menú que apunta (via relacion) a una PAGE/FEATURE también se
+  // enciende si el usuario puede VER esa página (funcionalidad que otorga
+  // `paginaKey|view`). Sin esto, cada LINK nuevo del builder exigía vincular
+  // a mano la acción del submenu a una funcionalidad — y esos vínculos además
+  // se pierden en cascada cuando el builder recrea acciones al reestructurar.
+  const paginaAccesible = (target: Obj | undefined) => {
+    if (!gating) return true;
+    if (!target || (target.tipo !== "PAGE" && target.tipo !== "FEATURE")) return false;
+    return accesibles.has(`${target.key.toLowerCase()}|view`);
+  };
+
   const buildChildren = (objeto: Obj, visited: Set<number>): MenuNode[] => {
     if (visited.has(objeto.id)) return [];
     visited.add(objeto.id);
@@ -218,7 +229,7 @@ async function construirArbol(
             children,
           });
         }
-      } else if (esAccesible(objeto.key, accion)) {
+      } else if (esAccesible(objeto.key, accion) || paginaAccesible(childObj)) {
         nodes.push({
           key: accion.key,
           label: accion.label ?? accion.key,
