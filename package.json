@@ -13,7 +13,8 @@
     "prisma:pull": "prisma db pull",
     "prisma:push": "prisma db push",
     "import:sgm-prefs": "tsx scripts/import-sgm-preferences.ts",
-    "seed:solicitudes": "tsx scripts/seed-solicitudes-funcionalidad.ts"
+    "seed:solicitudes": "tsx scripts/seed-solicitudes-funcionalidad.ts",
+    "seed:estadisticas-cumplimiento": "tsx scripts/seed-estadisticas-cumplimiento-funcionalidad.ts"
   },
   "dependencies": {
     "@dnd-kit/accessibility": "^3.1.1",
