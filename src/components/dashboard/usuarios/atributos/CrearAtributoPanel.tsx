@@ -11,6 +11,7 @@ import {
   InputAutocompleteOption,
 } from "@/components/ui/input-autocomplete";
 import { SugerenciasAtributosResponse } from "@/services/api";
+import { NOMBRES_ATRIBUTOS_CONOCIDOS } from "@/lib/atributos-conocidos";
 
 interface CampoValor {
   id: string;
@@ -48,11 +49,18 @@ export default function CrearAtributoPanel({
     return sugerencias.porAtributo[descripcionAtributo]?.valoresPorKey ?? {};
   }, [sugerencias, descripcionAtributo]);
 
-  const opcionesDescripcion: InputAutocompleteOption[] = useMemo(
-    () =>
-      (sugerencias?.atributos ?? []).map((a) => ({ value: a, label: a })),
-    [sugerencias],
-  );
+  // Nombres de atributo ofrecidos en el autocompletado: catálogo estático de
+  // atributos conocidos ∪ los derivados de la BD (sugerencias). El catálogo
+  // asegura que atributos aún no asignados (o asignados solo a un rol, que no
+  // aparecen en las sugerencias) sigan estando disponibles para elegir, tanto
+  // en el modal de usuario como en el de rol (donde `sugerencias` es null).
+  const opcionesDescripcion: InputAutocompleteOption[] = useMemo(() => {
+    const nombres = new Set<string>(NOMBRES_ATRIBUTOS_CONOCIDOS);
+    for (const a of sugerencias?.atributos ?? []) nombres.add(a);
+    return Array.from(nombres)
+      .sort((a, b) => a.localeCompare(b))
+      .map((a) => ({ value: a, label: a }));
+  }, [sugerencias]);
 
   const opcionesIdCampo: InputAutocompleteOption[] = useMemo(() => {
     if (!sugerencias || !descripcionAtributo) return [];
