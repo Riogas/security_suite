@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Menu as MenuIcon, ChevronDown, ChevronRight, Shield, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { apiMenu, apiMenuDB } from "@/services/api";
+import { apiMenuDB } from "@/services/api";
 import { iconMap } from "./iconMap";
 import { usePathname, useRouter } from "next/navigation";
 import { useAppLoading } from "@/hooks/useAppLoading";
@@ -114,38 +114,18 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
   useEffect(() => {
     let mounted = true;
 
-    // último segmento de una ruta → clave estable para deduplicar entre fuentes
-    const lastSeg = (p?: string) =>
-      String(p ?? "")
-        .split("/")
-        .filter(Boolean)
-        .pop()
-        ?.toLowerCase() ?? "";
-
     (async () => {
       try {
-        // 1) Menú de GeneXus (fuente principal)
-        let geneXusMenu: ApiMenuItem[] = [];
-        try {
-          const data = await apiMenu();
-          if (data?.resp) {
-            try {
-              const inner = JSON.parse(String(data.resp));
-              geneXusMenu = inner?.menu ?? inner?.sdtPuntosMenu ?? [];
-            } catch {
-              geneXusMenu = [];
-            }
-          } else if (Array.isArray(data?.menu)) {
-            geneXusMenu = data.menu;
-          } else if (Array.isArray(data?.sdtPuntosMenu)) {
-            geneXusMenu = data.sdtPuntosMenu;
-          }
-        } catch {
-          console.warn("[Sidebar] GeneXus no disponible, usando solo menú DB");
-        }
-
-        // 2) Menú de la DB (Postgres). Aporta funcionalidades nuevas gestionadas
-        //    solo en Postgres (ej. Solicitudes) y sirve de fallback si GeneXus cayó.
+        // Única fuente del menú: las tablas de SecuritySuite, vía su propia API
+        // (/api/db/menu → Prisma → Postgres). Es la MISMA API que consume GOYA
+        // a través de SECAPI_URL, así que los dos leen el mismo árbol
+        // (Objeto MENU → ObjetoAccion por punto → relacion al objeto destino).
+        //
+        // Antes esto mezclaba el menú de GeneXus con el de la base: GeneXus
+        // mandaba la mayoría de los puntos y la base solo los agregados nuevos,
+        // que se concatenaban al final. Por eso "Dashboard" caía último aunque
+        // tuviera orden 0. GeneXus quedó fuera del mapa: el menú se edita en
+        // /dashboard/menu y sale de acá.
         let dbMenu: ApiMenuItem[] = [];
         try {
           const dbData = await apiMenuDB();
@@ -154,15 +134,7 @@ export function Sidebar({ collapsed, setCollapsed }: Props) {
           console.error("[Sidebar] Error cargando menú desde DB:", dbErr);
         }
 
-        // 3) Merge: GeneXus como base + ítems DB cuya ruta no esté ya presente
-        const presentes = new Set(geneXusMenu.map((it) => lastSeg(it.path)));
-        const soloDB = dbMenu.filter((it) => {
-          const seg = lastSeg(it.path);
-          return seg && !presentes.has(seg);
-        });
-        const rawMenu = [...geneXusMenu, ...soloDB];
-
-        const normalized = normalizeTree(rawMenu);
+        const normalized = normalizeTree(dbMenu);
         if (mounted) setMenuTree(normalized);
       } catch (e) {
         console.error("❌ Error cargando menú:", e);
