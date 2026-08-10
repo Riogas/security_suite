@@ -181,6 +181,9 @@ export default function FuncionalidadForm({
     if (mode !== "edit" || !initialData?.selectedItems?.length || !objetos.length) return;
 
     const elementos: (Objeto | SortableAction)[] = [];
+    const agregar = (el: Objeto | SortableAction) => {
+      if (!elementos.find((e) => e.id === el.id)) elementos.push(el);
+    };
 
     for (const item of initialData.selectedItems) {
       const objeto = objetos.find((o) => parseInt(o.id.replace("obj-", "")) === item.objetoId);
@@ -188,13 +191,20 @@ export default function FuncionalidadForm({
 
       if (item.objetoAccionId === null) {
         // Objeto entero seleccionado
-        elementos.push(objeto);
+        agregar(objeto);
       } else {
         // Acción individual
         const accion = objeto.acciones.find(
           (a) => parseInt(a.id.replace("act-", "")) === item.objetoAccionId,
         );
-        if (accion) elementos.push(accion);
+        // El objeto padre va como marcador visual de agrupación, igual que
+        // hace handleDragEnd al soltar una acción: sin él la acción se
+        // renderiza suelta, sin su cabecera. Al guardar se descarta, así que
+        // cargar y volver a guardar no cambia ninguna fila.
+        if (accion) {
+          agregar(objeto);
+          agregar(accion);
+        }
       }
     }
 
