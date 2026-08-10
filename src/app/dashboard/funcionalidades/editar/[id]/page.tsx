@@ -35,7 +35,11 @@ export default function EditarFuncionalidadPage() {
 
         setFuncionalidad({
           ...funcRes.funcionalidad,
-          acciones: accionesRes?.acciones ?? [],
+          // El endpoint devuelve { success, items }. Acá se leía `acciones`,
+          // que no existe en esa respuesta: quedaba siempre [] y el panel
+          // "Elementos Seleccionados" salía vacío aunque la funcionalidad
+          // tuviera vínculos en FuncionalidadObjetoAccion.
+          acciones: accionesRes?.items ?? [],
         });
       } catch (err) {
         console.error("Error cargando funcionalidad:", err);
