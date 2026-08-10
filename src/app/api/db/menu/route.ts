@@ -65,10 +65,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Funcionalidades accesibles por el usuario (roles + accesos directos).
-    // null = no se identificó usuario → no se filtra (árbol/lista completa).
-    let funcionalidadesIds: number[] | null = null;
+    // Un usuario con es_root='S' ve el menú completo sin depender de roles.
+    // Sin esto, un root entra a cualquier pantalla escribiendo la URL (el
+    // chequeo de permisos sí lo contempla) pero el sidebar le queda vacío,
+    // que es justo la inconsistencia que se veía en GOYA.
+    let esRoot = false;
     if (userId) {
+      const u = await prisma.usuario.findUnique({
+        where: { id: userId },
+        select: { esRoot: true },
+      });
+      esRoot = u?.esRoot === "S";
+    }
+
+    // Funcionalidades accesibles por el usuario (roles + accesos directos).
+    // null = no se identificó usuario, o es root → no se filtra (árbol completo).
+    let funcionalidadesIds: number[] | null = null;
+    if (userId && !esRoot) {
       const now = new Date();
       const rolesUsuario = await prisma.usuarioRol.findMany({
         where: {
