@@ -21,6 +21,7 @@ import {
 import { BadgeOrigen } from "@/components/dashboard/usuarios/importar/badges";
 import VerPermisosModal from "@/components/dashboard/usuarios/VerPermisosModal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pencil,
   Trash,
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useUser } from "@/hooks/useUser";
 
 // Unified row type: filas locales vienen con _source="db", filas de
 // orígenes externos (SGM/LDAP/GSIST) con _source="externo".
@@ -57,7 +59,14 @@ export default function UsuariosTable() {
   const [permisosModal, setPermisosModal] = useState<{ userId: number; userName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<UsuarioRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importConfirm, setImportConfirm] = useState<UsuarioRow | null>(null);
   const router = useRouter();
+  // Nombrado distinto de las filas de la tabla (que también usan "user" en
+  // varios lugares) para no pisarse.
+  const { user: usuarioActual } = useUser();
+  // Antes de que useUser() termine de leer localStorage, `usuarioActual` es
+  // null: por defecto NO root (fail-closed en la UI), igual que el backend.
+  const esRoot = usuarioActual?.isRoot === "S";
 
   // debounce
   useEffect(() => {
@@ -103,6 +112,13 @@ export default function UsuariosTable() {
     return { items: res.items as unknown as Record<string, unknown>[], total: res.total };
   };
 
+  // El filtro de Estado no aplica a los modos "ext:*" (fetcherExternos nunca
+  // lo manda, y el control ni siquiera se muestra en ese modo — ver
+  // `filters` más abajo). Esta copia estable evita que un `estado` que quedó
+  // en memoria de un cambio de modo anterior dispare una re-enumeración
+  // completa del AS400 para devolver exactamente lo mismo.
+  const estadoEfectivo = modo.startsWith("ext:") ? "todos" : estado;
+
   // load
   useEffect(() => {
     const ac = new AbortController();
@@ -141,7 +157,7 @@ export default function UsuariosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, modo, page, pageSize]);
+  }, [debouncedSearch, estadoEfectivo, modo, page, pageSize]);
 
   // =============================================
   // Helpers
@@ -190,13 +206,20 @@ export default function UsuariosTable() {
     const username = String(user.username || "");
     const origen = String(user.origen || "") as "SGM" | "LDAP" | "GSIST";
     if (!username || !origen) return;
+    // Mismo criterio que el wizard (PasoComparacion.tsx:176,180): preferencias
+    // y roles solo aplican a SGM. Importar de a uno tiene que pedir el mismo
+    // consentimiento que el wizard para la misma operación, no menos — antes
+    // esto otorgaba el rol Despacho a cualquier usuario de LDAP/GSIST sin que
+    // conRoles tuviera ningún sentido para esos orígenes.
+    const conPreferencias = origen === "SGM";
+    const conRoles = origen === "SGM";
     try {
       setImportingUsers((prev) => new Set(prev).add(username));
       const res = await apiImportarUsuariosDB({
         origen,
         usernames: [username],
-        conPreferencias: true,
-        conRoles: true,
+        conPreferencias,
+        conRoles,
       });
       if (res.creados === 1) {
         toast.success(`Usuario ${username} importado`);
@@ -212,6 +235,7 @@ export default function UsuariosTable() {
         s.delete(username);
         return s;
       });
+      setImportConfirm(null);
     }
   };
 
@@ -319,24 +343,42 @@ export default function UsuariosTable() {
         return (
           <div className="space-x-2">
             {shouldShowImportButton(row.original) ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleImportUser(row.original)}
-                disabled={importingUsers.has(username)}
-              >
-                {importingUsers.has(username) ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="ml-1">Importando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span className="ml-1">Importar</span>
-                  </>
-                )}
-              </Button>
+              esRoot ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  // Pide confirmación antes de crear, igual que el wizard
+                  // (ConfirmDialog más abajo) — importar de a uno es la misma
+                  // operación que "Importar N usuarios" del paso 2, y ahí
+                  // hace falta confirmar.
+                  onClick={() => setImportConfirm(row.original)}
+                  disabled={importingUsers.has(username)}
+                >
+                  {importingUsers.has(username) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="ml-1">Importando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span className="ml-1">Importar</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button variant="secondary" size="sm" disabled>
+                        <Download className="w-4 h-4" />
+                        <span className="ml-1">Importar</span>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Requiere permisos de root</TooltipContent>
+                </Tooltip>
+              )
             ) : (
               isFromDB(row.original) && (
                 <>
@@ -399,34 +441,90 @@ export default function UsuariosTable() {
           <SelectItem value="ext:GSIST">Sin importar — ADMSEC/GSIST</SelectItem>
         </SelectContent>
       </Select>
-      <Select
-        value={estado}
-        onValueChange={(v) => { setEstado(v); setPage(1); }}
-      >
-        <SelectTrigger className="w-32">
-          {estado === "S" ? "Activo" : estado === "N" ? "Inactivo" : "Estado"}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="S">Activo</SelectItem>
-          <SelectItem value="N">Inactivo</SelectItem>
-          <SelectItem value="todos">Todos</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* No aplica a los modos "ext:*": fetcherExternos nunca manda `estado`,
+          así que ahí es un control que no hace nada (y cambiarlo disparaba
+          una re-enumeración completa del AS400 para el mismo resultado). */}
+      {!modo.startsWith("ext:") && (
+        <Select
+          value={estado}
+          onValueChange={(v) => { setEstado(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-32">
+            {estado === "S" ? "Activo" : estado === "N" ? "Inactivo" : "Estado"}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="S">Activo</SelectItem>
+            <SelectItem value="N">Inactivo</SelectItem>
+            <SelectItem value="todos">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
     </>
   );
 
+  /**
+   * Botón "Importación masiva" del header. Dos guardas antes de navegar:
+   *
+   * - Root: el endpoint de importar exige `esRoot='S'` y devuelve 403 si no.
+   *   Sin esto, un operador sin permisos completaba las 3 enumeraciones del
+   *   AS400 y recién en el último paso se enteraba que no podía.
+   * - `modo === "ext:todos"`: el wizard (`OpcionesImport.origen`) y el
+   *   endpoint de importar solo aceptan un origen puntual (SGM/LDAP/GSIST),
+   *   nunca "todos" — mandarlo tal cual hoy cae silencioso a SGM en
+   *   `/dashboard/usuarios/importar` (ORIGENES_VALIDOS no incluye "todos").
+   *   Se prefiere deshabilitar con un tooltip antes que ese aterrizaje mudo
+   *   en una sola fuente cuando el operador venía mirando las tres.
+   */
+  function botonImportacionMasiva() {
+    if (!modo.startsWith("ext:")) return null;
+
+    if (modo === "ext:todos") {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button variant="outline" disabled className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Importación masiva
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Elegí un origen (SGM, LDAP o GSIST) para importar</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (!esRoot) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button variant="outline" disabled className="flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Importación masiva
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Requiere permisos de root</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Button
+        variant="outline"
+        onClick={() => router.push(`/dashboard/usuarios/importar?origen=${modo.slice(4)}`)}
+        className="flex items-center gap-2"
+      >
+        <Download className="w-4 h-4" />
+        Importación masiva
+      </Button>
+    );
+  }
+
   const headerActions = (
     <>
-      {modo.startsWith("ext:") && (
-        <Button
-          variant="outline"
-          onClick={() => router.push(`/dashboard/usuarios/importar?origen=${modo.slice(4)}`)}
-          className="flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Importación masiva
-        </Button>
-      )}
+      {botonImportacionMasiva()}
       <Button
         onClick={() => router.push("/dashboard/usuarios/crear")}
         className="flex items-center gap-2"
@@ -476,6 +574,25 @@ export default function UsuariosTable() {
         tone="danger"
         onConfirm={handleDeleteConfirm}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={importConfirm !== null}
+        onOpenChange={(open) => { if (!open) setImportConfirm(null); }}
+        title={`¿Importar a "${importConfirm ? getUserUsername(importConfirm) : ""}"?`}
+        description={
+          importConfirm
+            ? `Se va a crear el usuario "${getUserUsername(importConfirm)}" desde ${String(importConfirm.origen || "")}. ` +
+              `Preferencias: ${importConfirm.origen === "SGM" ? "sí" : "no"}. ` +
+              `Roles: ${importConfirm.origen === "SGM" ? "sí" : "no"}.`
+            : undefined
+        }
+        confirmLabel="Importar"
+        tone="default"
+        onConfirm={() => {
+          if (importConfirm) return handleImportUser(importConfirm);
+        }}
+        loading={importConfirm ? importingUsers.has(String(importConfirm.username || "")) : false}
       />
     </>
   );
