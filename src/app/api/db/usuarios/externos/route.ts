@@ -112,7 +112,12 @@ export async function GET(req: NextRequest) {
       fuentes: resultados.map((r) => ({ origen: r.origen, ok: r.ok, reason: r.reason })),
     });
   } catch (error: any) {
+    // Detalle completo al log; afuera un mensaje genérico — una excepción no
+    // prevista (Prisma, etc.) también puede traer detalle interno en `.message`.
     console.error("[API /db/usuarios/externos GET] Error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "No se pudo obtener la lista de usuarios externos" },
+      { status: 500 },
+    );
   }
 }

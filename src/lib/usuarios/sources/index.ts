@@ -15,16 +15,35 @@ export interface ExternalUserSource {
 }
 
 /**
+ * Motivos que se exponen al cliente cuando una fuente externa falla. Lista
+ * blanca a propósito: `r.error` (el mensaje crudo del `fetch`) y a veces el
+ * propio `r.reason` si viene sin filtrar del origen pueden incluir el host
+ * interno — p.ej. "connect ECONNREFUSED 192.168.2.22:5000" — y eso NUNCA tiene
+ * que salir de este servidor. Cualquier `reason` que no matchee acá cae a
+ * "UNAVAILABLE": preferible un motivo genérico a filtrar algo nuevo sin querer.
+ */
+const REASONS_CONOCIDOS = new Set(["SIN_AS400_API_URL", "SIN_USERS_API_KEY", "NO_SERVICE_ACCOUNT"]);
+
+function motivoPublico(reason: string | undefined): string {
+  if (reason && (REASONS_CONOCIDOS.has(reason) || /^HTTP_\d+$/.test(reason))) return reason;
+  return "UNAVAILABLE";
+}
+
+/**
  * Helper que lanza un Error si la respuesta no es OK.
- * El mensaje del error incluye reason y error para diagnosticar en el endpoint.
- * El try/catch del endpoint entonces atrapa esto y lo reporta en `fuentes[].reason`.
+ * El `.message` del error es SOLO el código de la lista blanca de arriba — el
+ * try/catch del endpoint lo reporta tal cual en `fuentes[].reason`, así que
+ * nunca puede llevar el detalle del fetch. Ese detalle completo (con `r.error`
+ * y el `reason` crudo, si vino distinto) se loguea acá mismo para no perderlo.
  */
 function validarRespuesta<T>(origen: string, r: RespuestaLista<T>): T[] {
   if (r.ok && r.rows) return r.rows;
 
-  const parts = [origen, r.reason || "UNKNOWN"];
-  if (r.error) parts.push(r.error);
-  throw new Error(parts.join(": "));
+  const publico = motivoPublico(r.reason);
+  console.error(
+    `[usuarios/sources] ${origen} falló: reason=${r.reason ?? "?"}${r.error ? ` error=${r.error}` : ""}`,
+  );
+  throw new Error(publico);
 }
 
 /** ¿Hay cuenta de servicio de AD configurada? Es el único switch de §4.2. */

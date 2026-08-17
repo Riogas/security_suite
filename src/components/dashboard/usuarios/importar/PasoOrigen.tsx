@@ -23,13 +23,13 @@ const CARDS: { key: OrigenExternoUI; label: string; detalle: string; Icon: typeo
 ];
 
 /**
- * Traduce el `reason` técnico de la fuente a algo que el operador entienda.
+ * Traduce el código de motivo de la fuente a algo que el operador entienda.
  *
- * El `reason` NO llega como un token pelado: `sources/index.ts::validarRespuesta`
- * arma el mensaje del Error como `[origen, reason, error?].join(": ")`, así que
- * lo que de verdad llega acá es algo como "SGM: SIN_AS400_API_URL" o
- * "GSIST: UNAVAILABLE: fetch failed". Por eso el match es por substring, no
- * por igualdad exacta.
+ * `reason` llega como el código pelado de la lista blanca de
+ * `sources/index.ts` (p.ej. "SIN_AS400_API_URL", "HTTP_500") — nunca con el
+ * detalle del fetch (host/IP interna): eso queda solo en el log del servidor.
+ * El match sigue siendo por substring, no por igualdad exacta, así no hay que
+ * tocar esto si el código algún día vuelve a llevar un prefijo.
  */
 function motivoLegible(reason: string | null): string {
   if (!reason) return "No disponible";
@@ -39,6 +39,9 @@ function motivoLegible(reason: string | null): string {
   if (reason.includes("NO_SERVICE_ACCOUNT")) return "Requiere cuenta de servicio de Active Directory";
   if (reason.includes("SIN_USERS_API_KEY")) return "Falta configurar USERS_API_KEY";
   if (reason.includes("SIN_AS400_API_URL")) return "Falta configurar AS400_API_URL";
+  // La fuente contestó, pero con un error HTTP (el AS400 API caído a medias,
+  // credenciales rechazadas, etc.) — distinto de "no responde" (timeout/red).
+  if (reason.includes("HTTP_")) return `El servicio respondió con error (${reason})`;
   // Distinto de "mal configurado": acá la config está, pero la fuente no
   // contestó (timeout, red caída, servicio abajo). Le cambia al operador qué
   // hacer — no es un ticket a sistemas, es reintentar en un rato.
