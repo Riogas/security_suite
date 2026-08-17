@@ -113,6 +113,19 @@ function jwtDe(
   );
 }
 
+/** Firma como GeneXus: cuando el secreto es 64 hex, la librería `GeneXusJWT`
+ *  hace `Hex.decode` y firma con esos 32 bytes, no con el string. */
+function jwtEstiloGenexus(
+  username: string,
+  secretoHex: string,
+  opciones: { expiraEnSegundos?: number } = {},
+): string {
+  const { expiraEnSegundos = SEGUNDOS_7_DIAS } = opciones;
+  return jwt.sign({ iss: "security-suite", username }, Buffer.from(secretoHex, "hex"), {
+    expiresIn: expiraEnSegundos,
+  });
+}
+
 /** El token que fabricaba cualquiera antes del blindaje: base64 y una firma de mentira. */
 function jwtSinFirmar(username: string): string {
   const b64 = (o: unknown) =>
@@ -224,6 +237,59 @@ async function main(): Promise<void> {
       "TOKEN_INVALIDO",
     );
     esperarIgual(e.llamadasResolve, 0, "no se consulta la base con firma inválida");
+  });
+
+  // ── Doble derivación del secreto (GeneXus firma con hex-decode) ────────────
+
+  await test("secreto hex: acepta un token firmado estilo GeneXus (hex-decode)", async () => {
+    const secretoHex = "a3f1c0de4b5e6f7089abcdef0123456789abcdef0123456789abcdef01234567";
+    const previo = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = secretoHex;
+    try {
+      const e = espiar({ usuarios: { dmedaglia: ROOT } });
+      const { requireRoot } = crearGuardRoot(e.deps);
+      const token = jwtEstiloGenexus("dmedaglia", secretoHex);
+      const r = await requireRoot(conRequest({ authorization: `Bearer ${token}` }));
+      esperar(r.ok, "el token que firma GeneXus (hex-decode) tendría que pasar");
+    } finally {
+      process.env.JWT_SECRET = previo;
+    }
+  });
+
+  await test("secreto hex: acepta también el token estilo /api/db/login (UTF-8)", async () => {
+    const secretoHex = "a3f1c0de4b5e6f7089abcdef0123456789abcdef0123456789abcdef01234567";
+    const previo = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = secretoHex;
+    try {
+      const e = espiar({ usuarios: { dmedaglia: ROOT } });
+      const { requireRoot } = crearGuardRoot(e.deps);
+      const token = jwtDe("dmedaglia", { secreto: secretoHex }); // firma con el string
+      const r = await requireRoot(conRequest({ authorization: `Bearer ${token}` }));
+      esperar(r.ok, "el token que firma secapi (UTF-8) tendría que seguir pasando");
+    } finally {
+      process.env.JWT_SECRET = previo;
+    }
+  });
+
+  await test("secreto hex: un token firmado con OTRA clave hex sigue siendo 401", async () => {
+    const secretoHex = "a3f1c0de4b5e6f7089abcdef0123456789abcdef0123456789abcdef01234567";
+    const previo = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = secretoHex;
+    try {
+      const e = espiar({ usuarios: { dmedaglia: ROOT } });
+      const { requireRoot } = crearGuardRoot(e.deps);
+      const impostor = jwtEstiloGenexus(
+        "dmedaglia",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      );
+      esperarDenegado(
+        await requireRoot(conRequest({ authorization: `Bearer ${impostor}` })),
+        401,
+        "TOKEN_INVALIDO",
+      );
+    } finally {
+      process.env.JWT_SECRET = previo;
+    }
   });
 
   await test("token vencido: 401 TOKEN_VENCIDO", async () => {

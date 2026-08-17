@@ -2070,37 +2070,6 @@
         "x-generado": true
       }
     },
-    "/api/db/usuarios/sync": {
-      "post": {
-        "tags": [
-          "usuarios"
-        ],
-        "summary": "Body: { UserName?: string, Desde?: string }",
-        "description": "POST /api/db/usuarios/sync\nBody: { UserName?: string, Desde?: string }",
-        "operationId": "post_api_db_usuarios_sync",
-        "responses": {
-          "default": {
-            "description": "Sin anotar todavía (ver docs/api/README.md)."
-          }
-        },
-        "x-auth": {
-          "modo": "jwt",
-          "verificaFirma": false,
-          "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
-        },
-        "x-archivo": "src/app/api/db/usuarios/sync/route.ts",
-        "x-generado": true,
-        "security": [
-          {
-            "bearerJwt": []
-          },
-          {
-            "cookieToken": []
-          }
-        ]
-      }
-    },
     "/api/db/usuarios/{id}": {
       "get": {
         "tags": [
@@ -2685,7 +2654,7 @@
   },
   "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
   "x-aplicacion-id": 1,
-  "x-operaciones": 72,
+  "x-operaciones": 71,
   "x-colapsados": [
     {
       "patron": "\\[\\.\\.\\.proxy\\]",

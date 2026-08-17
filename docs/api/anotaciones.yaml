@@ -319,56 +319,6 @@ endpoints:
             body: JSON.stringify({ payload }),
           });
 
-  "POST /api/db/usuarios/sync":
-    summary: Trae usuarios del SGM (GeneXus) y los espeja en Postgres
-    description: |
-      Llama a `POST {BACKEND_BASE_URL}/syncUser` con el JWT de la sesión y vuelca
-      lo que devuelve GeneXus a Postgres: el usuario, sus roles por aplicación y
-      sus preferencias (`usuario_preferencias`). Es un upsert: crea lo que falta
-      y actualiza lo que ya está.
-
-      Sin `UserName` sincroniza el lote completo que devuelva el servicio; con
-      `UserName` sincroniza a esa persona sola, que es como lo usa la pantalla
-      de usuarios cuando alguien aparece en el SGM y todavía no está acá.
-    consumidores:
-      - "Pantalla de usuarios de SecuritySuite (botón de sincronizar)."
-      - "El SGM/GeneXus (`{BACKEND_BASE_URL}/syncUser`) es la dependencia, no el consumidor: este endpoint le pega a él."
-    notas:
-      - "El JWT sale de la **cookie `token`**, no del header `Authorization`: llamarlo con Bearer solamente da 401. Es la única forma en que lo usa la pantalla, pero conviene saberlo antes de probarlo con curl."
-      - "El JSON que manda GeneXus llega con comas colgando (`[{...},]`); el handler lo sanea antes de parsearlo. Si algún día el servicio se arregla, ese saneo sigue siendo inocuo."
-      - "Las fechas `0000-00-00T00:00:00` de GeneXus se guardan como `null`."
-      - "Los strings se truncan al largo de la columna en vez de fallar: un nombre larguísimo entra recortado, no rompe el lote."
-      - "Si el servicio externo responde distinto de 2xx, devuelve **502** con el status y el cuerpo del otro lado adentro del mensaje."
-    requestBody:
-      requerido: false
-      descripcion: "Todo opcional. Sin cuerpo, sincroniza lo que el servicio devuelva por defecto."
-      campos:
-        - nombre: UserName
-          tipo: string
-          requerido: false
-          descripcion: "Usuario a sincronizar. Vacío = el lote completo."
-        - nombre: Desde
-          tipo: string
-          requerido: false
-          descripcion: "Sistema de origen. Default `SGM`."
-      ejemplo: |
-        {
-          "UserName": "jperez",
-          "Desde": "SGM"
-        }
-    responses:
-      "200":
-        description: "`{ success: true, ... }` con el detalle de lo creado y actualizado."
-      "401":
-        description: "No hay cookie `token`."
-      "502":
-        description: "El servicio de GeneXus respondió con error; el cuerpo trae su status y su respuesta."
-    ejemplos:
-      - lenguaje: curl
-        titulo: Sincronizar a una persona (el token va como cookie)
-        codigo: |
-          curl -X POST "{{ORIGEN}}/api/db/usuarios/sync" -H "Content-Type: application/json" --cookie "token=$TOKEN" -d '{"UserName":"jperez","Desde":"SGM"}'
-
   "GET /api/db/usuarios/por-username":
     summary: Ficha del usuario por username, con sus empresas fleteras normalizadas
     description: |
@@ -460,7 +410,7 @@ endpoints:
     notas:
       - "**Escribe sobre datos existentes.** El paso 1 es DELETE + INSERT sobre `usuario_preferencias`: correrlo sin `dryRun` no se deshace solo."
       - "Empezá siempre por `?dryRun=true`: devuelve exactamente el mismo resumen y detalle sin tocar la base."
-      - "El JWT sale de la cookie `token`, igual que `POST /api/db/usuarios/sync`."
+      - "El JWT sale de la cookie `token`."
       - "Depende del AS400 API levantado. Si no contesta, los usuarios de esa tanda quedan contados como errores en el resumen y el proceso sigue."
     parameters:
       - name: dryRun

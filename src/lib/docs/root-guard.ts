@@ -141,20 +141,53 @@ export function leerSecretoJwt(): EstadoSecreto {
  * `TokenExpiredError` extiende `JsonWebTokenError`, así que se chequea primero.
  * Cualquier otro error es fail-closed (503), no un pase libre.
  */
+function esHexPuro(s: string): boolean {
+  return s.length % 2 === 0 && /^[0-9a-f]+$/i.test(s);
+}
+
+/**
+ * El ecosistema tiene DOS emisores que firman con el MISMO valor de secreto
+ * pero derivan bytes distintos de él:
+ *
+ *   - GeneXus (el login de la UI de secapi, `/loginUser`): la librería
+ *     `GeneXusJWT` hace `Hex.decode(secreto)` antes de firmar HS256 — o sea,
+ *     con un secreto de 64 hex usa 32 bytes.
+ *   - secapi `/api/db/login` (lo usan Goya y TrackMovil, y el propio secapi si
+ *     algún día deja de proxyear a GeneXus): `jwt.sign(secreto)` toma el string
+ *     como UTF-8 — 64 bytes.
+ *
+ * Un guard que probara una sola derivación dejaría afuera a la mitad de los
+ * usuarios según por dónde entraron. Probar las dos NO amplía la superficie:
+ * las dos claves salen del mismo secreto, que el atacante sigue sin tener.
+ */
+function clavesCandidatas(secreto: string): Array<string | Buffer> {
+  const claves: Array<string | Buffer> = [secreto];
+  if (esHexPuro(secreto)) claves.push(Buffer.from(secreto, "hex"));
+  return claves;
+}
+
 function verificarToken(token: string, secreto: string): ResultadoGuard | null {
-  try {
-    jwt.verify(token, secreto, { algorithms: ALGORITMOS });
-    return null;
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      return { ok: false, status: 401, code: "TOKEN_VENCIDO" };
+  let vencido = false;
+  for (const clave of clavesCandidatas(secreto)) {
+    try {
+      jwt.verify(token, clave, { algorithms: ALGORITMOS });
+      return null;
+    } catch (error) {
+      // TokenExpiredError solo se tira DESPUÉS de que la firma cerró: si aparece,
+      // esta clave era la correcta y el token venció (no seguimos probando).
+      if (error instanceof jwt.TokenExpiredError) {
+        vencido = true;
+        continue;
+      }
+      // Firma que no cierra con ESTA clave: puede cerrar con la otra derivación.
+      if (error instanceof jwt.JsonWebTokenError) continue;
+      // Cualquier otra cosa (p. ej. token que no es string) no depende de la
+      // clave: es un error de verdad y corta acá.
+      console.error("[docs/root-guard] error inesperado verificando el JWT", error);
+      return { ok: false, status: 503, code: "ERROR_GUARD" };
     }
-    if (error instanceof jwt.JsonWebTokenError) {
-      return { ok: false, status: 401, code: "TOKEN_INVALIDO" };
-    }
-    console.error("[docs/root-guard] error inesperado verificando el JWT", error);
-    return { ok: false, status: 503, code: "ERROR_GUARD" };
   }
+  return { ok: false, status: 401, code: vencido ? "TOKEN_VENCIDO" : "TOKEN_INVALIDO" };
 }
 
 // ─── Otorgamiento en base ───────────────────────────────────────────────────
