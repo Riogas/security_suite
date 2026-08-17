@@ -124,7 +124,7 @@ Lo que se escriba en `password` al importar habilita o no ese camino.
 | D3 | La grilla previa muestra **todo**: NUEVO, MIGRADO, DIFIERE y CONFLICTO, con selección por fila. |
 | D4 | El import **solo crea, nunca actualiza**. Lo que ya existe se reporta con su diff y no se toca. |
 | D5 | Los usuarios importados se crean con `password: ""` → el fallback de clave local queda inutilizable por diseño. |
-| D6 | Dos switches en el paso 1, encendidos por defecto y desactivables: *traer preferencias* y *asignar roles por grupo*. |
+| D6 | Dos switches en el paso 1, encendidos por defecto: *traer preferencias* y *asignar roles*. Ambos solo aplican a SGM y se ven deshabilitados (con motivo) para LDAP/GSIST — ver nota 2026-08-17. |
 | D7 | El combo queda: `Locales` · `Sin importar — todos` · `Sin importar — SGM` · `Sin importar — LDAP` · `Sin importar — ADMSEC/GSIST`. |
 | D8 | Se abandona el camino GeneXus para listar e importar usuarios. |
 | D9 | Seleccionar todo alcanza **todo el filtro**, no la página, y el botón dice la cantidad exacta. |
@@ -317,9 +317,31 @@ Por cada username:
    ```
 3. Si `conPreferencias` y el origen es SGM → `persistEscenarioPreference` y
    `persistEmpFleteraPreference` (reutilizados tal cual).
-4. Si `conRoles` → `applyAdmsecGroupRoles` para LDAP/GSIST y
-   `assignDespachoIfEligible` para SGM (`USUMOBR_ROLID = 6`). Ambos ya existen y
-   son idempotentes.
+4. Si `conRoles` y el origen es SGM → `assignDespachoIfEligible`
+   (`USUMOBR_ROLID = 6`), ya existe y es idempotente. **Para LDAP/GSIST el
+   import no asigna roles** — ver nota 2026-08-17.
+
+> **Nota 2026-08-17 (posterior a este diseño):** el diseño original de este
+> punto 4 llamaba a `applyAdmsecGroupRoles` para LDAP/GSIST, igual que la rama
+> SGM llama a `assignDespachoIfEligible`. Se corrigió antes de estabilizar:
+> `applyAdmsecGroupRoles` mapea grupos de ADMSEC a roles de la aplicación 5
+> (RiogasTracking) y puede setear `esRoot='S'`, que es un flag **global** del
+> usuario, no de una aplicación. Usarlo en el import de LDAP/GSIST otorgaba
+> roles de RiogasTracking y el flag global de root a cualquier usuario
+> importado de ADMSEC —invadiendo una aplicación que no tiene nada que ver con
+> el origen del usuario—, algo que el dueño del proyecto pidió explícitamente
+> evitar. La rama SGM **no** cambia: ahí el rol Despacho de RiogasTracking es
+> correcto porque los usuarios de SGM son de reparto y TrackMovil es su
+> aplicación.
+>
+> El plan es que los grupos de ADMSEC se reflejen como roles de la aplicación
+> "Gestión de Sistemas" (id 2, hoy vacía: 0 roles/funcionalidades/usuarios),
+> como **un trabajo aparte**. Hasta que eso exista, el import de LDAP/GSIST no
+> asigna ningún rol ni toca `esRoot`. El switch "Asignar roles" del paso 1 se
+> deshabilita para esos orígenes (`PasoOrigen.tsx`) para no mostrar un control
+> que no hace nada. `applyAdmsecGroupRoles.ts` no se tocó: el flujo de login
+> (`resolveCredentials.ts`) lo sigue usando tal cual, sin cambios — es una
+> decisión distinta.
 
 Se procesa en lotes de 50 con `Promise.all`, igual que el sync actual. Un error
 por usuario no tumba el lote: se acumula en `detallesErrores`.
@@ -361,7 +383,9 @@ En cualquiera de los modos "sin importar":
 - Dos switches, encendidos por defecto (D6):
   - *Traer preferencias (Escenario y Empresa Fletera)* — solo aplica a SGM; se
     ve deshabilitado con explicación si el origen no es SGM.
-  - *Asignar roles según los grupos del origen*.
+  - *Asignar roles* — también solo aplica a SGM (rol Despacho); mismo patrón
+    de deshabilitado con explicación para LDAP/GSIST (nota 2026-08-17 en
+    §4.4).
 
 **Paso 2 — Comparación**
 

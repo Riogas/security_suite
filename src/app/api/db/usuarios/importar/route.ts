@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireRoot } from "@/lib/docs/root-guard";
-import { applyAdmsecGroupRoles } from "@/lib/auth/applyAdmsecGroupRoles";
 import { assignDespachoOnNewUser } from "@/lib/auth/assignDespachoIfEligible";
 import { persistEmpFleteraPreference } from "@/lib/auth/persistEmpFleteraPreference";
 import { persistEscenarioPreference } from "@/lib/auth/persistEscenarioPreference";
@@ -85,7 +84,7 @@ async function crearUsuario(
         desdeSistema: ext.origen,
         creadoPor: opts.creadoPor,
       },
-      select: { id: true, username: true, esRoot: true },
+      select: { id: true, username: true },
     });
 
     if (opts.conPreferencias && ext.origen === "SGM") {
@@ -100,12 +99,16 @@ async function crearUsuario(
           creado.username,
           (ext.extras.rolesSgm || []).includes(ROL_DESPACHO_SGM),
         );
-      } else {
-        await applyAdmsecGroupRoles({
-          usuario: { id: creado.id, username: creado.username, esRoot: creado.esRoot },
-          groups: ext.extras.grupos || [],
-        });
       }
+      // Para LDAP/GSIST NO se asignan roles acá. `applyAdmsecGroupRoles` mapea
+      // grupos de ADMSEC a roles de RiogasTracking (aplicación 5) y puede
+      // setear `esRoot='S'` (flag global del usuario, no de una aplicación
+      // puntual): usarlo en el import invadía otra aplicación y otorgaba root
+      // a cualquiera del grupo 1 de ADMSEC. Los grupos de ADMSEC se van a
+      // reflejar como roles de la aplicación "Gestión de Sistemas" (id 2) en
+      // un trabajo aparte; hasta entonces el import no otorga roles para
+      // estos orígenes. El login (`resolveCredentials.ts`) sigue usando
+      // `applyAdmsecGroupRoles` sin cambios: es otra decisión, no se toca acá.
     }
 
     return { username: usernameOriginal, estado: "creado" };
@@ -153,9 +156,9 @@ export async function POST(req: NextRequest) {
     const origen = String(body.origen || "").toUpperCase() as OrigenExterno;
     const usernamesRaw: unknown[] = Array.isArray(body.usernames) ? body.usernames : [];
     // Opt-in explícito: `!== false` es fail-open sobre un switch que otorga
-    // privilegios (assignDespachoOnNewUser / applyAdmsecGroupRoles, que puede
-    // escribir esRoot='S'). Un campo omitido, un typo, o un body malformado
-    // ya no habilitan roles por default.
+    // privilegios (assignDespachoOnNewUser, único camino que queda detrás de
+    // este flag — ver el comentario junto a su llamada más abajo). Un campo
+    // omitido, un typo, o un body malformado ya no habilitan roles por default.
     const conRoles = body.conRoles === true;
     // conPreferencias sigue con default true a propósito: no otorga
     // privilegios, y apagarlo por omisión degradaría importaciones en silencio.

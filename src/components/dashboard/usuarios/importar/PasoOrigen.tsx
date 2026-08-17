@@ -176,11 +176,14 @@ export default function PasoOrigen({
           <div>
             <p className="text-sm font-medium">Asignar roles</p>
             <p className="text-xs text-muted-foreground">
-              Según los grupos que el usuario tenga en el sistema origen
+              {esSgm
+                ? "Rol Despacho de RiogasTracking, según los roles del usuario en SGM"
+                : "Por ahora solo aplica a SGM. Los grupos de ADMSEC van a llegar con la aplicación Gestión de Sistemas"}
             </p>
           </div>
           <Switch
-            checked={opciones.conRoles}
+            disabled={!esSgm}
+            checked={esSgm && opciones.conRoles}
             onCheckedChange={(v) => onChange({ ...opciones, conRoles: v })}
           />
         </div>

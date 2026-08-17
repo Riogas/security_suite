@@ -174,7 +174,10 @@ export default function PasoComparacion({
         origen: opciones.origen,
         usernames,
         conPreferencias: opciones.origen === "SGM" && opciones.conPreferencias,
-        conRoles: opciones.conRoles,
+        // Igual que conPreferencias: el switch de roles solo aplica a SGM
+        // (ver PasoOrigen.tsx), así que se fuerza acá por si quedó `true` en
+        // el estado de un cambio de origen previo.
+        conRoles: opciones.origen === "SGM" && opciones.conRoles,
       });
       onImportado(res);
     } catch (e) {
@@ -348,7 +351,7 @@ export default function PasoComparacion({
         description={
           `Se van a crear ${cantidadSeleccionada} ${palabraUsuarios} ${palabraNuevos}. Los que ya existen no se tocan. ` +
           `Preferencias: ${opciones.origen === "SGM" && opciones.conPreferencias ? "sí" : "no"}. ` +
-          `Roles por grupo: ${opciones.conRoles ? "sí" : "no"}.`
+          `Roles: ${opciones.origen === "SGM" && opciones.conRoles ? "sí" : "no"}.`
         }
         confirmLabel="Importar"
         tone="default"
