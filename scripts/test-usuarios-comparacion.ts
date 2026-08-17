@@ -16,6 +16,7 @@
 import { compararUsuarios, normalizarUsername, resumir } from "../src/lib/usuarios/comparar";
 import { esCuentaSistema } from "../src/lib/usuarios/cuentasSistema";
 import type { ExternalUser, UsuarioLocalMinimo } from "../src/lib/usuarios/tipos";
+import { mapearFilaAdmsec, mapearFilaSgm } from "../src/lib/usuarios/sources/mapeo";
 
 // ─── Mini framework de aserciones ───────────────────────────────────────────
 
@@ -211,6 +212,74 @@ function main(): void {
     );
     esperarIgual(r.nuevos, 2, "nuevos");
     esperarIgual(r.preseleccionados, 1, "preseleccionados");
+  });
+
+  console.log("\nMapeo de filas del AS400\n");
+
+  test("USUMOBILE mapea nombre, email y habilitado", () => {
+    const u = mapearFilaSgm({
+      L: "19605429",
+      N: "JUAN PEREZ",
+      E: "jperez@riogas.com.uy",
+      HAB: "S",
+      ESCID: 1000,
+      ESCNOM: "MONTEVIDEO",
+      EFLID: 7,
+      EFLNOM: "FLETERA SUR",
+      ROLES: [6],
+    });
+    esperarIgual(u.origen, "SGM", "origen");
+    esperarIgual(u.username, "19605429", "username");
+    esperarIgual(u.nombre, "JUAN PEREZ", "nombre");
+    esperarIgual(u.email, "jperez@riogas.com.uy", "email");
+    esperarIgual(u.habilitado, true, "habilitado");
+    esperarIgual(u.extras.escenarioId, 1000, "escenarioId");
+    esperarIgual(u.extras.empFleteraId, 7, "empFleteraId");
+  });
+
+  test("USUMOBILE con habilitado distinto de S → deshabilitado", () => {
+    const u = mapearFilaSgm({ L: "123", N: "X", E: "", HAB: "N" });
+    esperarIgual(u.habilitado, false, "habilitado");
+  });
+
+  test("USUMOBILE con email vacío → null, no string vacío", () => {
+    const u = mapearFilaSgm({ L: "123", N: "X", E: "   ", HAB: "S" });
+    esperarIgual(u.email, null, "email");
+  });
+
+  test("USUMOBILE con AGENCIAVINCEMPFLT en 0 → empFleteraId null", () => {
+    // 0 significa "sin fletera", no la fletera con id 0.
+    const u = mapearFilaSgm({ L: "123", N: "X", E: "", HAB: "S", EFLID: 0, EFLNOM: "" });
+    esperarIgual(u.extras.empFleteraId, null, "empFleteraId");
+  });
+
+  test("ADMSEC con USUAUTAD='A' → origen LDAP", () => {
+    const u = mapearFilaAdmsec({ L: "SACUNA", HAB: "S", AUTAD: "A", GRUPOS: [1, 52] });
+    esperarIgual(u.origen, "LDAP", "origen");
+    esperarIgual(u.extras.usuAutAd, "A", "usuAutAd");
+  });
+
+  test("ADMSEC con USUAUTAD distinto de A → origen GSIST", () => {
+    const u = mapearFilaAdmsec({ L: "IBELBEDER", HAB: "S", AUTAD: "G", GRUPOS: [] });
+    esperarIgual(u.origen, "GSIST", "origen");
+  });
+
+  test("ADMSEC con USUAUTAD nulo → GSIST (el default seguro)", () => {
+    // Mismo criterio que normalizeAutAd en auth-admsec.js: cualquier cosa que
+    // no sea 'A' se trata como 'G', para no mandar a nadie a LDAP por error.
+    const u = mapearFilaAdmsec({ L: "X", HAB: "S", AUTAD: null, GRUPOS: [] });
+    esperarIgual(u.origen, "GSIST", "origen");
+  });
+
+  test("ADMSEC no tiene nombre ni email → ambos null", () => {
+    const u = mapearFilaAdmsec({ L: "SACUNA", HAB: "S", AUTAD: "A", GRUPOS: [] });
+    esperarIgual(u.nombre, null, "nombre");
+    esperarIgual(u.email, null, "email");
+  });
+
+  test("ADMSEC marca las cuentas de sistema", () => {
+    const u = mapearFilaAdmsec({ L: "ROOT", HAB: "S", AUTAD: "G", GRUPOS: [] });
+    esperarIgual(u.esCuentaSistema, true, "esCuentaSistema");
   });
 
   console.log(
