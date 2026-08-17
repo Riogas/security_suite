@@ -407,7 +407,7 @@ de dónde sacar el dato.
 | `POST /api/db/usuarios/sync` | Reemplazado por `/api/db/usuarios/importar`. Con él se va el bug de `desdeSistema`. |
 | `src/components/dashboard/usuarios/SyncUsuariosModal.tsx` | Reemplazado por la pantalla; se recicla su panel de resultados. |
 | `apiSyncUsuarios` (`services/api.ts`) | Sin consumidores. |
-| `apiImportarUsuario` (`services/api.ts`) | El alta la hace secapi contra su propia PG. |
+| `apiImportarUsuario` (`services/api.ts`) | El alta la hace secapi contra su propia PG. **Se comenta, no se borra** (ver §10.4): queda a mano si el `/importarUsuario` de GeneXus resultara hacer algo más. |
 | El uso de `apiUsuarios({ sinMigrar: true })` en `Usuarios.tsx` | Reemplazado por `/api/db/usuarios/externos`. |
 
 `apiUsuarios` **no** se elimina: hay que verificar antes si otras pantallas la
@@ -475,18 +475,30 @@ Verificación manual contra dev, antes de dar por cerrado:
 
 ---
 
-## 10. Preguntas abiertas
+## 10. Preguntas abiertas — RESUELTAS 2026-08-17
 
-1. **¿Se pide la service account de AD a Infraestructura?** No bloquea nada, pero
-   define si el origen LDAP muestra el AD real o solamente a quienes además
-   están dados de alta en `ADMSEC.USUARIOS`.
-2. **¿El `POST /importarUsuario` de GeneXus hace algo más que crear el usuario?**
-   Si escribe en tablas propias de GeneXus, abandonarlo (D8) pierde ese efecto.
-   Hay que confirmarlo con el equipo de GeneXus antes de retirarlo.
-3. **`POST /api/db/query` del `as400-api` ejecuta SQL arbitrario** contra el AS400
-   con `qsecofr`, sin autenticación. Se usó para este relevamiento. Está marcado
-   como "solo para desarrollo/debug" pero corre en node-dev. No es parte de este
-   trabajo; queda anotado como riesgo a revisar aparte. El middleware
-   `requiereApiKey` que trajo `/api/ficha` es el camino natural para cerrarlo.
-4. **¿Está commiteado el trabajo de `/api/ficha` en `as400-api`?** Ver §4.1: hoy
-   está solo en el working tree local y esta spec construye sobre su middleware.
+Las cuatro quedaron contestadas antes de escribir el plan. Se dejan con su
+respuesta porque explican por qué el diseño quedó como quedó.
+
+**10.1 — Service account de Active Directory: NO la tenemos.** Se va a pedir más
+adelante. Hasta entonces el origen LDAP se sirve exclusivamente desde
+`ADMSEC.USUARIOS` con `USUAUTAD='A'` (D1), y no ve a quien esté en el AD pero no
+en ADMSEC. `/api/users/ldap/list` igual se escribe ahora y responde
+`NO_SERVICE_ACCOUNT`, para que el día que exista sea solo configurar el `.env`.
+El backfill de §6 es lo que compensa mientras tanto.
+
+**10.2 — El trabajo de `/api/ficha` en `as400-api` se está construyendo y se va a
+commitear.** 🔴 **Bloqueante de secuencia: no se toca NADA de `as400-api` hasta
+que eso esté commiteado.** Por eso el plan arranca por lo que no depende del
+servicio (§4.2 a §4.4, §5, §6) y deja los tres endpoints de enumeración (§4.1)
+para después, contra el árbol ya limpio.
+
+**10.3 — El `POST /importarUsuario` de GeneXus se abandona sin confirmar** qué
+más hace. `apiImportarUsuario` se deja **comentado en `services/api.ts`**, no
+borrado, para poder volver rápido si aparece un efecto que nos estábamos
+perdiendo. Confirmarlo con el equipo de GeneXus queda como pendiente aparte.
+
+**10.4 — `POST /api/db/query` del `as400-api` ejecuta SQL arbitrario** contra el
+AS400 con `qsecofr`, sin autenticación, y corre en node-dev. Se usó para este
+relevamiento. **Fuera de alcance**, pero anotado: el middleware `requiereApiKey`
+que trajo `/api/ficha` es el camino natural para cerrarlo.
