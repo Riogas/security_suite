@@ -84,12 +84,15 @@ export async function GET(req: NextRequest) {
     const externos = resultados.flatMap((r) => r.users);
     const comparados = compararUsuarios(externos, locales);
 
-    // El resumen cuenta el universo del origen, ignorando filtro y estado: si
-    // no, los chips que filtran por estado se recalcularían al clickearlos y
-    // quedarían en cero.
-    const resumen = resumir(comparados);
+    // El resumen aplica el filtro de TEXTO (si no, el botón y los chips
+    // prometerían importar usuarios que el filtro de la grilla ya descartó),
+    // pero ignora estadoComparacion: si el resumen también respetara el
+    // estado, los propios chips que filtran por estado se recalcularían al
+    // clickearlos y quedarían en cero.
+    const filtrados = comparados.filter((u) => coincideFiltro(u, filtro));
+    const resumen = resumir(filtrados);
 
-    let visibles = comparados.filter((u) => coincideFiltro(u, filtro));
+    let visibles = filtrados;
     if (ESTADOS.includes(estadoParam as EstadoComparacion)) {
       visibles = visibles.filter((u) => u.estadoComparacion === estadoParam);
     }

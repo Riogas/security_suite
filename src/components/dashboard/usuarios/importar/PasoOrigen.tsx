@@ -22,11 +22,27 @@ const CARDS: { key: OrigenExternoUI; label: string; detalle: string; Icon: typeo
   { key: "GSIST", label: "ADMSEC / GSIST", detalle: "Clave propia en ADMSEC", Icon: Server },
 ];
 
-/** Traduce el `reason` técnico de la fuente a algo que el operador entienda. */
+/**
+ * Traduce el `reason` técnico de la fuente a algo que el operador entienda.
+ *
+ * El `reason` NO llega como un token pelado: `sources/index.ts::validarRespuesta`
+ * arma el mensaje del Error como `[origen, reason, error?].join(": ")`, así que
+ * lo que de verdad llega acá es algo como "SGM: SIN_AS400_API_URL" o
+ * "GSIST: UNAVAILABLE: fetch failed". Por eso el match es por substring, no
+ * por igualdad exacta.
+ */
 function motivoLegible(reason: string | null): string {
-  if (reason === "NO_SERVICE_ACCOUNT") return "Requiere cuenta de servicio de Active Directory";
-  if (reason === "SIN_USERS_API_KEY") return "Falta configurar USERS_API_KEY";
-  if (reason === "SIN_AS400_API_URL") return "Falta configurar AS400_API_URL";
+  if (!reason) return "No disponible";
+  // Inalcanzable hoy — la fuente LDAP cae a ADMSEC antes de que este motivo
+  // llegue a superficie — pero documenta la intención: se activa el día que
+  // haya cuenta de servicio de AD y esa cuenta falte.
+  if (reason.includes("NO_SERVICE_ACCOUNT")) return "Requiere cuenta de servicio de Active Directory";
+  if (reason.includes("SIN_USERS_API_KEY")) return "Falta configurar USERS_API_KEY";
+  if (reason.includes("SIN_AS400_API_URL")) return "Falta configurar AS400_API_URL";
+  // Distinto de "mal configurado": acá la config está, pero la fuente no
+  // contestó (timeout, red caída, servicio abajo). Le cambia al operador qué
+  // hacer — no es un ticket a sistemas, es reintentar en un rato.
+  if (reason.includes("UNAVAILABLE")) return "No responde";
   return "No disponible";
 }
 

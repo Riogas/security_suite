@@ -83,6 +83,8 @@ export default function PasoComparacion({
   const cantidadSeleccionada = todoElFiltro
     ? Math.max(0, resumen.preseleccionados - excluidos.size) + incluidos.size
     : incluidos.size;
+  const palabraUsuarios = cantidadSeleccionada === 1 ? "usuario" : "usuarios";
+  const palabraNuevos = cantidadSeleccionada === 1 ? "nuevo" : "nuevos";
 
   useEffect(() => {
     const ac = new AbortController();
@@ -334,7 +336,7 @@ export default function PasoComparacion({
           {importando ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importando...</>
           ) : (
-            <><Upload className="w-4 h-4 mr-2" />Importar {cantidadSeleccionada} usuarios</>
+            <><Upload className="w-4 h-4 mr-2" />Importar {cantidadSeleccionada} {palabraUsuarios}</>
           )}
         </Button>
       </div>
@@ -342,13 +344,14 @@ export default function PasoComparacion({
       <ConfirmDialog
         open={confirmando}
         onOpenChange={setConfirmando}
-        title={`¿Importar ${cantidadSeleccionada} usuarios desde ${opciones.origen}?`}
+        title={`¿Importar ${cantidadSeleccionada} ${palabraUsuarios} desde ${opciones.origen}?`}
         description={
-          `Se van a crear ${cantidadSeleccionada} usuarios nuevos. Los que ya existen no se tocan. ` +
+          `Se van a crear ${cantidadSeleccionada} ${palabraUsuarios} ${palabraNuevos}. Los que ya existen no se tocan. ` +
           `Preferencias: ${opciones.origen === "SGM" && opciones.conPreferencias ? "sí" : "no"}. ` +
           `Roles por grupo: ${opciones.conRoles ? "sí" : "no"}.`
         }
         confirmLabel="Importar"
+        tone="default"
         onConfirm={importar}
         loading={importando}
       />
