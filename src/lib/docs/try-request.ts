@@ -542,6 +542,21 @@ export function construirUrl(
     };
   }
 
+  // Y el mismo criterio para la recursión. `validarRuta` la bloquea sobre el
+  // TEXTO que mandó el cliente, pero `new URL` resuelve los segmentos punto
+  // (RFC 3986): `/api/docs/./try` pasa el filtro textual y aterriza igual en
+  // `/api/docs/try`. Lo que vale es el path que se va a pedir, no el que se
+  // escribió.
+  const pathResuelto = url.pathname.replace(/\/+$/, "").toLowerCase() || "/";
+  if (pathResuelto === RUTA_PROPIA) {
+    return {
+      ok: false,
+      status: 400,
+      code: "RECURSION_NO_PERMITIDA",
+      detalle: "El ejecutor no se llama a sí mismo.",
+    };
+  }
+
   if (queryEnRuta) {
     for (const [k, v] of new URLSearchParams(queryEnRuta)) url.searchParams.append(k, v);
   }

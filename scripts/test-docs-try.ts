@@ -233,6 +233,21 @@ async function main(): Promise<void> {
     esperarIgual(f.llamadas.length, 0, "llamadas al fetch");
   });
 
+  // El bloqueo textual de `validarRuta` no ve los segmentos punto: `new URL`
+  // los resuelve (RFC 3986) y `/api/docs/./try` aterriza en `/api/docs/try`.
+  // Quien decide es `construirUrl`, sobre el path ya resuelto.
+  await test("tampoco se llama a sí mismo disfrazado con segmentos punto", async () => {
+    for (const path of ["/api/docs/./try", "/api/./docs/try", "/api/docs/./try/"]) {
+      const f = fetchEspia();
+      const r = await ejecutarTry(
+        payloadDe({ metodo: "GET", path }),
+        contexto(f.impl),
+      );
+      esperarFallo(r, 400, "RECURSION_NO_PERMITIDA");
+      esperarIgual(f.llamadas.length, 0, `llamadas al fetch para ${path}`);
+    }
+  });
+
   await test("un método fuera de la lista se rechaza", async () => {
     const f = fetchEspia();
     const r = await ejecutarTry(

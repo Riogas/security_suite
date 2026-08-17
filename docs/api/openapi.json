@@ -1875,6 +1875,124 @@
         "x-generado": true
       }
     },
+    "/api/db/usuarios/externos": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Lista los usuarios de los orígenes externos, cruzados contra PostgreSQL.",
+        "description": "GET /api/db/usuarios/externos\nLista los usuarios de los orígenes externos, cruzados contra PostgreSQL.\nQuery: origen, filtro, estadoComparacion, incluirDeshabilitados, page, pageSize",
+        "operationId": "get_api_db_usuarios_externos",
+        "parameters": [
+          {
+            "name": "estadoComparacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "incluirDeshabilitados",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": false,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+        },
+        "x-archivo": "src/app/api/db/usuarios/externos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/importar": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Body: { origen, usernames[], conPreferencias?, conRoles?, dryRun? }",
+        "description": "POST /api/db/usuarios/importar\nBody: { origen, usernames[], conPreferencias?, conRoles?, dryRun? }\nSolo CREA. Lo que ya existe se omite con su motivo.",
+        "operationId": "post_api_db_usuarios_importar",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": false,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+        },
+        "x-archivo": "src/app/api/db/usuarios/importar/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
     "/api/db/usuarios/por-empresa-fletera": {
       "get": {
         "tags": [
@@ -2567,7 +2685,7 @@
   },
   "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
   "x-aplicacion-id": 1,
-  "x-operaciones": 70,
+  "x-operaciones": 72,
   "x-colapsados": [
     {
       "patron": "\\[\\.\\.\\.proxy\\]",

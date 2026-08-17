@@ -784,3 +784,118 @@ endpoints:
         in: path
         required: true
         description: "El resto de la ruta, pegado a `BACKEND_BASE_URL`."
+
+  "GET /api/db/usuarios/externos":
+    summary: Padrón de los orígenes externos (SGM, LDAP, GSIST) cruzado contra PostgreSQL
+    description: |
+      Lee los usuarios de los tres orígenes externos y los compara uno a uno contra
+      la tabla `usuarios` de PostgreSQL, devolviendo el estado del cruce:
+      `NUEVO` (está afuera y no en PG), `MIGRADO` (coinciden), `DIFIERE` (está en
+      los dos pero con datos distintos) y `CONFLICTO`.
+
+      Es el paso 1 de la migración de los usuarios que todavía viven en el AS400 y
+      en el AD: alimenta la grilla desde la que se elige a quién importar con
+      `POST /api/db/usuarios/importar`.
+    consumidores:
+      - "Pantalla de importación de usuarios externos de SecuritySuite."
+    notas:
+      - "El cruce es una **foto**: entre esta lectura y el import puede pasar cualquier cosa, por eso el import vuelve a verificar contra PG antes de crear."
+      - "`pageSize` está topeado en 500 del lado del servidor, aunque el cliente pida más."
+      - "Si un origen externo no responde, la fuente **lanza** en vez de devolver una lista vacía: un origen caído tiene que verse como error, no como “no hay usuarios ahí”."
+    auth:
+      modo: sesión
+      verificaFirma: false
+      detalle: |
+        `resolveUsuario(req)` resuelve al usuario del token y responde 401 si no hay.
+        **No verifica la firma del JWT** — es el problema transversal del ecosistema,
+        no algo propio de este endpoint (ver la nota de `POST /api/db/login`).
+    parameters:
+      - name: origen
+        in: query
+        required: false
+        description: "`SGM` | `LDAP` | `GSIST` | `todos` (default)."
+        schema: { type: string }
+      - name: filtro
+        in: query
+        required: false
+        description: "Texto libre; matchea contra username, nombre y email."
+        schema: { type: string }
+      - name: estadoComparacion
+        in: query
+        required: false
+        description: "`NUEVO` | `MIGRADO` | `DIFIERE` | `CONFLICTO` | `todos` (default)."
+        schema: { type: string }
+      - name: incluirDeshabilitados
+        in: query
+        required: false
+        description: "`true` para traer también los deshabilitados en el origen."
+        schema: { type: string }
+      - name: page
+        in: query
+        required: false
+        description: "Página, base 1."
+        schema: { type: integer }
+      - name: pageSize
+        in: query
+        required: false
+        description: "Default 25, tope 500."
+        schema: { type: integer }
+    errores:
+      - status: 400
+        code: "Origen inválido"
+        cuando: "`origen` no es SGM, LDAP, GSIST ni `todos`."
+      - status: 401
+        code: "No autenticado"
+        cuando: "No hay token, o no resuelve a un usuario."
+      - status: 500
+        code: "-"
+        cuando: "Falla la lectura de alguno de los orígenes externos."
+
+  "POST /api/db/usuarios/importar":
+    summary: Crea en PostgreSQL los usuarios elegidos de un origen externo (solo root)
+    description: |
+      Paso 2 de la migración: recibe una lista de `usernames` de un origen y los
+      **crea** en `usuarios`. Nunca actualiza a los que ya están: si el username o
+      el email ya existen, el usuario se devuelve como `omitido` con el motivo.
+
+      Los usernames se escriben en minúsculas (el AS400 los guarda en MAYÚSCULAS y
+      PostgreSQL en minúsculas) y las altas van en lotes de 10 — con 50 en paralelo
+      el pool de Prisma devolvía `P2024`, que en el resultado por usuario es
+      indistinguible de un dato malo del origen.
+
+      Con `dryRun: true` simula: informa qué pasaría sin escribir nada.
+    consumidores:
+      - "Pantalla de importación de usuarios externos de SecuritySuite."
+    notas:
+      - "**Doble gate**: además de `requireRoot` (el mismo guard que `/docs`), exige `es_root='S'` explícito. El rol Root no alcanza: esto crea usuarios."
+      - "El tope de `usernames` por request lo pone el **servidor** (2000), no el cliente."
+      - "`detalles` viene recortado a 200 entradas y **solo trae lo que no salió bien** (omitidos y errores)."
+    auth:
+      modo: root
+      detalle: "`requireRoot` (firma HS256 + `exp` + permiso `docs:view` contra secapi) y encima `es_root='S'`."
+    requestBody:
+      requerido: true
+      descripcion: "Qué importar y con qué."
+      campos:
+        - { nombre: origen, tipo: string, requerido: true, descripcion: "`SGM` | `LDAP` | `GSIST`." }
+        - { nombre: usernames, tipo: "string[]", requerido: true, descripcion: "Hasta 2000." }
+        - { nombre: conPreferencias, tipo: boolean, requerido: false, descripcion: "Copia escenario y empresa fletera del origen." }
+        - { nombre: conRoles, tipo: boolean, requerido: false, descripcion: "Aplica los roles derivados de los grupos de ADMSEC / Despacho del SGM." }
+        - { nombre: dryRun, tipo: boolean, requerido: false, descripcion: "Simula sin escribir." }
+      ejemplo: |
+        { "origen": "GSIST", "usernames": ["jperez", "mrodriguez"], "conRoles": true, "dryRun": true }
+    responses:
+      "200":
+        description: |
+          `{ success, dryRun, mensaje, total, creados, omitidos, errores, detalles[] }`.
+          `detalles` solo lista omitidos y errores, hasta 200.
+    errores:
+      - status: 400
+        code: "Origen inválido / máximo por importación"
+        cuando: "`origen` desconocido, o más de 2000 usernames."
+      - status: 403
+        code: "La importación de usuarios requiere ser root"
+        cuando: "Pasó el guard pero el usuario no tiene `es_root='S'`."
+      - status: 500
+        code: "-"
+        cuando: "Falla la lectura del origen externo o la escritura en PostgreSQL."
