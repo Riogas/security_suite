@@ -104,11 +104,25 @@ export type EstadoSecreto = { ok: true; secreto: string } | { ok: false; motivo:
  * Se lee en cada request (no al importar el módulo) para que un cambio de
  * ambiente no exija reiniciar el proceso para volver a evaluarse.
  */
-export function leerSecretoJwt(): EstadoSecreto {
-  const secreto = process.env.JWT_SECRET;
+/**
+ * Largo mínimo del secreto. Verificar HS256 contra un secreto corto no prueba
+ * nada: se rompe offline a partir de cualquier token capturado, y con el
+ * secreto en la mano se firma un token de root a mano — que es exactamente el
+ * ataque que este guard viene a cerrar.
+ */
+export const LARGO_MINIMO_SECRETO = 32;
 
-  if (!secreto || secreto.trim() === "") {
+export function leerSecretoJwt(): EstadoSecreto {
+  const secreto = (process.env.JWT_SECRET ?? "").trim();
+
+  if (secreto === "") {
     return { ok: false, motivo: "JWT_SECRET no está seteada" };
+  }
+  if (secreto.length < LARGO_MINIMO_SECRETO) {
+    return {
+      ok: false,
+      motivo: `JWT_SECRET tiene ${secreto.length} caracteres: se exigen al menos ${LARGO_MINIMO_SECRETO}`,
+    };
   }
   if (sha256(secreto) === DIGEST_SECRETO_DE_COMPROMISO) {
     return {
