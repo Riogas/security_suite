@@ -1913,10 +1913,11 @@ export const apiGuardarAtributoRolDB = async (
 // 📦 SERVICIOS PRISMA — Sync masivo desde SGM
 // =====================================================================
 // ⚠️ RETIRADO 2026-08-17 — reemplazado por apiImportarUsuariosDB.
-// Pegaba al servicio /importarUsuario de GeneXus. Se deja comentado, no
-// borrado: no se confirmó con el equipo de GeneXus si ese servicio hace algo
-// más que crear el usuario (spec §10.3). Si aparece un efecto que nos estamos
-// perdiendo, está acá para volver.
+// Pegaba al route interno /api/db/usuarios/sync (ya borrado en esta misma
+// tarea), que a su vez llamaba al servicio /syncUser de GeneXus. Se deja
+// comentado, no borrado: no se confirmó con el equipo de GeneXus si ese
+// servicio hace algo más que crear el usuario (spec §10.3). Si aparece un
+// efecto que nos estamos perdiendo, está acá para volver.
 //
 // export interface SyncUsuariosResult {
 //   success: boolean;
