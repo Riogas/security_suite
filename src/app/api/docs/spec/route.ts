@@ -14,17 +14,20 @@ export const dynamic = "force-dynamic";
 // (generado por `pnpm docs:api`) mergeado con docs/api/anotaciones.yaml
 // (escrito a mano). Las anotaciones ganan sobre lo inferido.
 //
-// Auth: SOLO ROOT. Pasa por requireRoot(), que es fail-closed. El documento
-// incluye qué endpoints de esta app no validan nada: es información sensible y
-// es exactamente por eso que el portal es solo-root (spec §2 y §7).
+// Auth: SOLO ROOT. Pasa por requireRoot(), que es fail-closed y que —a
+// diferencia del resto de la app— verifica firma y vencimiento del JWT contra
+// JWT_SECRET. El documento incluye qué endpoints de esta app no validan nada:
+// es información sensible y es exactamente por eso que el portal es solo-root
+// (spec §2 y §7).
 //
 // Headers: Authorization: Bearer <jwt>   (o cookie "token")
 //
 // Respuesta 200: el documento OpenAPI 3.1 completo, con `x-anotaciones`
 //   { total, anotados, sinAnotar[], huerfanas[] } agregado en la raíz.
-// Errores: 401 SIN_TOKEN | TOKEN_INVALIDO
+// Errores: 401 SIN_TOKEN | TOKEN_INVALIDO | TOKEN_VENCIDO
 //          403 USUARIO_NO_ENCONTRADO | NO_ROOT
-//          503 ERROR_GUARD (guard fail-closed) | SPEC_NO_GENERADO
+//          503 SECRETO_NO_CONFIGURADO (JWT_SECRET ausente o con el default del
+//              código) | ERROR_GUARD (guard fail-closed) | SPEC_NO_GENERADO
 // =====================================================================
 export async function GET(request: NextRequest) {
   const guard = await requireRoot(request);

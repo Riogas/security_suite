@@ -6,19 +6,31 @@
  * El repo no tiene runner de tests, así que esto es un script `tsx` con sus
  * propias aserciones — el mismo formato que el resto de scripts/. Se corre con:
  *
+ *   pnpm test            (alias)
  *   pnpm test:docs-guard
  *
  * NO toca la base ni la red: el guard se construye con `crearGuardRoot()` y
  * dependencias falsas. Lo que se verifica es la decisión del guard, no Prisma.
+ * Los JWT son reales (firmados con `jsonwebtoken`), porque desde el blindaje el
+ * guard verifica firma y vencimiento antes de mirar nada más.
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
 import {
   crearGuardRoot,
+  filtroOtorgamientoDocs,
   type DependenciasGuard,
   type ResultadoGuard,
 } from "../src/lib/docs/root-guard";
 import type { UsuarioAuth } from "../src/lib/permisos";
+
+// El guard lee JWT_SECRET en cada request y exige que sea un secreto real: sin
+// esto, TODOS los casos darían 503 SECRETO_NO_CONFIGURADO.
+const SECRETO_TEST = "secreto-de-prueba-solo-para-este-script";
+process.env.JWT_SECRET = SECRETO_TEST;
 
 // ─── Mini framework de aserciones ───────────────────────────────────────────
 
@@ -54,19 +66,61 @@ function esperarDenegado(r: ResultadoGuard, status: number, code: string): void 
   esperarIgual(r.code, code, "code");
 }
 
+/** Corre `fn` con otro JWT_SECRET (o sin ninguno) y lo deja como estaba. */
+async function conSecreto(valor: string | undefined, fn: () => Promise<void>): Promise<void> {
+  const previo = process.env.JWT_SECRET;
+  if (valor === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = valor;
+  try {
+    await fn();
+  } finally {
+    if (previo === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = previo;
+  }
+}
+
+/** El guard loguea a propósito los errores y la mala configuración. */
+async function sinRuido(fn: () => Promise<void>): Promise<void> {
+  const original = console.error;
+  console.error = () => {};
+  try {
+    await fn();
+  } finally {
+    console.error = original;
+  }
+}
+
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
 const ROOT: UsuarioAuth = { id: 1, esRoot: "S", username: "dmedaglia" };
 const CON_ROL_ROOT: UsuarioAuth = { id: 2, esRoot: "N", username: "con-rol-root" };
 const COMUN: UsuarioAuth = { id: 3, esRoot: "N", username: "usuario-comun" };
 
-/** JWT sintético: solo tiene que sobrevivir a decodeJwt(), la firma no se mira. */
-function jwtDe(username: string): string {
-  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64");
+const SEGUNDOS_7_DIAS = 7 * 24 * 60 * 60;
+
+/** JWT real, firmado. Por defecto con el secreto del test y vigente 7 días. */
+function jwtDe(
+  username: string,
+  opciones: { secreto?: string; expiraEnSegundos?: number } = {},
+): string {
+  const { secreto = SECRETO_TEST, expiraEnSegundos = SEGUNDOS_7_DIAS } = opciones;
+  return jwt.sign(
+    { iss: "security-suite", username, userId: 99, sistema: "SecuritySuite" },
+    secreto,
+    { expiresIn: expiraEnSegundos },
+  );
+}
+
+/** El token que fabricaba cualquiera antes del blindaje: base64 y una firma de mentira. */
+function jwtSinFirmar(username: string): string {
+  const b64 = (o: unknown) =>
+    Buffer.from(JSON.stringify(o)).toString("base64url").replace(/=+$/, "");
   return [
     b64({ alg: "HS256", typ: "JWT" }),
     b64({ iss: "security-suite", username, userId: 99, sistema: "SecuritySuite" }),
-    "firma-que-nadie-verifica",
+    "firma-inventada",
   ].join(".");
 }
 
@@ -99,10 +153,8 @@ function espiar(opciones: {
       espia.llamadasResolve++;
       if (explota === "resolve") throw new Error("Can't reach database server");
       const auth = req.headers.get("authorization") ?? "";
-      const payload = JSON.parse(
-        Buffer.from(auth.replace("Bearer ", "").split(".")[1], "base64").toString("utf8"),
-      ) as { username: string };
-      return usuarios[payload.username] ?? null;
+      const payload = jwt.decode(auth.replace("Bearer ", "")) as { username: string } | null;
+      return (payload && usuarios[payload.username]) ?? null;
     },
     async tieneFuncionalidadDocs(usuarioId: number) {
       espia.llamadasFuncionalidad++;
@@ -118,21 +170,162 @@ function espiar(opciones: {
 const conRequest = (headers: Record<string, string>) =>
   new NextRequest("http://localhost:4005/api/docs/spec", { headers });
 
+/**
+ * El secreto que quedó como default en el código, leído del propio código.
+ * No se transcribe acá: si alguien lo cambia, el test sigue apuntando al valor
+ * vigente y el guard tiene que seguir rechazándolo.
+ */
+function secretoPorDefectoDelCodigo(archivo: string): string {
+  const fuente = fs.readFileSync(path.join(process.cwd(), archivo), "utf8");
+  const m = /JWT_SECRET\s*\|\|\s*"([^"]+)"/.exec(fuente);
+  if (!m) throw new Error(`no se encontró el default de JWT_SECRET en ${archivo}`);
+  return m[1];
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   console.log("\nGate solo-root de /docs (src/lib/docs/root-guard.ts)\n");
 
-  await test("root por es_root='S' pasa, sin consultar rol_funcionalidades", async () => {
+  // ── Verificación del token: firma, vencimiento y secreto ──────────────────
+
+  await test("token válido y firmado pasa (root por es_root='S')", async () => {
     const e = espiar({ usuarios: { dmedaglia: ROOT } });
     const { requireRoot } = crearGuardRoot(e.deps);
 
     const r = await requireRoot(conRequest({ authorization: `Bearer ${jwtDe("dmedaglia")}` }));
 
-    esperar(r.ok, "el root tendría que pasar");
+    esperar(r.ok, "el root con token firmado tendría que pasar");
     if (r.ok) esperarIgual(r.usuario.username, "dmedaglia", "usuario devuelto");
     esperarIgual(e.llamadasFuncionalidad, 0, "consultas a rol_funcionalidades");
   });
+
+  await test("token firmado con OTRO secreto: 401 TOKEN_INVALIDO", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+
+    const impostor = jwtDe("dmedaglia", { secreto: "otro-secreto-cualquiera" });
+    esperarDenegado(
+      await requireRoot(conRequest({ authorization: `Bearer ${impostor}` })),
+      401,
+      "TOKEN_INVALIDO",
+    );
+    esperarIgual(e.llamadasResolve, 0, "no se consulta la base con firma inválida");
+  });
+
+  await test("token armado a mano, sin firmar: 401 TOKEN_INVALIDO", async () => {
+    // Este es EL caso: antes del blindaje, este token entraba como root.
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+
+    esperarDenegado(
+      await requireRoot(conRequest({ authorization: `Bearer ${jwtSinFirmar("dmedaglia")}` })),
+      401,
+      "TOKEN_INVALIDO",
+    );
+    esperarIgual(e.llamadasResolve, 0, "no se consulta la base con firma inválida");
+  });
+
+  await test("token vencido: 401 TOKEN_VENCIDO", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+
+    const vencido = jwtDe("dmedaglia", { expiraEnSegundos: -60 });
+    esperarDenegado(
+      await requireRoot(conRequest({ authorization: `Bearer ${vencido}` })),
+      401,
+      "TOKEN_VENCIDO",
+    );
+    esperarIgual(e.llamadasResolve, 0, "no se consulta la base con token vencido");
+  });
+
+  await test("el vencimiento se mira SIEMPRE, aunque el positivo esté cacheado", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+    const token = jwtDe("dmedaglia", { expiraEnSegundos: 1 });
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
+
+    esperar((await requireRoot(req())).ok, "mientras está vigente tiene que pasar");
+    await dormir(1500); // el reloj del cache no se mueve: solo vence el token
+
+    esperarDenegado(await requireRoot(req()), 401, "TOKEN_VENCIDO");
+  });
+
+  await test("sin JWT_SECRET: 503 SECRETO_NO_CONFIGURADO (fail-closed)", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+    const token = jwtDe("dmedaglia");
+
+    await conSecreto(undefined, () =>
+      sinRuido(async () => {
+        esperarDenegado(
+          await requireRoot(conRequest({ authorization: `Bearer ${token}` })),
+          503,
+          "SECRETO_NO_CONFIGURADO",
+        );
+      }),
+    );
+    esperarIgual(e.llamadasResolve, 0, "no se consulta la base sin secreto configurado");
+  });
+
+  await test("JWT_SECRET vacía: 503 SECRETO_NO_CONFIGURADO", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+    const token = jwtDe("dmedaglia");
+
+    await conSecreto("   ", () =>
+      sinRuido(async () => {
+        esperarDenegado(
+          await requireRoot(conRequest({ authorization: `Bearer ${token}` })),
+          503,
+          "SECRETO_NO_CONFIGURADO",
+        );
+      }),
+    );
+  });
+
+  await test("JWT_SECRET igual al default del código: 503 SECRETO_NO_CONFIGURADO", async () => {
+    const porDefecto = secretoPorDefectoDelCodigo("src/lib/auth/responses.ts");
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+    // Token firmado con ESE secreto: la firma verifica, y aun así no se abre.
+    const token = jwtDe("dmedaglia", { secreto: porDefecto });
+
+    await conSecreto(porDefecto, () =>
+      sinRuido(async () => {
+        esperarDenegado(
+          await requireRoot(conRequest({ authorization: `Bearer ${token}` })),
+          503,
+          "SECRETO_NO_CONFIGURADO",
+        );
+      }),
+    );
+  });
+
+  await test("el default del login y el de /api/db/menu son el mismo", async () => {
+    // Si dejaran de coincidir, el chequeo de arriba estaría mirando el equivocado.
+    esperarIgual(
+      secretoPorDefectoDelCodigo("src/app/api/db/menu/route.ts"),
+      secretoPorDefectoDelCodigo("src/lib/auth/responses.ts"),
+      "default de JWT_SECRET",
+    );
+  });
+
+  await test("el 503 por secreto no se cachea: al configurarlo, entra", async () => {
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+    const token = jwtDe("dmedaglia");
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
+
+    await conSecreto(undefined, () =>
+      sinRuido(async () => {
+        esperarDenegado(await requireRoot(req()), 503, "SECRETO_NO_CONFIGURADO");
+      }),
+    );
+    esperar((await requireRoot(req())).ok, "con el secreto puesto tendría que entrar");
+  });
+
+  // ── Resolución de root ────────────────────────────────────────────────────
 
   await test("root por rol (funcionalidad 'docs' otorgada) pasa", async () => {
     const e = espiar({ usuarios: { "con-rol-root": CON_ROL_ROOT }, conDocs: [CON_ROL_ROOT.id] });
@@ -198,42 +391,38 @@ async function main(): Promise<void> {
     const e = espiar({ usuarios: { dmedaglia: ROOT }, explota: "resolve" });
     const { requireRoot } = crearGuardRoot(e.deps);
 
-    const original = console.error; // el guard loguea el error a propósito
-    console.error = () => {};
-    try {
+    await sinRuido(async () => {
       esperarDenegado(
         await requireRoot(conRequest({ authorization: `Bearer ${jwtDe("dmedaglia")}` })),
         503,
         "ERROR_GUARD",
       );
-    } finally {
-      console.error = original;
-    }
+    });
   });
 
   await test("base caída al chequear la funcionalidad: 503 y NO se cachea", async () => {
     const e = espiar({ usuarios: { "con-rol-root": CON_ROL_ROOT }, explota: "funcionalidad" });
     const { requireRoot } = crearGuardRoot(e.deps);
-    const req = () => conRequest({ authorization: `Bearer ${jwtDe("con-rol-root")}` });
+    const token = jwtDe("con-rol-root");
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
 
-    const original = console.error;
-    console.error = () => {};
-    try {
+    await sinRuido(async () => {
       esperarDenegado(await requireRoot(req()), 503, "ERROR_GUARD");
       esperarDenegado(await requireRoot(req()), 503, "ERROR_GUARD");
-    } finally {
-      console.error = original;
-    }
+    });
 
     // Si el error se hubiera cacheado, la segunda llamada no habría consultado:
     // un 503 cacheado dejaría el portal caído aunque la base ya haya vuelto.
     esperarIgual(e.llamadasFuncionalidad, 2, "reintentos contra la base");
   });
 
+  // ── Cache ─────────────────────────────────────────────────────────────────
+
   await test("el positivo se cachea 5 minutos y vence después", async () => {
     const e = espiar({ usuarios: { "con-rol-root": CON_ROL_ROOT }, conDocs: [CON_ROL_ROOT.id] });
     const { requireRoot } = crearGuardRoot(e.deps);
-    const req = () => conRequest({ authorization: `Bearer ${jwtDe("con-rol-root")}` });
+    const token = jwtDe("con-rol-root");
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
 
     esperar((await requireRoot(req())).ok, "primera llamada");
     esperar((await requireRoot(req())).ok, "segunda llamada (cacheada)");
@@ -247,7 +436,8 @@ async function main(): Promise<void> {
   await test("el negativo se cachea solo 30 segundos", async () => {
     const e = espiar({ usuarios: { "usuario-comun": COMUN }, conDocs: [] });
     const { requireRoot } = crearGuardRoot(e.deps);
-    const req = () => conRequest({ authorization: `Bearer ${jwtDe("usuario-comun")}` });
+    const token = jwtDe("usuario-comun");
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
 
     esperarDenegado(await requireRoot(req()), 403, "NO_ROOT");
     esperarDenegado(await requireRoot(req()), 403, "NO_ROOT");
@@ -262,7 +452,8 @@ async function main(): Promise<void> {
     const conDocs: number[] = [];
     const e = espiar({ usuarios: { "con-rol-root": CON_ROL_ROOT }, conDocs });
     const { requireRoot } = crearGuardRoot(e.deps);
-    const req = () => conRequest({ authorization: `Bearer ${jwtDe("con-rol-root")}` });
+    const token = jwtDe("con-rol-root");
+    const req = () => conRequest({ authorization: `Bearer ${token}` });
 
     esperarDenegado(await requireRoot(req()), 403, "NO_ROOT");
     conDocs.push(CON_ROL_ROOT.id); // le dan el rol Root
@@ -271,12 +462,56 @@ async function main(): Promise<void> {
     esperar((await requireRoot(req())).ok, "tendría que entrar tras vencer el negativo");
   });
 
+  await test("el cache no indexa por el JWT en claro", async () => {
+    // Dos tokens distintos del mismo usuario tienen que resolverse por separado,
+    // y ninguna clave del cache puede ser el token tal cual.
+    const e = espiar({ usuarios: { dmedaglia: ROOT } });
+    const { requireRoot } = crearGuardRoot(e.deps);
+
+    const a = jwtDe("dmedaglia");
+    await dormir(1100); // `iat` en segundos: sin esto los dos JWT salen idénticos
+    const b = jwtDe("dmedaglia");
+    esperar(a !== b, "los dos tokens tendrían que ser distintos");
+
+    esperar((await requireRoot(conRequest({ authorization: `Bearer ${a}` }))).ok, "token A");
+    esperar((await requireRoot(conRequest({ authorization: `Bearer ${b}` }))).ok, "token B");
+    esperarIgual(e.llamadasResolve, 2, "cada token se evalúa por su cuenta");
+  });
+
   await test("requireRootPorToken deniega con token vacío o nulo", async () => {
     const e = espiar({ usuarios: { dmedaglia: ROOT } });
     const { requireRootPorToken } = crearGuardRoot(e.deps);
 
     esperarDenegado(await requireRootPorToken(null), 401, "SIN_TOKEN");
     esperarDenegado(await requireRootPorToken("   "), 401, "SIN_TOKEN");
+  });
+
+  // ── Filtro contra Postgres ────────────────────────────────────────────────
+
+  await test("el filtro del otorgamiento replica solo_root y la vigencia de la funcionalidad", async () => {
+    const ahora = new Date("2026-08-17T12:00:00Z");
+    const filtro = filtroOtorgamientoDocs(42, ahora) as {
+      funcionalidad: Record<string, unknown>;
+      rol: { estado: string; usuarios: { some: Record<string, unknown> } };
+    };
+
+    esperarIgual(filtro.funcionalidad.nombre, "docs", "nombre de la funcionalidad");
+    esperarIgual(filtro.funcionalidad.estado, "A", "estado de la funcionalidad");
+    // solo_root='S' es lo que /api/db/permisos descarta para quien no es root:
+    // el bypass de es_root ya se resolvió antes de llegar a esta consulta.
+    esperarIgual(filtro.funcionalidad.soloRoot, "N", "solo_root de la funcionalidad");
+    esperar(
+      JSON.stringify(filtro.funcionalidad.OR).includes("fechaDesde") &&
+        JSON.stringify(filtro.funcionalidad.AND).includes("fechaHasta"),
+      "la vigencia de la funcionalidad tiene que estar contemplada",
+    );
+    esperarIgual(filtro.rol.estado, "A", "estado del rol");
+    esperarIgual(filtro.rol.usuarios.some.usuarioId, 42, "usuario del otorgamiento");
+    esperar(
+      JSON.stringify(filtro.rol.usuarios.some.OR).includes("fechaDesde") &&
+        JSON.stringify(filtro.rol.usuarios.some.AND).includes("fechaHasta"),
+      "la vigencia de la asignación al rol tiene que estar contemplada",
+    );
   });
 
   console.log(

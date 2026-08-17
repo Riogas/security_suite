@@ -13,6 +13,7 @@
     "prisma:pull": "prisma db pull",
     "prisma:push": "prisma db push",
     "docs:api": "tsx scripts/generar-openapi.ts",
+    "test": "pnpm test:docs-guard",
     "test:docs-guard": "tsx scripts/test-docs-root-guard.ts",
     "import:sgm-prefs": "tsx scripts/import-sgm-preferences.ts",
     "seed:solicitudes": "tsx scripts/seed-solicitudes-funcionalidad.ts",

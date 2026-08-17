@@ -2351,7 +2351,7 @@
           "docs"
         ],
         "summary": "Catálogo de las APIs propias de SecuritySuite: docs/api/openapi.json",
-        "description": "GET /api/docs/spec\n\nCatálogo de las APIs propias de SecuritySuite: docs/api/openapi.json\n(generado por `pnpm docs:api`) mergeado con docs/api/anotaciones.yaml\n(escrito a mano). Las anotaciones ganan sobre lo inferido.\n\nAuth: SOLO ROOT. Pasa por requireRoot(), que es fail-closed. El documento\nincluye qué endpoints de esta app no validan nada: es información sensible y\nes exactamente por eso que el portal es solo-root (spec §2 y §7).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nRespuesta 200: el documento OpenAPI 3.1 completo, con `x-anotaciones`\n  { total, anotados, sinAnotar[], huerfanas[] } agregado en la raíz.\nErrores: 401 SIN_TOKEN | TOKEN_INVALIDO\n         403 USUARIO_NO_ENCONTRADO | NO_ROOT\n         503 ERROR_GUARD (guard fail-closed) | SPEC_NO_GENERADO",
+        "description": "GET /api/docs/spec\n\nCatálogo de las APIs propias de SecuritySuite: docs/api/openapi.json\n(generado por `pnpm docs:api`) mergeado con docs/api/anotaciones.yaml\n(escrito a mano). Las anotaciones ganan sobre lo inferido.\n\nAuth: SOLO ROOT. Pasa por requireRoot(), que es fail-closed y que —a\ndiferencia del resto de la app— verifica firma y vencimiento del JWT contra\nJWT_SECRET. El documento incluye qué endpoints de esta app no validan nada:\nes información sensible y es exactamente por eso que el portal es solo-root\n(spec §2 y §7).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nRespuesta 200: el documento OpenAPI 3.1 completo, con `x-anotaciones`\n  { total, anotados, sinAnotar[], huerfanas[] } agregado en la raíz.\nErrores: 401 SIN_TOKEN | TOKEN_INVALIDO | TOKEN_VENCIDO\n         403 USUARIO_NO_ENCONTRADO | NO_ROOT\n         503 SECRETO_NO_CONFIGURADO (JWT_SECRET ausente o con el default del\n             código) | ERROR_GUARD (guard fail-closed) | SPEC_NO_GENERADO",
         "operationId": "get_api_docs_spec",
         "responses": {
           "default": {
@@ -2537,11 +2537,14 @@
   "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
   "x-aplicacion-id": 1,
   "x-operaciones": 69,
-  "x-excluidos": [
+  "x-colapsados": [
     {
       "patron": "\\[\\.\\.\\.proxy\\]",
-      "motivo": "Catch-all que reenvía a GeneXus/Tomcat (BACKEND_BASE_URL). Se documenta como una sola entrada; los endpoints del otro lado pertenecen a GeneXus y no se enumeran acá."
-    },
+      "entrada": "/api/{proxy}",
+      "motivo": "Catch-all que reenvía a GeneXus/Tomcat (BACKEND_BASE_URL). Aparece en `paths` como una sola entrada (`/api/{proxy}`) en lugar de un handler por método; los endpoints del otro lado pertenecen a GeneXus y no se enumeran acá."
+    }
+  ],
+  "x-excluidos": [
     {
       "patron": "(^|[\\\\/])test-proxy([\\\\/]|$)",
       "motivo": "Endpoint de diagnóstico del proxy, no es parte del contrato público de la app."

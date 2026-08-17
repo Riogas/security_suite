@@ -45,7 +45,7 @@ endpoints:
       - "as400-api (Express :5000) es la dependencia, no el consumidor: este endpoint le pega para SGM y LDAP."
     notas:
       - "**El JWT no lleva el flag root.** Ninguna app puede decidir “es root” leyendo el token: hay que preguntarle a secapi. Es la razón de ser del gate de `/docs`."
-      - "`JWT_SECRET` tiene default en código (`security-suite-secret-key`): si la variable no está seteada en el ambiente, el token se firma con un secreto conocido."
+      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y no abre."
       - "El filtro por escenario puede dejar a un usuario válido afuera con 403 `FORBIDDEN_SCENARIO` si ninguno de sus roles aplica al escenario activo."
     auth:
       modo: ninguna
@@ -136,7 +136,7 @@ endpoints:
       - "El sidebar de GOYA (aplicación 3, menú raíz 10)."
       - "TrackMovil NO lo usa: su menú es código (`FloatingToolbar.tsx`)."
     notas:
-      - "**Es el único lugar de esta aplicación que hace `jwt.verify`.** Todo el resto decodifica el payload sin validar la firma."
+      - "**Es el único endpoint de esta aplicación que hace `jwt.verify`.** El otro lugar que verifica la firma es el gate de `/docs` (`src/lib/docs/root-guard.ts`), que no es un endpoint. Todo el resto decodifica el payload sin validar la firma."
       - "Si el token no verifica, no devuelve 401: sigue sin gateo. Un token inválido obtiene el árbol completo de la aplicación."
       - "Sin `aplicacionId` en la query cae a `NEXT_PUBLIC_APLICACION_ID` / `APLICACION_ID` del ambiente."
       - "El punto de menú de `/docs` está diferido a propósito: la base es la misma que usa producción y un item antes de que la página exista es un link a 404 (`pnpm seed:docs --con-menu`)."
@@ -145,4 +145,42 @@ endpoints:
         titulo: Menú de GOYA
         codigo: |
           curl "http://localhost:4005/api/db/menu?aplicacionId=3" \
+            -H "Authorization: Bearer $TOKEN"
+
+  "GET /api/docs/spec":
+    summary: El catálogo de este portal, mergeado y solo para root
+    description: |
+      Devuelve `docs/api/openapi.json` (generado) mergeado con
+      `docs/api/anotaciones.yaml` (a mano), con las anotaciones ganando sobre lo
+      inferido, más `x-anotaciones` en la raíz
+      (`{ total, anotados, sinAnotar[], huerfanas[] }`).
+
+      Los dos archivos se leen del filesystem en cada request: no hay cache, así
+      que un `pnpm docs:api` se ve sin reiniciar el proceso.
+    consumidores:
+      - "El propio portal `/dashboard/docs` de SecuritySuite."
+      - "Nadie más: no es una API para integrar, es el contenido de una pantalla."
+    notas:
+      - "Publica qué endpoints de esta app no validan nada. Es información sensible: de ahí que el gate sea server-side, solo-root y fail-closed."
+      - "**Su guard es el único camino de esta app que verifica el JWT de verdad** (firma y vencimiento, `jwt.verify`). El resto decodifica el payload sin validar nada; el portal no podía apoyarse en eso."
+      - "Exige `JWT_SECRET` seteada con un secreto real: si falta, o si es el default que quedó en el código, responde 503 `SECRETO_NO_CONFIGURADO` y no abre. Ver `docs/api/README.md`."
+      - "Si falta `docs/api/openapi.json` en el deploy responde 503 `SPEC_NO_GENERADO` en vez de romper."
+    auth:
+      modo: jwt
+      verificaFirma: true
+      detalle: "JWT en `Authorization: Bearer` o cookie `token`, verificado (firma + vencimiento) por `src/lib/docs/root-guard.ts` contra `JWT_SECRET`, y además exige ser root."
+    responses:
+      "200":
+        description: El documento OpenAPI 3.1 mergeado, con `x-anotaciones` en la raíz.
+      "401":
+        description: '`SIN_TOKEN`, `TOKEN_INVALIDO` (firma inválida o malformado) o `TOKEN_VENCIDO`.'
+      "403":
+        description: '`USUARIO_NO_ENCONTRADO` (el token nombra a alguien inactivo) o `NO_ROOT`.'
+      "503":
+        description: '`SECRETO_NO_CONFIGURADO` (JWT_SECRET ausente o con el default del código), `ERROR_GUARD` (fail-closed: no se pudo decidir) o `SPEC_NO_GENERADO`.'
+    ejemplos:
+      - lenguaje: curl
+        titulo: Traer el catálogo
+        codigo: |
+          curl http://localhost:4005/api/docs/spec \
             -H "Authorization: Bearer $TOKEN"

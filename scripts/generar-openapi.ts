@@ -31,21 +31,36 @@ const METODOS_HTTP = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"
 type MetodoHttp = (typeof METODOS_HTTP)[number];
 
 /**
- * Handlers que el parser NO documenta uno por uno, con el motivo. El catch-all
- * de GeneXus se documenta después como UNA entrada (ver `entradaProxy`): son
- * endpoints de otro sistema, enumerarlos acá sería inventar un contrato ajeno.
+ * Rutas que el parser NO recorre archivo por archivo, en dos categorías que el
+ * documento publica por separado — la diferencia importa para quien lee el
+ * catálogo y quiere saber qué NO está mirando:
+ *
+ * - COLAPSADOS: sí aparecen en `paths`, pero como una sola entrada armada a
+ *   mano en vez de un handler por método (hoy: el catch-all de GeneXus, ver
+ *   `entradaProxy`). Los endpoints del otro lado son de otro sistema:
+ *   enumerarlos sería inventar un contrato ajeno.
+ * - EXCLUIDOS: no aparecen en el documento, en ninguna forma.
  */
-const EXCLUIDOS: Array<{ patron: RegExp; motivo: string }> = [
+const COLAPSADOS: Array<{ patron: RegExp; entrada: string; motivo: string }> = [
   {
     patron: /\[\.\.\.proxy\]/,
+    entrada: "/api/{proxy}",
     motivo:
-      "Catch-all que reenvía a GeneXus/Tomcat (BACKEND_BASE_URL). Se documenta como una sola entrada; los endpoints del otro lado pertenecen a GeneXus y no se enumeran acá.",
+      "Catch-all que reenvía a GeneXus/Tomcat (BACKEND_BASE_URL). Aparece en `paths` como una sola entrada (`/api/{proxy}`) en lugar de un handler por método; los endpoints del otro lado pertenecen a GeneXus y no se enumeran acá.",
   },
+];
+
+const EXCLUIDOS: Array<{ patron: RegExp; motivo: string }> = [
   {
     patron: /(^|[\\/])test-proxy([\\/]|$)/,
     motivo: "Endpoint de diagnóstico del proxy, no es parte del contrato público de la app.",
   },
 ];
+
+/** ¿El archivo lo maneja alguna de las dos listas de arriba? */
+function esSalteado(rel: string): boolean {
+  return [...COLAPSADOS, ...EXCLUIDOS].some((e) => e.patron.test(rel));
+}
 
 // ─── Recorrido de archivos ──────────────────────────────────────────────────
 
@@ -355,7 +370,7 @@ function parsearRepo(): ResultadoParseo {
 
   for (const archivo of listarRoutes(DIR_API)) {
     const rel = path.relative(RAIZ, archivo).split(path.sep).join("/");
-    if (EXCLUIDOS.some((e) => e.patron.test(rel))) continue;
+    if (esSalteado(rel)) continue;
 
     const fuente = fs.readFileSync(archivo, "utf8");
     const lineas = fuente.split(/\r?\n/);
@@ -470,6 +485,13 @@ function construirDocumento(): Record<string, unknown> {
     "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
     "x-aplicacion-id": 1,
     "x-operaciones": cantidad,
+    // Colapsados: están en `paths`, pero como una entrada única.
+    "x-colapsados": COLAPSADOS.map((e) => ({
+      patron: e.patron.source,
+      entrada: e.entrada,
+      motivo: e.motivo,
+    })),
+    // Excluidos: no están en el documento, en ninguna forma.
     "x-excluidos": EXCLUIDOS.map((e) => ({ patron: e.patron.source, motivo: e.motivo })),
   };
 }
