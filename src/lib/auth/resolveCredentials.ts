@@ -356,6 +356,53 @@ async function resolveNewNumericUser(
   };
 }
 
+/**
+ * Completa nombre / email de un usuario LDAP a partir de lo que devolvió el AD.
+ *
+ * Los usuarios importados desde ADMSEC nacen sin nombre ni email porque
+ * ADMSEC.USUARIOS no tiene esas columnas. El AD sí los tiene y el login ya los
+ * recibe en cada ingreso — hasta ahora los descartaba.
+ *
+ * SOLO rellena huecos: nunca pisa un valor que ya esté cargado, para no
+ * deshacer una edición manual del operador.
+ */
+async function backfillDatosLdap(
+  usuario: { id: number; username: string; nombre: string | null; email: string | null },
+  ldapUser: { nombre?: string; email?: string } | undefined
+): Promise<void> {
+  if (!ldapUser) return;
+
+  const data: { nombre?: string; apellido?: string; email?: string } = {};
+
+  if (!usuario.nombre) {
+    const partes = (ldapUser.nombre || "").trim().split(/\s+/).filter(Boolean);
+    if (partes.length > 0) {
+      data.nombre = partes[0].slice(0, 60);
+      const apellido = partes.slice(1).join(" ").trim();
+      if (apellido) data.apellido = apellido.slice(0, 60);
+    }
+  }
+
+  if (!usuario.email) {
+    const mail = (ldapUser.email || "").trim();
+    if (mail) data.email = mail.slice(0, 120);
+  }
+
+  if (Object.keys(data).length === 0) return;
+
+  try {
+    await prisma.usuario.update({ where: { id: usuario.id }, data });
+    authLog.info("backfill de datos LDAP", { username: usuario.username, campos: Object.keys(data) });
+  } catch (err) {
+    // El email es @unique: si otro usuario ya lo tiene, no es motivo para
+    // fallar el login. Se loguea y sigue.
+    authLog.warn("no se pudo hacer backfill de datos LDAP", {
+      username: usuario.username,
+      message: (err as Error).message,
+    });
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Caso 2: usuario ya existe en PG → routea según esExterno + desdeSistema.
 // ────────────────────────────────────────────────────────────────────────────
@@ -472,6 +519,8 @@ async function resolveExistingUser(
       // el control fino por ruta/funcionalidad lo hace el frontend (proxy.ts)
       // contra la API de permisos. Acá solo validamos credenciales y asignamos
       // los roles que correspondan más abajo.
+      // Completar nombre/email si faltan (ADMSEC.USUARIOS no los tiene).
+      await backfillDatosLdap(usuario, ldap.user);
       // Escenario B: asignar Despacho si corresponde.
       await assignDespachoIfEligible({
         usuario,
