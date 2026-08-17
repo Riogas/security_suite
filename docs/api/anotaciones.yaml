@@ -819,7 +819,7 @@ endpoints:
     notas:
       - "**Doble gate**: además de `requireRoot` (el mismo guard que `/docs`), exige `es_root='S'` explícito. El rol Root no alcanza: esto crea usuarios."
       - "El tope de `usernames` por request lo pone el **servidor** (2000), no el cliente."
-      - "`detalles` viene recortado a 200 entradas y **solo trae lo que no salió bien** (omitidos y errores)."
+      - "`detalles` viene recortado a 200 entradas. En una corrida real trae solo lo que no salió bien (omitidos y errores); con `dryRun: true` también incluye lo que se crearía."
     auth:
       modo: root
       detalle: "`requireRoot` (firma HS256 + `exp` + permiso `docs:view` contra secapi) y encima `es_root='S'`."
@@ -830,15 +830,16 @@ endpoints:
         - { nombre: origen, tipo: string, requerido: true, descripcion: "`SGM` | `LDAP` | `GSIST`." }
         - { nombre: usernames, tipo: "string[]", requerido: true, descripcion: "Hasta 2000." }
         - { nombre: conPreferencias, tipo: boolean, requerido: false, descripcion: "Copia escenario y empresa fletera del origen." }
-        - { nombre: conRoles, tipo: boolean, requerido: false, descripcion: "Aplica los roles derivados de los grupos de ADMSEC / Despacho del SGM." }
+        - { nombre: conRoles, tipo: boolean, requerido: false, descripcion: "Solo aplica a `origen: SGM` (rol Despacho de RiogasTracking, según los ROLID de USUMOBILEROLES). Para LDAP/GSIST es no-op: los grupos de ADMSEC todavía no se reflejan en ningún rol acá." }
         - { nombre: dryRun, tipo: boolean, requerido: false, descripcion: "Simula sin escribir." }
       ejemplo: |
-        { "origen": "GSIST", "usernames": ["jperez", "mrodriguez"], "conRoles": true, "dryRun": true }
+        { "origen": "SGM", "usernames": ["19605429"], "conRoles": true, "dryRun": true }
     responses:
       "200":
         description: |
           `{ success, dryRun, mensaje, total, creados, omitidos, errores, detalles[] }`.
-          `detalles` solo lista omitidos y errores, hasta 200.
+          `detalles` va recortado a 200. En una corrida real solo lista omitidos y errores;
+          con `dryRun: true` también lista los "creado" (qué se importaría).
     errores:
       - status: 400
         code: "Origen inválido / máximo por importación"
