@@ -154,6 +154,20 @@ para procesos internos de secapi.
 Body común: `{ soloHabilitados?: boolean }`. Devuelven la lista completa; el
 filtrado y la paginación los hace secapi después de cruzar.
 
+**Autenticación:** los tres van detrás de api-key por header `x-api-key`,
+reusando el middleware `requiereApiKey` de `as400-api/src/middleware/apiKey.js`
+(comparación `timingSafeEqual`) que entró con el router `/api/ficha`. Ese
+middleware hoy está clavado a `FICHA_API_KEY`; hay que **parametrizarlo** —
+`requiereApiKey('USERS_API_KEY')`— sin cambiarle el comportamiento a `/api/ficha`.
+Estos endpoints exponen el padrón de usuarios de la empresa: no pueden quedar
+abiertos como el resto de los routers del servicio.
+
+⚠️ **Coordinación:** al 2026-08-17 ese router y ese middleware están **sin
+commitear** en el working tree, junto con cambios en `server.js` y
+`src/db/as400.js`. Antes de empezar a implementar hay que confirmar que ese
+trabajo esté commiteado y pusheado, para no pisarlo ni construir sobre algo que
+todavía puede cambiar.
+
 `/api/users/ldap/list` se escribe desde ahora y responde
 `{ outcome: 'UNAVAILABLE', reason: 'NO_SERVICE_ACCOUNT' }` mientras
 `LDAP_BIND_USER` no esté configurado.
@@ -472,4 +486,7 @@ Verificación manual contra dev, antes de dar por cerrado:
 3. **`POST /api/db/query` del `as400-api` ejecuta SQL arbitrario** contra el AS400
    con `qsecofr`, sin autenticación. Se usó para este relevamiento. Está marcado
    como "solo para desarrollo/debug" pero corre en node-dev. No es parte de este
-   trabajo; queda anotado como riesgo a revisar aparte.
+   trabajo; queda anotado como riesgo a revisar aparte. El middleware
+   `requiereApiKey` que trajo `/api/ficha` es el camino natural para cerrarlo.
+4. **¿Está commiteado el trabajo de `/api/ficha` en `as400-api`?** Ver §4.1: hoy
+   está solo en el working tree local y esta spec construye sobre su middleware.
