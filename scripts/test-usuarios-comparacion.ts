@@ -169,6 +169,37 @@ function main(): void {
     esperarIgual(r.preseleccionado, false, "preseleccionado");
   });
 
+  test("NUEVO deshabilitado → NO viene preseleccionado", () => {
+    // El toggle "Incluir deshabilitados" es para VER la población completa
+    // (p.ej. las ~1.105 filas de ADMSEC), no para tildarla entera: si un
+    // deshabilitado sale preseleccionado, un solo "Importar" del wizard los
+    // crea a todos como filas estado:"I" en una base compartida con
+    // producción, sin deshacer masivo posible.
+    const r = uno([externo({ username: "nuevo", email: null, habilitado: false })], [local()]);
+    esperarIgual(r.estadoComparacion, "NUEVO", "estado");
+    esperarIgual(r.preseleccionado, false, "preseleccionado");
+  });
+
+  test("NUEVO habilitado → SÍ viene preseleccionado", () => {
+    const r = uno([externo({ username: "nuevo", email: null, habilitado: true })], [local()]);
+    esperarIgual(r.estadoComparacion, "NUEVO", "estado");
+    esperarIgual(r.preseleccionado, true, "preseleccionado");
+  });
+
+  test("resumen.preseleccionados no cuenta los NUEVO deshabilitados", () => {
+    const r = resumir(
+      compararUsuarios(
+        [
+          externo({ username: "hab", email: null, habilitado: true }),
+          externo({ username: "deshab", email: null, habilitado: false }),
+        ],
+        [],
+      ),
+    );
+    esperarIgual(r.nuevos, 2, "nuevos");
+    esperarIgual(r.preseleccionados, 1, "preseleccionados");
+  });
+
   test("esCuentaSistema reconoce la lista por defecto", () => {
     esperarIgual(esCuentaSistema("ROOT"), true, "ROOT");
     esperarIgual(esCuentaSistema("daemons"), true, "daemons en minúscula");

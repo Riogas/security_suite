@@ -109,8 +109,14 @@ export function compararUsuarios(
         usuarioLocalId: null,
         diffs: [],
         conflictoCon: null,
-        // Las cuentas de sistema se ven pero no vienen tildadas.
-        preseleccionado: !ext.esCuentaSistema,
+        // Las cuentas de sistema se ven pero no vienen tildadas, y lo mismo
+        // para los deshabilitados: "Incluir deshabilitados" es un toggle de
+        // VISIBILIDAD (ver la población completa del origen), no un atajo
+        // para tildar de más. Sin el `&& ext.habilitado`, prender ese switch
+        // en ADMSEC pasa de ~349 NUEVO a ~1.105, casi todos preseleccionados,
+        // y un solo "Importar" los crea a todos en una base compartida con
+        // producción sin deshacer masivo posible.
+        preseleccionado: !ext.esCuentaSistema && ext.habilitado,
       };
     }
 
