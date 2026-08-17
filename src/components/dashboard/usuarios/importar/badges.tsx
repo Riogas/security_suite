@@ -6,14 +6,19 @@ const ORIGEN_ESTILO: Record<string, { label: string; className: string }> = {
   SGM: { label: "SGM", className: "border-amber-500 text-amber-400" },
   LDAP: { label: "LDAP", className: "border-sky-500 text-sky-400" },
   GSIST: { label: "GSIST", className: "border-violet-500 text-violet-400" },
-  LOCAL: { label: "Local", className: "border-blue-500 text-blue-400" },
 };
+
+const ESTILO_LOCAL = { label: "Local", className: "border-blue-500 text-blue-400" };
 
 export function BadgeOrigen({ origen }: { origen: OrigenExternoUI | string | null }) {
   const key = (origen || "").trim().toUpperCase();
-  const estilo = ORIGEN_ESTILO[key];
-  // Los 9 registros con desdeSistema en "N"/"S" (bug viejo del sync) caen acá.
-  if (!estilo) return <span className="text-muted-foreground">—</span>;
+  // `desdeSistema` la escriben dos caminos con semánticas distintas: el login
+  // externo (SGM/LDAP/GSIST) y el switch "Desde Sistema" de UsuarioForm, que
+  // escribe "S"/"N" (un booleano, no un origen). Cualquier valor que no sea
+  // uno de los tres orígenes externos conocidos —"LOCAL", "S", "N", vacío,
+  // null o basura inesperada— significa "no hay origen externo registrado",
+  // así que se muestra como usuario Local. No es un bug, es la lectura correcta.
+  const estilo = ORIGEN_ESTILO[key] ?? ESTILO_LOCAL;
   return (
     <Badge variant="outline" className={estilo.className}>
       {estilo.label}
