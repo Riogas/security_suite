@@ -1,0 +1,148 @@
+# Anotaciones a mano del catálogo de APIs de SecuritySuite.
+#
+# Se mergean sobre docs/api/openapi.json (generado por `pnpm docs:api`) y
+# SIEMPRE ganan sobre lo inferido: el generador dice lo que el código hace, esto
+# dice el porqué, quién lo llama y cómo se usa. `GET /api/docs/spec` devuelve el
+# resultado del merge; el archivo generado no se toca nunca a mano.
+#
+# La clave es exactamente "MÉTODO /ruta" tal como figura en openapi.json
+# (con los parámetros entre llaves: /api/db/usuarios/{id}).
+#
+# Campos, todos opcionales:
+#   summary        una línea
+#   description    markdown
+#   tags           [modulo]              pisa el módulo inferido de la carpeta
+#   consumidores   [quién llama]
+#   notas          [advertencias]
+#   ejemplos       [{lenguaje, titulo, codigo}]
+#   auth           {modo, verificaFirma, detalle}   pisa lo detectado por el parser
+#   responses      mapa OpenAPI de respuestas por código
+#
+# Ver docs/api/README.md para el procedimiento completo.
+
+version: 1
+
+endpoints:
+  "POST /api/db/login":
+    summary: Autenticación multi-fuente y emisión del JWT de todo el ecosistema
+    description: |
+      Único punto de login del ecosistema RíoGas. Resuelve las credenciales contra
+      cuatro fuentes según cómo esté marcado el usuario en Postgres
+      (`es_externo` + `desde_sistema`): la propia base, USUMOBILE del SGM,
+      ADMSEC/GSIST y LDAP (Active Directory). Si el usuario no existe en Postgres
+      lo da de alta con la fuente que lo validó.
+
+      Devuelve el JWT que consumen todas las aplicaciones. Su payload es
+      `{ iss: "security-suite", username, userId, sistema }`, firmado con
+      `JWT_SECRET` y con vencimiento a 7 días.
+
+      Reglas de degradación: `INVALID_CREDS` desde una fuente que respondió corta
+      con 401 sin probar la siguiente; `NOT_FOUND` / `DISABLED` / `UNAVAILABLE`
+      bajan al próximo nodo del árbol.
+    consumidores:
+      - "Pantalla de login de SecuritySuite (`src/app/login`)."
+      - "GOYA y TrackMovil: el login de las tres apps sale por acá."
+      - "as400-api (Express :5000) es la dependencia, no el consumidor: este endpoint le pega para SGM y LDAP."
+    notas:
+      - "**El JWT no lleva el flag root.** Ninguna app puede decidir “es root” leyendo el token: hay que preguntarle a secapi. Es la razón de ser del gate de `/docs`."
+      - "`JWT_SECRET` tiene default en código (`security-suite-secret-key`): si la variable no está seteada en el ambiente, el token se firma con un secreto conocido."
+      - "El filtro por escenario puede dejar a un usuario válido afuera con 403 `FORBIDDEN_SCENARIO` si ninguno de sus roles aplica al escenario activo."
+    auth:
+      modo: ninguna
+      detalle: "Es el endpoint que emite el token: por definición no exige uno."
+    responses:
+      "200":
+        description: |
+          `{ success: true, token, expiresIn: "604800", verifiedBy, user, roles,
+          preferencias, accesos, escenario }`.
+          `verifiedBy` ∈ { local-db, sgm, gsist, gsist-fallback, ldap, local-fallback }.
+      "400":
+        description: Falta `UserName` o `Password`.
+      "401":
+        description: Credenciales inválidas en la fuente que respondió.
+      "403":
+        description: Usuario deshabilitado, o `FORBIDDEN_SCENARIO` (ningún rol aplica al escenario activo).
+      "500":
+        description: 'Error interno; el cuerpo mantiene la forma de error, con `token` vacío.'
+    ejemplos:
+      - lenguaje: curl
+        titulo: Login local
+        codigo: |
+          curl -X POST http://localhost:4005/api/db/login \
+            -H 'Content-Type: application/json' \
+            -d '{"UserName":"dmedaglia","Password":"...","Sistema":"SecuritySuite"}'
+
+  "POST /api/db/permisos":
+    summary: Motor de permisos — resuelve GRANTED/DENIED para objeto + acción
+    description: |
+      El corazón del RBAC. Dado el JWT y una aplicación, responde si el usuario
+      tiene acceso a un objeto + acción, en modo single o batch.
+
+      Orden de evaluación: `usuarios.es_root='S'` cortocircuita con `GRANTED`
+      razón `ROOT`; después objeto público, funcionalidad pública, `solo_root`,
+      acceso directo vigente en `accesos` y por último `rol_funcionalidades` de
+      los roles vigentes del usuario.
+
+      Cuando la búsqueda por `ObjetoKey` no matchea y viene `ObjetoPath`, cae a
+      matching por patrón (`:param` / `*`) y gana el patrón más específico: es
+      lo que permite gatear rutas dinámicas como `/clientes/5/editar`.
+    consumidores:
+      - "`src/proxy.ts` de SecuritySuite (solo bloquea con `PERMISOS_ENFORCE=1`)."
+      - "`src/proxy.ts` de GOYA — activo, es el gate real de las páginas de GOYA."
+      - "El guard de `/docs` de GOYA y TrackMovil (fase 1 del portal). SecuritySuite no lo llama: consulta Postgres directo, sin salto de red."
+    notas:
+      - "La razón de la respuesta importa tanto como el veredicto: `ROOT`, `PUBLIC_OBJECT`, `PUBLIC_FUNCIONALIDAD`, `SOLO_ROOT`, `DIRECT_ACCESO`, `ROL_FUNCIONALIDAD`, `ACCESS_DENIED`, `OBJETO_NOT_FOUND`."
+      - "`solo_root='S'` deniega con razón `SOLO_ROOT` a todo el que no tenga `usuarios.es_root='S'` — hoy una sola cuenta. Por eso la funcionalidad `docs` se sembró con `'N'`."
+      - "La firma del JWT no se verifica: se decodifica el payload y se resuelve el usuario por `username`/`email` contra la base."
+      - "El batch reusa los roles vigentes calculados una sola vez, pero evalúa cada ítem con su propio round-trip a Postgres."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Chequear el acceso al portal de docs
+        codigo: |
+          curl -X POST http://localhost:4005/api/db/permisos \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"AplicacionId":1,"ObjetoKey":"docs","AccionKey":"view"}'
+      - lenguaje: fetch
+        titulo: Batch desde el front
+        codigo: |
+          const r = await fetch("/api/db/permisos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              AplicacionId: 1,
+              permisos: [
+                { ObjetoKey: "usuarios", AccionKey: "view" },
+                { ObjetoKey: "roles", AccionKey: "edit" },
+              ],
+            }),
+          });
+          const { resultados } = await r.json();
+
+  "GET /api/db/menu":
+    summary: Árbol de navegación de una aplicación, ya filtrado por permisos
+    description: |
+      Construye el menú que pinta el sidebar. Si la aplicación tiene objetos de
+      tipo `MENU` devuelve el árbol jerárquico (cada `ObjetoAccion` de un
+      `MENU`/`SUBMENU` es un punto de menú, y un `key` que referencia a otro
+      objeto se recurre como submenú); si no los tiene, cae al modelo plano por
+      funcionalidad.
+
+      Con usuario identificado solo se incluyen los puntos accesibles; un
+      submenú aparece únicamente si le queda algún hijo visible. Un usuario con
+      `es_root='S'` ve el árbol completo.
+    consumidores:
+      - "`src/components/dashboard/Sidebar.tsx` de SecuritySuite."
+      - "El sidebar de GOYA (aplicación 3, menú raíz 10)."
+      - "TrackMovil NO lo usa: su menú es código (`FloatingToolbar.tsx`)."
+    notas:
+      - "**Es el único lugar de esta aplicación que hace `jwt.verify`.** Todo el resto decodifica el payload sin validar la firma."
+      - "Si el token no verifica, no devuelve 401: sigue sin gateo. Un token inválido obtiene el árbol completo de la aplicación."
+      - "Sin `aplicacionId` en la query cae a `NEXT_PUBLIC_APLICACION_ID` / `APLICACION_ID` del ambiente."
+      - "El punto de menú de `/docs` está diferido a propósito: la base es la misma que usa producción y un item antes de que la página exista es un link a 404 (`pnpm seed:docs --con-menu`)."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Menú de GOYA
+        codigo: |
+          curl "http://localhost:4005/api/db/menu?aplicacionId=3" \
+            -H "Authorization: Bearer $TOKEN"
