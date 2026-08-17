@@ -266,7 +266,12 @@ Respuesta, en el ejemplo para `?origen=todos&estadoComparacion=NUEVO`:
   // El resumen SIEMPRE cuenta el universo del origen, ignorando
   // `estadoComparacion` y `filtro`. Si no, los chips que filtran por estado
   // se recalcularían al clickearlos y quedarían en cero.
-  "resumen": { "nuevos": 429, "migrados": 839, "difieren": 0, "conflictos": 0 },
+  "resumen": {
+    "nuevos": 429, "migrados": 839, "difieren": 0, "conflictos": 0,
+    // Los que vienen TILDADOS: los NUEVO que no son cuenta de sistema.
+    // No es igual a `nuevos`, y es el número que tiene que decir el botón.
+    "preseleccionados": 425
+  },
   "fuentes": [ { "origen": "LDAP", "ok": true, "reason": null } ]
 }
 ```
