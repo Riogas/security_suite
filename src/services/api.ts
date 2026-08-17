@@ -970,63 +970,69 @@ export const apiObtenerRol = async (
 
 // ✅ Servicio: Importar Usuario (POST /importarUsuario)
 // =====================
-export type ImportarUsuarioReq = {
-  UserExtendedId: number;
-  AplicacionId?: number;
-};
-
-export type ImportarUsuarioResp = {
-  success: boolean;
-  message?: string;
-  UsuarioId?: number;
-  [k: string]: unknown;
-};
-
-export const apiImportarUsuario = async (
-  payload: ImportarUsuarioReq,
-  opts?: { signal?: AbortSignal },
-): Promise<ImportarUsuarioResp> => {
-  try {
-    const res = await api.post("/importarUsuario", payload, {
-      signal: opts?.signal,
-      withCredentials: true,
-      headers: { "Content-Type": "application/json" },
-    });
-
-    return res.data;
-  } catch (error: any) {
-    const status = error?.response?.status;
-
-    if (status === 401) {
-      // Limpiar tokens en caso de unauthorized
-      try {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
-        }
-        if (typeof document !== "undefined") {
-          document.cookie =
-            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        }
-      } catch (cleanupError) {
-        console.warn("Error during token cleanup:", cleanupError);
-      }
-
-      // Redirigir al login
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-    }
-
-    if (status === 403) {
-      return (error?.response?.data || {
-        reason: "FORBIDDEN",
-      }) as ImportarUsuarioResp;
-    }
-
-    throw error;
-  }
-};
+// ⚠️ RETIRADO 2026-08-17 — reemplazado por apiImportarUsuariosDB.
+// Pegaba al servicio /importarUsuario de GeneXus. Se deja comentado, no
+// borrado: no se confirmó con el equipo de GeneXus si ese servicio hace algo
+// más que crear el usuario (spec §10.3). Si aparece un efecto que nos estamos
+// perdiendo, está acá para volver.
+//
+// export type ImportarUsuarioReq = {
+//   UserExtendedId: number;
+//   AplicacionId?: number;
+// };
+//
+// export type ImportarUsuarioResp = {
+//   success: boolean;
+//   message?: string;
+//   UsuarioId?: number;
+//   [k: string]: unknown;
+// };
+//
+// export const apiImportarUsuario = async (
+//   payload: ImportarUsuarioReq,
+//   opts?: { signal?: AbortSignal },
+// ): Promise<ImportarUsuarioResp> => {
+//   try {
+//     const res = await api.post("/importarUsuario", payload, {
+//       signal: opts?.signal,
+//       withCredentials: true,
+//       headers: { "Content-Type": "application/json" },
+//     });
+//
+//     return res.data;
+//   } catch (error: any) {
+//     const status = error?.response?.status;
+//
+//     if (status === 401) {
+//       // Limpiar tokens en caso de unauthorized
+//       try {
+//         if (typeof window !== "undefined") {
+//           localStorage.removeItem("user");
+//           localStorage.removeItem("token");
+//         }
+//         if (typeof document !== "undefined") {
+//           document.cookie =
+//             "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+//         }
+//       } catch (cleanupError) {
+//         console.warn("Error during token cleanup:", cleanupError);
+//       }
+//
+//       // Redirigir al login
+//       if (typeof window !== "undefined") {
+//         window.location.href = "/login";
+//       }
+//     }
+//
+//     if (status === 403) {
+//       return (error?.response?.data || {
+//         reason: "FORBIDDEN",
+//       }) as ImportarUsuarioResp;
+//     }
+//
+//     throw error;
+//   }
+// };
 
 // =====================
 // ✅ Servicio: Asignar roles a usuario (POST /setRol)
@@ -1906,28 +1912,34 @@ export const apiGuardarAtributoRolDB = async (
 // =====================================================================
 // 📦 SERVICIOS PRISMA — Sync masivo desde SGM
 // =====================================================================
-export interface SyncUsuariosResult {
-  success: boolean;
-  mensaje: string;
-  total: number;
-  creados: number;
-  actualizados: number;
-  errores: number;
-  detallesErrores: { username: string; error: string }[];
-}
-
-export const apiSyncUsuarios = async (
-  payload: { UserName?: string; Desde?: string } = {}
-): Promise<SyncUsuariosResult> => {
-  const res = await fetch("/api/db/usuarios/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
-  return json;
-};
+// ⚠️ RETIRADO 2026-08-17 — reemplazado por apiImportarUsuariosDB.
+// Pegaba al servicio /importarUsuario de GeneXus. Se deja comentado, no
+// borrado: no se confirmó con el equipo de GeneXus si ese servicio hace algo
+// más que crear el usuario (spec §10.3). Si aparece un efecto que nos estamos
+// perdiendo, está acá para volver.
+//
+// export interface SyncUsuariosResult {
+//   success: boolean;
+//   mensaje: string;
+//   total: number;
+//   creados: number;
+//   actualizados: number;
+//   errores: number;
+//   detallesErrores: { username: string; error: string }[];
+// }
+//
+// export const apiSyncUsuarios = async (
+//   payload: { UserName?: string; Desde?: string } = {}
+// ): Promise<SyncUsuariosResult> => {
+//   const res = await fetch("/api/db/usuarios/sync", {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify(payload),
+//   });
+//   const json = await res.json();
+//   if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+//   return json;
+// };
 
 // =====================================================================
 // 📦 SERVICIOS PRISMA — Accesos (permisos directos usuario-funcionalidad)
@@ -2214,6 +2226,89 @@ export const apiRechazarSolicitud = async (id: number, payload?: { comentario?: 
   dbFetch(`/api/db/solicitudes/${id}/rechazar`, {
     method: "POST",
     body: JSON.stringify(payload ?? {}),
+  });
+
+// =====================================================================
+// 📦 SERVICIOS PRISMA — Usuarios de orígenes externos (SGM / LDAP / GSIST)
+// =====================================================================
+
+export type OrigenExternoUI = "SGM" | "LDAP" | "GSIST";
+export type EstadoComparacionUI = "NUEVO" | "MIGRADO" | "DIFIERE" | "CONFLICTO";
+
+export interface UsuarioExternoRow {
+  origen: OrigenExternoUI;
+  username: string;
+  nombre: string | null;
+  email: string | null;
+  habilitado: boolean;
+  esCuentaSistema: boolean;
+  estadoComparacion: EstadoComparacionUI;
+  usuarioLocalId: number | null;
+  diffs: { campo: "nombre" | "email" | "estado"; local: string | null; externo: string | null }[];
+  conflictoCon: string | null;
+  preseleccionado: boolean;
+  extras: Record<string, unknown>;
+}
+
+export interface UsuariosExternosResponse {
+  success: boolean;
+  items: UsuarioExternoRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  resumen: {
+    nuevos: number;
+    migrados: number;
+    difieren: number;
+    conflictos: number;
+    /** Los que vienen tildados: los NUEVO que NO son cuenta de sistema. */
+    preseleccionados: number;
+  };
+  fuentes: { origen: OrigenExternoUI; ok: boolean; reason: string | null }[];
+}
+
+export const apiUsuariosExternos = async (opts: {
+  origen: OrigenExternoUI | "todos";
+  filtro?: string;
+  estadoComparacion?: EstadoComparacionUI | "todos";
+  incluirDeshabilitados?: boolean;
+  page?: number;
+  pageSize?: number;
+  signal?: AbortSignal;
+}): Promise<UsuariosExternosResponse> => {
+  const params = new URLSearchParams();
+  params.set("origen", opts.origen);
+  if (opts.filtro) params.set("filtro", opts.filtro);
+  if (opts.estadoComparacion) params.set("estadoComparacion", opts.estadoComparacion);
+  if (opts.incluirDeshabilitados) params.set("incluirDeshabilitados", "true");
+  params.set("page", String(opts.page ?? 1));
+  params.set("pageSize", String(opts.pageSize ?? 25));
+  return dbFetch(`/api/db/usuarios/externos?${params}`, { signal: opts.signal });
+};
+
+export interface ImportarUsuariosResult {
+  success: boolean;
+  dryRun: boolean;
+  mensaje: string;
+  total: number;
+  creados: number;
+  omitidos: number;
+  errores: number;
+  detalles: { username: string; estado: string; motivo?: string }[];
+}
+
+export const apiImportarUsuariosDB = async (payload: {
+  origen: OrigenExternoUI;
+  usernames: string[];
+  conPreferencias: boolean;
+  conRoles: boolean;
+  dryRun?: boolean;
+}): Promise<ImportarUsuariosResult> =>
+  dbFetch("/api/db/usuarios/importar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
 // ─── Dual-write helper ──────────────────────────────────────────────────────

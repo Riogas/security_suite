@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Users } from "lucide-react";
+import { Download, Plus, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
 import Usuarios from "@/components/dashboard/usuarios/Usuarios";
-import SyncUsuariosModal from "@/components/dashboard/usuarios/SyncUsuariosModal";
 
 export default function UsuariosPage() {
   const router = useRouter();
-  const [showSync, setShowSync] = useState(false);
-  const [syncKey, setSyncKey] = useState(0);
 
   return (
     <div className="p-6">
@@ -22,8 +18,8 @@ export default function UsuariosPage() {
         description="Administración de usuarios del sistema y sus accesos."
         actions={
           <>
-            <Button variant="outline" onClick={() => setShowSync(true)}>
-              <RefreshCw className="w-4 h-4 mr-2" />
+            <Button variant="outline" onClick={() => router.push("/dashboard/usuarios/importar")}>
+              <Download className="w-4 h-4 mr-2" />
               Importación masiva
             </Button>
             <Button onClick={() => router.push("/dashboard/usuarios/crear")}>
@@ -33,13 +29,7 @@ export default function UsuariosPage() {
           </>
         }
       />
-      <Usuarios key={syncKey} />
-
-      <SyncUsuariosModal
-        isOpen={showSync}
-        onClose={() => setShowSync(false)}
-        onSyncComplete={() => setSyncKey((k) => k + 1)}
-      />
+      <Usuarios />
     </div>
   );
 }
