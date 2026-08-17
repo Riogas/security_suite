@@ -7,6 +7,11 @@ REST API que expone autenticación contra IBM AS400 / DB2 y contra Active Direct
 - `POST /api/auth/as400` — valida credenciales contra `GXICAGEO.USUMOBILE` (tabla SGM).
 - `POST /api/auth/as400/lookup` — consulta datos de agencia/escenario/empFletera de un usuario **sin validar password**. Usado por el import masivo de preferencias SGM.
 - `POST /api/auth/ldap` — valida credenciales contra Active Directory via LDAP bind, y consulta `ADMSEC.USUARIOS` + `ADMSEC.GRPUSU` para resolver pertenencia al grupo Despacho.
+- `POST /api/users/sgm/list` — enumera `GXICAGEO.USUMOBILE` (login, nombre, email, habilitado, escenario, fletera, roles). Requiere `x-api-key` = `USERS_API_KEY`.
+- `POST /api/users/admsec/list` — enumera `ADMSEC.USUARIOS` + `GRPUSU`. **No tiene nombre ni email: esa tabla no los tiene.** Requiere `x-api-key`.
+- `POST /api/users/ldap/list` — enumera Active Directory. Devuelve `NO_SERVICE_ACCOUNT` hasta que existan `LDAP_BIND_USER` / `LDAP_BIND_PASSWORD`.
+
+Ninguno devuelve columnas de password.
 
 Ambos endpoints de autenticación devuelven una respuesta con la forma:
 

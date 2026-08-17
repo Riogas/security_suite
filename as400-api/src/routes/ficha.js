@@ -5,7 +5,7 @@ const { requiereApiKey } = require('../middleware/apiKey');
 const { columnaSql, validar } = require('../ficha/campos');
 
 // La api-key protege TODO el router (y solo este router).
-router.use(requiereApiKey);
+router.use(requiereApiKey('FICHA_API_KEY'));
 
 // ─── Normalizadores de valores del AS400 ─────────────────────────────────────
 // node-jt400 devuelve los valores serializados desde Java: según el tipo de

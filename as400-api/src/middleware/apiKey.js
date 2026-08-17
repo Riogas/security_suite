@@ -1,35 +1,38 @@
 const crypto = require('crypto');
 
 /**
- * Middleware de api-key para el router /api/ficha.
+ * Middleware de api-key por header `x-api-key`.
  *
- * Compara el header `x-api-key` contra process.env.FICHA_API_KEY con
- * timingSafeEqual (comparando largos antes, porque timingSafeEqual tira
- * si los buffers miden distinto).
+ * `requiereApiKey(nombreEnv)` devuelve el middleware que compara contra
+ * process.env[nombreEnv] con timingSafeEqual (comparando largos antes, porque
+ * timingSafeEqual tira si los buffers miden distinto).
  *
- * No se aplica a ninguna ruta existente: solo lo monta /api/ficha.
+ * Se invoca con FICHA_API_KEY desde /api/ficha y con USERS_API_KEY desde
+ * /api/users. No se aplica a los routers viejos.
  */
-function requiereApiKey(req, res, next) {
-  const esperada = process.env.FICHA_API_KEY;
+function requiereApiKey(nombreEnv = 'FICHA_API_KEY') {
+  return function (req, res, next) {
+    const esperada = process.env[nombreEnv];
 
-  if (!esperada) {
-    console.error('[Ficha] FICHA_API_KEY no está definida: /api/ficha queda bloqueado');
-    return res.status(500).json({
-      ok: false,
-      error: 'FICHA_API_KEY no está configurada en el servidor. Definila en el .env de as400-api y reiniciá el proceso.',
-    });
-  }
+    if (!esperada) {
+      console.error(`[apiKey] ${nombreEnv} no está definida: la ruta queda bloqueada`);
+      return res.status(500).json({
+        ok: false,
+        error: `${nombreEnv} no está configurada en el servidor. Definila en el .env de as400-api y reiniciá el proceso.`,
+      });
+    }
 
-  const recibida = req.get('x-api-key') || '';
-  const bufRecibida = Buffer.from(recibida, 'utf8');
-  const bufEsperada = Buffer.from(esperada, 'utf8');
+    const recibida = req.get('x-api-key') || '';
+    const bufRecibida = Buffer.from(recibida, 'utf8');
+    const bufEsperada = Buffer.from(esperada, 'utf8');
 
-  if (bufRecibida.length !== bufEsperada.length || !crypto.timingSafeEqual(bufRecibida, bufEsperada)) {
-    console.warn(`[Ficha] api-key inválida en ${req.method} ${req.originalUrl}`);
-    return res.status(401).json({ ok: false, error: 'API key inválida o ausente (header x-api-key)' });
-  }
+    if (bufRecibida.length !== bufEsperada.length || !crypto.timingSafeEqual(bufRecibida, bufEsperada)) {
+      console.warn(`[apiKey] api-key inválida en ${req.method} ${req.originalUrl}`);
+      return res.status(401).json({ ok: false, error: 'API key inválida o ausente (header x-api-key)' });
+    }
 
-  return next();
+    return next();
+  };
 }
 
 module.exports = { requiereApiKey };

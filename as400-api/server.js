@@ -17,6 +17,7 @@ app.use('/api/pedidos',  require('./src/routes/pedidos'));
 app.use('/api/ficha',    require('./src/routes/ficha'));
 app.use('/api/auth',     require('./src/routes/auth'));
 app.use('/api/auth',     require('./src/routes/auth-admsec'));
+app.use('/api/users',   require('./src/routes/users'));
 
 app.get('/api/health', async (req, res) => {
   const ok = await testConexion();
@@ -46,6 +47,9 @@ app.get('/', (req, res) => res.json({
     'POST /api/auth/ldap',
     'POST /api/auth/admsec/lookup',
     'POST /api/auth/admsec/validate',
+    'POST /api/users/sgm/list                  (x-api-key)',
+    'POST /api/users/admsec/list               (x-api-key)',
+    'POST /api/users/ldap/list                 (x-api-key)',
   ],
 }));
 
