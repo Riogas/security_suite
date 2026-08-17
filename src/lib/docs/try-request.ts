@@ -11,7 +11,13 @@
 // NO es un proxy. Ejecuta única y exclusivamente contra el propio origen de la
 // app y contra rutas que empiecen con `/api/`. Cualquier intento de salir de
 // ahí —URL absoluta, `//otro-host`, `..`, `%2e%2e`, backslashes— se rechaza
-// antes de construir la URL, no después.
+// antes de construir la URL, y la URL ya armada se vuelve a comparar contra el
+// origen de confianza antes de disparar el fetch.
+//
+// Ese origen NUNCA sale de un header del request (`Host`, `x-forwarded-host`,
+// `Origin`, `Referer`): los controla el cliente, y con uno de ellos el ejecutor
+// se convertiría en un SSRF con la sesión del root adentro. Lo resuelve
+// `try-handler.ts` con `DOCS_TRY_ORIGEN` o con el loopback del propio proceso.
 //
 // ── Por qué el pedido viaja en base64 ───────────────────────────────────────
 // El WAF de nginx de TrackMovil inspecciona el cuerpo del request entrante y
@@ -65,6 +71,23 @@ export const HEADERS_PROHIBIDOS: readonly string[] = [
   "x-real-ip",
 ];
 
+/**
+ * Headers de la RESPUESTA que nunca se devuelven al navegador.
+ *
+ * `set-cookie` es una credencial recién emitida, no un dato documental — y esta
+ * app es la que **emite los tokens de todo el ecosistema**: probar
+ * `POST /api/db/login` desde el portal devolvería el JWT nuevo en el cuerpo que
+ * pinta la pantalla, listo para quedar en una captura, en el historial del
+ * navegador o en el portapapeles del botón "copiar". Se filtra acá, del lado
+ * del servidor, y no en el visor: lo que no sale del proceso no se puede
+ * filtrar después. `set-cookie2` es el nombre del RFC 2965: obsoleto, pero
+ * cuesta cero y goya y trackmovil también lo cubren.
+ */
+export const HEADERS_RESPUESTA_OCULTOS: ReadonlySet<string> = new Set([
+  "set-cookie",
+  "set-cookie2",
+]);
+
 const MAX_HEADERS = 30;
 const MAX_LARGO_VALOR_HEADER = 4096;
 const RE_NOMBRE_HEADER = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
@@ -110,7 +133,9 @@ export type CodigoTry =
   | "RUTA_FUERA_DE_API" // 400 — no empieza con /api/
   | "RECURSION_NO_PERMITIDA" // 400 — /api/docs/try llamándose a sí mismo
   | "HEADER_INVALIDO" // 400 — nombre o valor de header inaceptable
+  | "DESTINO_FUERA_DE_ORIGEN" // 400 — la URL armada no cayó en el origen de confianza
   | "CONFIRMACION_REQUERIDA" // 428 — escritura sin `confirmacion === path`
+  | "ORIGEN_NO_CONFIGURADO" // 503 — el proceso no sabe contra qué origen ejecutar
   | "TIMEOUT" // 504 — pasaron los 30 s
   | "ERROR_DE_RED"; // 502 — la app no contestó
 
@@ -132,11 +157,27 @@ export interface RespuestaTry {
   truncado: boolean;
 }
 
+/** Lo que se deja registrado antes de disparar la llamada. */
+export interface EventoAuditoria {
+  metodo: string;
+  ruta: string;
+  esEscritura: boolean;
+}
+
 export interface ContextoTry {
-  /** Origen propio de la app. Nunca sale de acá. */
+  /**
+   * Origen de confianza contra el que se ejecuta. NUNCA sale de un header del
+   * request: lo resuelve `try-handler.ts` con la env o el loopback del proceso.
+   */
   origen: string;
   /** JWT de la sesión del root. Va como Bearer y como cookie `token`. */
   token: string | null;
+  /**
+   * Rastro de auditoría: se llama una sola vez, ya validado el pedido y justo
+   * antes del `fetch`. Queda registro de quién ejecutó qué contra el ambiente
+   * real, que es exactamente lo que hay que poder reconstruir después.
+   */
+  auditar?: (evento: EventoAuditoria) => void;
   /** Inyectable para los tests. */
   fetchImpl?: typeof fetch;
   /** Inyectable para los tests. */
@@ -433,16 +474,74 @@ export function sanearHeaders(entrada: unknown): HeadersSaneados | FalloTry {
 // ─── URL ────────────────────────────────────────────────────────────────────
 
 /**
- * Arma la URL final. `origen` es el de la propia app y es lo único que define
- * el host: la ruta ya vino validada y no puede cambiarlo.
+ * Arma la URL final y **la vuelve a validar contra el origen de confianza**.
+ *
+ * `origen` no sale de ningún header del request (ver `try-handler.ts`): es la
+ * env `DOCS_TRY_ORIGEN` o el loopback del propio proceso. Esa es la única cosa
+ * que define el host, y la ruta —que ya pasó por `validarRuta`— no puede
+ * cambiarlo.
+ *
+ * La segunda comprobación no es redundante: `validarRuta` mira texto, y el
+ * parser de URL puede interpretar una forma rara distinto de como se leyó. Acá
+ * se compara lo que `new URL()` resolvió de verdad contra el origen de
+ * confianza —no contra una base que armó el cliente, que sería comparar algo
+ * consigo mismo y no probaría nada—. Si el destino no cayó exactamente ahí, no
+ * se ejecuta.
  */
 export function construirUrl(
   origen: string,
   ruta: string,
   queryEnRuta: string,
   query?: PedidoTry["query"],
-): string {
-  const url = new URL(ruta, origen);
+): { ok: true; url: string } | FalloTry {
+  let confianza: URL;
+  try {
+    confianza = new URL(origen);
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      code: "ORIGEN_NO_CONFIGURADO",
+      detalle: "El servidor no pudo resolver su propio origen (ver docs/api/README.md).",
+    };
+  }
+  if (confianza.protocol !== "http:" && confianza.protocol !== "https:") {
+    return {
+      ok: false,
+      status: 503,
+      code: "ORIGEN_NO_CONFIGURADO",
+      detalle: "El origen de confianza tiene que ser http o https.",
+    };
+  }
+
+  let url: URL;
+  try {
+    url = new URL(ruta, confianza);
+  } catch {
+    return { ok: false, status: 400, code: "RUTA_INVALIDA", detalle: "El path no forma una URL." };
+  }
+
+  // La red de seguridad: se compara el destino ya resuelto contra el origen de
+  // confianza, no contra una base que armó el cliente.
+  if (url.origin !== confianza.origin) {
+    return {
+      ok: false,
+      status: 400,
+      code: "DESTINO_FUERA_DE_ORIGEN",
+      detalle: "El destino quedó fuera del origen de la app: no se ejecuta.",
+    };
+  }
+  // La ruta ya normalizada por el parser: si acá no arranca con /api/, es que
+  // algo la movió después de `validarRuta`.
+  if (!(url.pathname === "/api" || url.pathname.startsWith("/api/"))) {
+    return {
+      ok: false,
+      status: 400,
+      code: "RUTA_FUERA_DE_API",
+      detalle: "Solo se ejecutan rutas bajo `/api/`.",
+    };
+  }
+
   if (queryEnRuta) {
     for (const [k, v] of new URLSearchParams(queryEnRuta)) url.searchParams.append(k, v);
   }
@@ -454,7 +553,7 @@ export function construirUrl(
       url.searchParams.append(clave, String(valor));
     }
   }
-  return url.toString();
+  return { ok: true, url: url.toString() };
 }
 
 // ─── Cuerpo ─────────────────────────────────────────────────────────────────
@@ -555,7 +654,18 @@ export async function ejecutarTry(
     headers.cookie = `token=${contexto.token}`;
   }
 
-  const url = construirUrl(contexto.origen, ruta.ruta, ruta.queryEnRuta, pedido.query);
+  const destino = construirUrl(contexto.origen, ruta.ruta, ruta.queryEnRuta, pedido.query);
+  if (!destino.ok) return destino;
+  const url = destino.url;
+
+  // Después del guard (lo corre el manejador) y antes del fetch: si algo sale
+  // mal, el log ya dice quién lo disparó y contra qué.
+  contexto.auditar?.({
+    metodo: metodo.metodo,
+    ruta: ruta.ruta,
+    esEscritura: esEscritura(metodo.metodo),
+  });
+
   const doFetch = contexto.fetchImpl ?? fetch;
   const reloj = contexto.ahora ?? (() => Date.now());
   const arranque = reloj();
@@ -600,6 +710,8 @@ export async function ejecutarTry(
 
   const cabeceras: Record<string, string> = {};
   res.headers.forEach((valor, clave) => {
+    // `set-cookie` no sube al navegador: ver HEADERS_RESPUESTA_OCULTOS.
+    if (HEADERS_RESPUESTA_OCULTOS.has(clave.toLowerCase())) return;
     cabeceras[clave] = valor;
   });
   if (saneados.descartados.length > 0) {

@@ -19,6 +19,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
+  construirUrl,
   ejecutarTry,
   sanearHeaders,
   validarRuta,
@@ -26,7 +27,12 @@ import {
   type FalloTry,
   type RespuestaTry,
 } from "../src/lib/docs/try-request";
-import { crearManejadorTry } from "../src/lib/docs/try-handler";
+import {
+  crearManejadorTry,
+  registrarEnLog,
+  resolverOrigenDeConfianza,
+  PUERTO_POR_DEFECTO,
+} from "../src/lib/docs/try-handler";
 import type { ResultadoGuard } from "../src/lib/docs/root-guard";
 
 // ─── Mini framework de aserciones ───────────────────────────────────────────
@@ -110,6 +116,32 @@ function contexto(fetchImpl: typeof fetch) {
 
 function headersDe(llamada: LlamadaFetch): Record<string, string> {
   return (llamada.init.headers ?? {}) as Record<string, string>;
+}
+
+/**
+ * Corre `fn` con esas variables de entorno y deja el entorno como estaba.
+ *
+ * `resolverOrigenDeConfianza` las lee en cada llamada (no al importar el
+ * módulo) justamente para que se puedan ejercitar así, sin recargar nada.
+ */
+async function conEnv<T>(
+  vars: Record<string, string | undefined>,
+  fn: () => T | Promise<T>,
+): Promise<T> {
+  const previo: Record<string, string | undefined> = {};
+  for (const [clave, valor] of Object.entries(vars)) {
+    previo[clave] = process.env[clave];
+    if (valor === undefined) delete process.env[clave];
+    else process.env[clave] = valor;
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const [clave, valor] of Object.entries(previo)) {
+      if (valor === undefined) delete process.env[clave];
+      else process.env[clave] = valor;
+    }
+  }
 }
 
 /** Request al endpoint, para los tests del manejador. */
@@ -507,7 +539,7 @@ async function main(): Promise<void> {
     const manejar = crearManejadorTry({
       requireRoot: async () => GUARD_OK,
       extraerToken: () => TOKEN,
-      origen: () => ORIGEN,
+      origen: () => ({ ok: true, origen: ORIGEN }),
       fetchImpl: f.impl,
     });
     const res = await manejar(requestTry(payloadDe({ metodo: "GET", path: "/api/db/roles" })));
@@ -528,7 +560,7 @@ async function main(): Promise<void> {
     const manejar = crearManejadorTry({
       requireRoot: async () => GUARD_OK,
       extraerToken: () => TOKEN,
-      origen: () => ORIGEN,
+      origen: () => ({ ok: true, origen: ORIGEN }),
       fetchImpl: f.impl,
     });
     const res = await manejar(requestTry(payloadDe({ metodo: "POST", path: "/api/db/roles" })));
@@ -553,6 +585,299 @@ async function main(): Promise<void> {
     const manejar = crearManejadorTry({ requireRoot: async () => GUARD_NO_ROOT });
     const res = await manejar(requestTry(payloadDe({ metodo: "GET", path: "/api/db/roles" })));
     esperar(res instanceof NextResponse, "tendría que ser un NextResponse");
+  });
+
+  console.log("\ntry-request — la respuesta no filtra credenciales\n");
+
+  // secapi es el EMISOR de los tokens del ecosistema: probar un endpoint que
+  // emite sesión y devolver su `set-cookie` sería escupir el JWT recién firmado
+  // en el cuerpo que pinta la pantalla del portal.
+  await test("el set-cookie de la respuesta NO vuelve al navegador", async () => {
+    const f = fetchEspia({
+      cuerpo: '{"ok":true}',
+      headers: {
+        "content-type": "application/json",
+        "set-cookie": "token=JWT.RECIEN.EMITIDO; Path=/; HttpOnly",
+        "x-normal": "si",
+      },
+    });
+    const r = await ejecutarTry(
+      payloadDe({ metodo: "POST", path: "/api/db/login", confirmacion: "/api/db/login" }),
+      contexto(f.impl),
+    );
+    esperar(r.ok, "tendría que ejecutarse");
+    if (!r.ok) return;
+    const claves = Object.keys(r.headers).map((k) => k.toLowerCase());
+    esperar(!claves.includes("set-cookie"), `set-cookie no puede volver: ${claves.join(", ")}`);
+    esperar(
+      !JSON.stringify(r.headers).includes("JWT.RECIEN.EMITIDO"),
+      "el token no puede aparecer en ningún header devuelto",
+    );
+    esperarIgual(r.headers["x-normal"], "si", "el resto de los headers sí se devuelve");
+  });
+
+  await test("set-cookie2 (RFC 2965) tampoco vuelve", async () => {
+    const f = fetchEspia({ headers: { "set-cookie2": "token=OTRO" } });
+    const r = await ejecutarTry(
+      payloadDe({ metodo: "GET", path: "/api/db/roles" }),
+      contexto(f.impl),
+    );
+    esperar(r.ok, "tendría que ejecutarse");
+    if (r.ok) esperar(!("set-cookie2" in r.headers), "set-cookie2 no puede volver");
+  });
+
+  console.log("\ntry-request — el destino se revalida contra el origen de confianza\n");
+
+  await test("un destino que cae fuera del origen de confianza se rechaza", () => {
+    // `//host` no llega hasta acá en el flujo normal (validarRuta lo corta
+    // antes), y por eso mismo sirve: es la forma que el parser de URL resuelve
+    // a OTRO host. Esta es la red de seguridad, con la URL ya armada.
+    const r = construirUrl(ORIGEN, "//evil.example.com/api/db/usuarios", "");
+    esperarFallo(r as FalloTry, 400, "DESTINO_FUERA_DE_ORIGEN");
+  });
+
+  await test("sin un origen de confianza usable no se ejecuta nada", () => {
+    esperarFallo(
+      construirUrl("no-es-una-url", "/api/db/roles", "") as FalloTry,
+      503,
+      "ORIGEN_NO_CONFIGURADO",
+    );
+    esperarFallo(
+      construirUrl("file:///etc/", "/api/db/roles", "") as FalloTry,
+      503,
+      "ORIGEN_NO_CONFIGURADO",
+    );
+  });
+
+  await test("un destino válido sale con el origen de confianza y su query", () => {
+    const r = construirUrl("http://127.0.0.1:4005", "/api/db/roles", "estado=A");
+    esperar(r.ok, "tendría que armar la URL");
+    if (r.ok) esperarIgual(r.url, "http://127.0.0.1:4005/api/db/roles?estado=A", "url");
+  });
+
+  console.log("\ntry-handler — el origen NO sale de ningún header\n");
+
+  await test("DOCS_TRY_ORIGEN manda y se usa tal cual", async () => {
+    await conEnv({ DOCS_TRY_ORIGEN: "https://secapi.riogas.com.uy", PORT: "3001" }, () => {
+      const r = resolverOrigenDeConfianza();
+      esperar(r.ok, "tendría que resolver");
+      if (r.ok) esperarIgual(r.origen, "https://secapi.riogas.com.uy", "origen");
+    });
+  });
+
+  await test("sin la env, el origen es el loopback con el PORT del proceso", async () => {
+    await conEnv({ DOCS_TRY_ORIGEN: undefined, PORT: "3001" }, () => {
+      const r = resolverOrigenDeConfianza();
+      esperar(r.ok && r.origen === "http://127.0.0.1:3001", "PORT manda");
+    });
+    await conEnv({ DOCS_TRY_ORIGEN: undefined, PORT: undefined }, () => {
+      const r = resolverOrigenDeConfianza();
+      esperar(
+        r.ok && r.origen === `http://127.0.0.1:${PUERTO_POR_DEFECTO}`,
+        `sin PORT tendría que caer en el default del repo (${PUERTO_POR_DEFECTO})`,
+      );
+    });
+  });
+
+  // El corazón del arreglo: el cliente controla Host, x-forwarded-host, Origin
+  // y Referer. Si alguno de ellos decidiera el destino, este endpoint sería un
+  // SSRF con la sesión del root adentro.
+  await test("Host / x-forwarded-host hostiles NO cambian el destino del fetch", async () => {
+    for (const hostil of ["evil.example.com", "169.254.169.254", "localhost:5432"]) {
+      const f = fetchEspia();
+      const manejar = crearManejadorTry({
+        requireRoot: async () => GUARD_OK,
+        extraerToken: () => TOKEN,
+        fetchImpl: f.impl,
+        // `origen` NO se inyecta: corre la resolución real.
+      });
+      // Lo peor posible: hasta la URL del request —que en Next sale del Host—
+      // apunta al host hostil.
+      const req = new NextRequest(`http://${hostil}/api/docs/try`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: hostil,
+          "x-forwarded-host": hostil,
+          "x-forwarded-proto": "https",
+          referer: `https://${hostil}/`,
+          authorization: `Bearer ${TOKEN}`,
+        },
+        body: JSON.stringify(payloadDe({ metodo: "GET", path: "/api/db/roles" })),
+      });
+
+      const res = await conEnv({ DOCS_TRY_ORIGEN: undefined, PORT: undefined }, () =>
+        manejar(req),
+      );
+
+      esperarIgual(res.status, 200, `${hostil}: status`);
+      esperarIgual(f.llamadas.length, 1, `${hostil}: llamadas al fetch`);
+      esperarIgual(
+        new URL(f.llamadas[0].url).origin,
+        `http://127.0.0.1:${PUERTO_POR_DEFECTO}`,
+        `${hostil}: el destino tiene que seguir siendo el loopback`,
+      );
+    }
+  });
+
+  await test("con DOCS_TRY_ORIGEN seteada el destino es ese y solo ese", async () => {
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_OK,
+      extraerToken: () => TOKEN,
+      fetchImpl: f.impl,
+    });
+    const req = new NextRequest("http://evil.example.com/api/docs/try", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "evil.example.com",
+        "x-forwarded-host": "169.254.169.254",
+      },
+      body: JSON.stringify(payloadDe({ metodo: "GET", path: "/api/db/roles" })),
+    });
+
+    await conEnv({ DOCS_TRY_ORIGEN: "http://127.0.0.1:9999", PORT: "3001" }, () => manejar(req));
+
+    esperarIgual(f.llamadas.length, 1, "llamadas al fetch");
+    esperarIgual(f.llamadas[0].url, "http://127.0.0.1:9999/api/db/roles", "url");
+  });
+
+  await test("una configuración imposible no adivina: 503 ORIGEN_NO_CONFIGURADO", async () => {
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_OK,
+      extraerToken: () => TOKEN,
+      fetchImpl: f.impl,
+    });
+    const malas: Array<Record<string, string | undefined>> = [
+      { DOCS_TRY_ORIGEN: "no-es-una-url" },
+      { DOCS_TRY_ORIGEN: "ftp://archivos/" },
+      { PORT: "no-es-un-puerto" },
+      { PORT: "70000" },
+    ];
+    for (const mala of malas) {
+      const res = await conEnv({ DOCS_TRY_ORIGEN: undefined, PORT: undefined, ...mala }, () =>
+        manejar(requestTry(payloadDe({ metodo: "GET", path: "/api/db/roles" }))),
+      );
+      esperarIgual(res.status, 503, `${JSON.stringify(mala)}: status`);
+      esperarIgual(
+        (await res.json()).error,
+        "ORIGEN_NO_CONFIGURADO",
+        `${JSON.stringify(mala)}: code`,
+      );
+    }
+    esperarIgual(f.llamadas.length, 0, "no se ejecutó nada");
+  });
+
+  console.log("\ntry-handler — anti-CSRF\n");
+
+  await test("un Origin de otro sitio: 403 y no se ejecuta nada", async () => {
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_OK,
+      extraerToken: () => TOKEN,
+      origen: () => ({ ok: true, origen: ORIGEN }),
+      fetchImpl: f.impl,
+    });
+    for (const ajeno of ["https://evil.example.com", "null", "http://localhost:4006"]) {
+      const req = new NextRequest(`${ORIGEN}/api/docs/try`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: "localhost:4005",
+          origin: ajeno,
+        },
+        body: JSON.stringify(payloadDe({ metodo: "GET", path: "/api/db/roles" })),
+      });
+      const res = await manejar(req);
+      esperarIgual(res.status, 403, `${ajeno}: status`);
+      esperarIgual((await res.json()).error, "ORIGEN_INVALIDO", `${ajeno}: code`);
+    }
+    esperarIgual(f.llamadas.length, 0, "el fetch no se tocó");
+  });
+
+  await test("el Origin de la propia app pasa", async () => {
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_OK,
+      extraerToken: () => TOKEN,
+      origen: () => ({ ok: true, origen: ORIGEN }),
+      fetchImpl: f.impl,
+    });
+    const req = new NextRequest(`${ORIGEN}/api/docs/try`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        host: "secapi.riogas.com.uy",
+        origin: "https://secapi.riogas.com.uy",
+      },
+      body: JSON.stringify(payloadDe({ metodo: "GET", path: "/api/db/roles" })),
+    });
+    const res = await manejar(req);
+    esperarIgual(res.status, 200, "status");
+    esperarIgual(f.llamadas.length, 1, "se ejecutó");
+  });
+
+  console.log("\ntry-handler — rastro de auditoría\n");
+
+  await test("queda registro de usuario, método, path y si escribe", async () => {
+    const registros: string[] = [];
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_OK,
+      extraerToken: () => TOKEN,
+      origen: () => ({ ok: true, origen: ORIGEN }),
+      auditar: (usuario, evento) =>
+        registros.push(`${usuario}|${evento.metodo}|${evento.ruta}|${evento.esEscritura}`),
+      fetchImpl: f.impl,
+    });
+
+    await manejar(requestTry(payloadDe({ metodo: "GET", path: "/api/db/roles?estado=A" })));
+    esperarIgual(registros.length, 1, "un registro por llamada");
+    esperarIgual(registros[0], "dmedaglia|GET|/api/db/roles|false", "lectura");
+
+    await manejar(
+      requestTry(
+        payloadDe({ metodo: "POST", path: "/api/db/roles", confirmacion: "/api/db/roles" }),
+      ),
+    );
+    esperarIgual(registros[1], "dmedaglia|POST|/api/db/roles|true", "escritura");
+  });
+
+  await test("lo que no se ejecuta no se audita", async () => {
+    const registros: unknown[] = [];
+    const f = fetchEspia();
+    const manejar = crearManejadorTry({
+      requireRoot: async () => GUARD_NO_ROOT,
+      auditar: (...args) => registros.push(args),
+      fetchImpl: f.impl,
+    });
+    await manejar(requestTry(payloadDe({ metodo: "GET", path: "/api/db/roles" })));
+    esperarIgual(registros.length, 0, "sin guard no hay auditoría");
+    esperarIgual(f.llamadas.length, 0, "ni llamada");
+  });
+
+  await test("el formato del log es el mismo que el de trackmovil", () => {
+    const lineas: string[] = [];
+    const original = console.info;
+    console.info = (...a: unknown[]) => lineas.push(a.join(" "));
+    try {
+      registrarEnLog("dmedaglia", {
+        metodo: "DELETE",
+        ruta: "/api/db/accesos",
+        esEscritura: true,
+      });
+      registrarEnLog("", { metodo: "GET", ruta: "/api/db/roles", esEscritura: false });
+    } finally {
+      console.info = original;
+    }
+    esperarIgual(
+      lineas[0],
+      "[docs/try] dmedaglia → DELETE /api/db/accesos (escritura confirmada)",
+      "línea de escritura",
+    );
+    esperarIgual(lineas[1], "[docs/try] root → GET /api/db/roles", "línea de lectura");
   });
 
   console.log(

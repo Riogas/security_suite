@@ -142,7 +142,14 @@ export default async function DocsPage() {
       <PageHeader
         icon={BookOpen}
         title="Documentación de APIs"
-        description="Catálogo de las APIs propias de SecuritySuite, generado del código con `pnpm docs:api` y completado con las anotaciones a mano. Se puede ejecutar cada endpoint contra este mismo ambiente. Solo visible para root."
+        description={
+          <>
+            Catálogo de las APIs propias de SecuritySuite, generado del código con{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm">pnpm docs:api</code>{" "}
+            y completado con las anotaciones a mano. Se puede ejecutar cada endpoint contra
+            este mismo ambiente. Solo visible para root.
+          </>
+        }
         stats={[
           { label: "Endpoints", value: auth.total },
           { label: "Módulos", value: modulos.length },

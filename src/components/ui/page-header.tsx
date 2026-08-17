@@ -11,7 +11,14 @@ export interface PageHeaderStat {
 
 export interface PageHeaderProps {
   title: string;
-  description?: string;
+  /**
+   * ReactNode y no string: hay descripciones que nombran un comando o un
+   * archivo, y en un string los backticks se pintan tal cual —"con `pnpm
+   * docs:api`"— porque acá no hay ningún renderer de markdown. Pasando un
+   * fragmento, el `<code>` va como corresponde. Un string simple sigue
+   * funcionando igual.
+   */
+  description?: React.ReactNode;
   /** Ícono opcional, renderizado en un contenedor con gradiente */
   icon?: LucideIcon;
   stats?: PageHeaderStat[];

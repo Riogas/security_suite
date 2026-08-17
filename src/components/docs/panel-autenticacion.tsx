@@ -10,10 +10,12 @@ import { EtiquetaMetodo } from "@/components/docs/etiqueta-metodo";
 // "Estado de la autenticación" — el apartado que justifica que este portal sea
 // solo-root.
 //
-// Va arriba de todo y abierto, no escondido en una solapa: quien entra acá
-// necesita ver, con números y con nombres, qué endpoints de esta aplicación no
-// validan absolutamente nada. Publicar eso es el punto (spec §2 y §7); que
-// hubiera que buscarlo sería el error.
+// Vive en su propia solapa del visor, con el contador de "sin auth" al lado
+// del nombre. Abierto arriba de todo se comía la primera pantalla entera —había
+// que scrollear ~1000 px para llegar al primer endpoint, cada vez— y eso
+// convertía en peaje lo que tenía que ser información disponible. Se sigue
+// publicando completo, con números y con nombres (spec §2 y §7): a un clic, y
+// avisando desde la propia solapa cuántos endpoints no validan nada.
 // =====================================================================
 
 interface Tramo {

@@ -26,6 +26,11 @@ export const dynamic = "force-dynamic";
 // Reglas, todas en `src/lib/docs/try-request.ts`:
 //   - Solo contra el propio host y solo rutas bajo `/api/`. NUNCA es un proxy
 //     abierto: URL absolutas, `//host`, backslashes y `..` / `%2e` se rechazan.
+//   - El origen de ese "propio host" lo fija el servidor (`DOCS_TRY_ORIGEN` o
+//     el loopback del proceso), NUNCA un header del request, y la URL ya armada
+//     se vuelve a comparar contra él antes del fetch.
+//   - Si vino `Origin` y no es el de esta app: 403 antes de ejecutar (CSRF).
+//   - Queda registro en el log de quién ejecutó qué, antes de disparar.
 //   - GET/HEAD directo. POST/PUT/PATCH/DELETE exigen `confirmacion` igual al
 //     path exacto; si no coincide, 428 CONFIRMACION_REQUERIDA.
 //   - `authorization` y `cookie` los pone el servidor con la sesión del root:
@@ -38,12 +43,13 @@ export const dynamic = "force-dynamic";
 //   probada es un resultado, no un error de este endpoint.
 // Errores: 400 PAYLOAD_FALTANTE | PAYLOAD_INVALIDO | METODO_NO_PERMITIDO |
 //              RUTA_INVALIDA | RUTA_ABSOLUTA | RUTA_CON_TRAVERSAL |
-//              RUTA_FUERA_DE_API | RECURSION_NO_PERMITIDA | HEADER_INVALIDO
+//              RUTA_FUERA_DE_API | RECURSION_NO_PERMITIDA | HEADER_INVALIDO |
+//              DESTINO_FUERA_DE_ORIGEN
 //          401 SIN_TOKEN | TOKEN_INVALIDO | TOKEN_VENCIDO
-//          403 USUARIO_NO_ENCONTRADO | NO_ROOT
+//          403 USUARIO_NO_ENCONTRADO | NO_ROOT | ORIGEN_INVALIDO
 //          428 CONFIRMACION_REQUERIDA
 //          502 ERROR_DE_RED · 504 TIMEOUT
-//          503 SECRETO_NO_CONFIGURADO | ERROR_GUARD
+//          503 SECRETO_NO_CONFIGURADO | ERROR_GUARD | ORIGEN_NO_CONFIGURADO
 //
 // La lógica vive en `src/lib/docs/try-handler.ts` para poder probarla sin
 // levantar el servidor (`scripts/test-docs-try.ts`). `requireRoot` se nombra

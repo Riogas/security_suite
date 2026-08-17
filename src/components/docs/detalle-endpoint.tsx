@@ -5,7 +5,7 @@ import { AlertTriangle, FileCode2, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { EndpointDoc } from "@/lib/docs/catalogo";
+import type { EndpointDoc, ErrorDoc, RespuestaDoc } from "@/lib/docs/catalogo";
 import { BloqueCodigo } from "@/components/docs/bloque-codigo";
 import { Probador } from "@/components/docs/probador";
 import { useAmbiente } from "@/components/docs/usar-ambiente";
@@ -89,6 +89,51 @@ function Seccion({
   );
 }
 
+/**
+ * ── Respuestas y errores, sin decir dos veces lo mismo ─────────────────────
+ *
+ * Cuando el endpoint no tiene `errores` anotados a mano, `catalogo.ts` los
+ * deriva de las respuestas `>= 400`. Resultado: "ERRORES CONOCIDOS" repetía
+ * palabra por palabra las filas de "RESPUESTAS", y la columna CÓDIGO quedaba
+ * entera en "—": ruido con formato de tabla.
+ *
+ * Acá se fusionan. El error que dice exactamente lo mismo que una respuesta se
+ * pega a esa respuesta —aportando su `code`, si lo tiene— y desaparece de la
+ * tabla; lo que queda en "Errores conocidos" es lo que la anotación agrega de
+ * verdad. Si ninguna fila trae `code`, esa columna no se dibuja.
+ */
+function normalizarTexto(texto: string | undefined): string {
+  return (texto ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+interface RespuestaFusionada extends RespuestaDoc {
+  /** El `code` del error que decía lo mismo, si lo había. */
+  code?: string;
+}
+
+export function fusionarRespuestasYErrores(
+  respuestas: RespuestaDoc[],
+  errores: ErrorDoc[],
+): { respuestas: RespuestaFusionada[]; errores: ErrorDoc[] } {
+  const fusionadas: RespuestaFusionada[] = respuestas.map((r) => ({ ...r }));
+  const restantes: ErrorDoc[] = [];
+
+  for (const error of errores) {
+    const gemela = fusionadas.find(
+      (r) =>
+        r.codigo === String(error.status ?? "") &&
+        normalizarTexto(r.descripcion) === normalizarTexto(error.cuando),
+    );
+    if (!gemela) {
+      restantes.push(error);
+      continue;
+    }
+    if (error.code && !gemela.code) gemela.code = error.code;
+  }
+
+  return { respuestas: fusionadas, errores: restantes };
+}
+
 export function DetalleEndpoint({ endpoint }: { endpoint: EndpointDoc }) {
   const { origen, montado } = useAmbiente();
 
@@ -117,6 +162,13 @@ export function DetalleEndpoint({ endpoint }: { endpoint: EndpointDoc }) {
   }));
 
   const pestanas = [...generados, ...anotados];
+
+  const { respuestas, errores } = fusionarRespuestasYErrores(
+    endpoint.respuestas,
+    endpoint.errores,
+  );
+  /** Sin un solo código, la columna sería una hilera de "—". */
+  const hayCodigos = errores.some((e) => e.code);
 
   return (
     <div className="space-y-6">
@@ -272,10 +324,10 @@ export function DetalleEndpoint({ endpoint }: { endpoint: EndpointDoc }) {
       )}
 
       {/* ── Respuestas ── */}
-      {endpoint.respuestas.length > 0 && (
+      {respuestas.length > 0 && (
         <Seccion titulo="Respuestas">
           <div className="divide-y rounded-lg border">
-            {endpoint.respuestas.map((r) => (
+            {respuestas.map((r) => (
               <div key={r.codigo} className="p-3">
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span
@@ -290,6 +342,11 @@ export function DetalleEndpoint({ endpoint }: { endpoint: EndpointDoc }) {
                   >
                     {r.codigo}
                   </span>
+                  {r.code && (
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {r.code}
+                    </Badge>
+                  )}
                   <TextoLargo
                     texto={r.descripcion}
                     className="min-w-0 text-muted-foreground [&_p]:leading-snug"
@@ -303,26 +360,28 @@ export function DetalleEndpoint({ endpoint }: { endpoint: EndpointDoc }) {
       )}
 
       {/* ── Errores conocidos ── */}
-      {endpoint.errores.length > 0 && (
+      {errores.length > 0 && (
         <Seccion titulo="Errores conocidos">
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[26rem] text-sm">
               <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Código</th>
+                  {hayCodigos && <th className="px-3 py-2 text-left font-medium">Código</th>}
                   <th className="px-3 py-2 text-left font-medium">Cuándo</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {endpoint.errores.map((e, i) => (
+                {errores.map((e, i) => (
                   <tr key={`${e.status ?? ""}-${e.code ?? ""}-${i}`}>
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-semibold text-destructive">
                       {e.status ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
-                      {e.code ?? "—"}
-                    </td>
+                    {hayCodigos && (
+                      <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                        {e.code ?? "—"}
+                      </td>
+                    )}
                     <td className="whitespace-pre-line px-3 py-2 text-xs text-muted-foreground">
                       {e.cuando ? <TextoRico texto={e.cuando} /> : "—"}
                     </td>

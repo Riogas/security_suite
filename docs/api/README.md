@@ -307,7 +307,7 @@ marcar `es_root`. Ver `scripts/seed-docs-funcionalidad.ts`.
 ```bash
 pnpm test                    # los cuatro, punto de entrada estándar
 pnpm test:docs-guard         # 24 casos — el gate solo-root
-pnpm test:docs-try           # 33 casos — el ejecutor del "Try it"
+pnpm test:docs-try           # 48 casos — el ejecutor del "Try it"
 pnpm test:docs-catalogo      # 25 casos — catálogo, ambiente y ejemplos
 pnpm test:docs-anotaciones   #  6 casos — antienvejecimiento del catálogo
 ```
@@ -333,20 +333,54 @@ Las reglas, todas en `src/lib/docs/try-request.ts`:
 
 | Regla | Detalle |
 |---|---|
-| Solo el propio host | El origen lo pone el servidor; la ruta no puede cambiarlo. |
+| Solo el propio host | El origen lo pone el servidor (ver abajo), **nunca un header**; la ruta no puede cambiarlo, y la URL ya armada se revalida contra él → 400 `DESTINO_FUERA_DE_ORIGEN`. |
 | Solo bajo `/api/` | Cualquier otro prefijo → 400 `RUTA_FUERA_DE_API`. |
 | **Nunca un proxy abierto** | URL absoluta, `//host`, backslash → 400 `RUTA_ABSOLUTA`. `..`, `%2e`, `%2f`, `%5c` → 400 `RUTA_CON_TRAVERSAL`. |
 | No se llama a sí mismo | `/api/docs/try` como destino → 400 `RECURSION_NO_PERMITIDA`. |
 | Escrituras confirmadas | `POST`/`PUT`/`PATCH`/`DELETE` exigen `confirmacion` **igual al path exacto**; si no, 428 `CONFIRMACION_REQUERIDA`. El diálogo de la UI es la cortesía; el 428 es la regla. |
 | La sesión la pone el servidor | `authorization` y `cookie` salen del root logueado. Los que mande el cliente se descartan (junto con `host`, `content-length`, `x-forwarded-*`, `origin`…) y se informan en el header `x-docs-try-headers-descartados`. |
 | Límites | Timeout 30 s (504 `TIMEOUT`), cuerpo truncado a 1 MB (`truncado: true`). |
+| Anti-CSRF | Si vino el header `Origin` y su host no es el de esta app → 403 `ORIGEN_INVALIDO`, antes de ejecutar. Hoy la cookie de sesión es `SameSite=Lax` y ya frenaría el POST cross-site; esto es la red por si eso cambia. |
+| La respuesta no filtra credenciales | `set-cookie` y `set-cookie2` de la respuesta **no** vuelven al navegador. secapi emite los tokens del ecosistema: probar un endpoint que abre sesión devolvería el JWT recién firmado en el cuerpo que pinta la pantalla, listo para quedar en una captura o en el portapapeles. |
+| Rastro de auditoría | Después del guard y antes del `fetch` se loguea `[docs/try] <usuario> → <MÉTODO> <path>` (y ` (escritura confirmada)` si escribe), con el mismo formato que TrackMovil. |
 
 El `status` que viene adentro de la respuesta es el del endpoint probado: un 500
 de la API probada es un resultado, no un error de este endpoint.
 
-`DOCS_TRY_ORIGEN` (opcional) fija el origen contra el que se ejecuta, para el
-caso en que el header `Host` que llega no sea de fiar. Sin ella, se usa el origen
-del propio request.
+### Contra qué origen se ejecuta — `DOCS_TRY_ORIGEN`
+
+El destino del `fetch` **nunca sale de un header del request**. `Host`,
+`x-forwarded-host`, `Origin` y `Referer` los elige quien manda el request: si
+alguno de ellos decidiera a dónde sale la llamada, esto sería un SSRF —con la
+sesión del root adentro— disfrazado de probador. Un `Host: 169.254.169.254` y el
+portal sale a buscar el metadata del cloud; un `Host: localhost:5432` y sale a
+golpear Postgres.
+
+El orden de resolución (`resolverOrigenDeConfianza`, en `src/lib/docs/try-handler.ts`):
+
+| # | De dónde sale | Cuándo |
+|---|---|---|
+| 1 | **`DOCS_TRY_ORIGEN`** | Si está seteada, se usa tal cual. Tiene que ser una URL http o https; se toma solo su origen (`https://host:puerto`). |
+| 2 | `http://127.0.0.1:$PORT` | Si no está. `PORT` es el del proceso; sin él, **4005** (el de `pnpm dev` y `pnpm start`). En producción PM2 exporta `PORT=3001`, así que sale bien en los dos ambientes sin configurar nada. |
+| 3 | — | Nunca, bajo ninguna circunstancia, un header. |
+
+**Si falta:** no pasa nada, es opcional. El loopback ya apunta a la propia app.
+Setearla sirve para cuando la app no se alcanza por `127.0.0.1` —escucha en otra
+interfaz, o el probador tiene que salir por el nombre público para atravesar
+nginx—.
+
+**Si está mal:** el endpoint responde **503 `ORIGEN_NO_CONFIGURADO`**, deja el
+motivo en el log del proceso y **no ejecuta nada**. No cae en silencio al
+loopback: si alguien la configuró es porque el loopback no alcanzaba, y adivinar
+en su lugar sería ejecutar contra un ambiente que nadie pidió. Lo mismo si
+`PORT` tiene un valor que no es un puerto.
+
+Y después de armar la URL, el destino se **vuelve a comparar** contra ese origen
+de confianza (`construirUrl`): la validación del path mira texto, y el parser de
+URL puede resolver una forma rara distinto de como se leyó. Si el destino no cayó
+exactamente ahí → 400 `DESTINO_FUERA_DE_ORIGEN`. La comparación es contra el
+origen del servidor y no contra una base armada con datos del cliente: comparar
+algo consigo mismo no probaría nada.
 
 ### El ambiente que muestra la UI
 
