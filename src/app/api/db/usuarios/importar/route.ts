@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { resolveUsuario } from "@/lib/permisos";
+import { requireRoot } from "@/lib/docs/root-guard";
 import { applyAdmsecGroupRoles } from "@/lib/auth/applyAdmsecGroupRoles";
 import { assignDespachoOnNewUser } from "@/lib/auth/assignDespachoIfEligible";
 import { persistEmpFleteraPreference } from "@/lib/auth/persistEmpFleteraPreference";
@@ -10,7 +10,14 @@ import { obtenerFuente } from "@/lib/usuarios/sources";
 import type { ExternalUser, OrigenExterno } from "@/lib/usuarios/tipos";
 
 const ORIGENES: OrigenExterno[] = ["SGM", "LDAP", "GSIST"];
-const BATCH_SIZE = 50;
+// Bajado de 50 a 10: el pool de conexiones de Prisma (~9-17 por default) no
+// aguanta 50 crearUsuario en paralelo, cada uno con 2-8 round-trips propios;
+// contra el volumen real (349 usuarios de ADMSEC) eso revienta con
+// P2024 "Timed out fetching a new connection", indistinguible de un dato
+// malo del origen porque cae en el mismo `estado: "error"` por usuario.
+const BATCH_SIZE = 10;
+/** Tope de usernames por request: la cantidad de escrituras la define el servidor, no el cliente. */
+const MAX_USERNAMES = 2000;
 
 /** ROLID de USUMOBILEROLES que representa Despacho (mismo criterio que auth.js). */
 const ROL_DESPACHO_SGM = 6;
@@ -117,21 +124,52 @@ async function crearUsuario(
 // =============================================
 export async function POST(req: NextRequest) {
   try {
-    const operador = await resolveUsuario(req);
-    if (!operador) {
-      return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
+    // Gate real: `resolveUsuario` decodifica el JWT sin verificar firma ni
+    // vencimiento (`decodeJwt` es base64 puro), y este endpoint no pasa por
+    // `src/proxy.ts` (su matcher excluye `/api`). `requireRoot` es la
+    // primitiva que sí hace `jwt.verify` contra JWT_SECRET, exige que el
+    // secreto sea real (no el default del código) y es fail-closed: sin
+    // secreto configurado, deniega con 503 en vez de dejar pasar.
+    // Ya trae `usuario.username`, así que no hace falta resolverlo aparte.
+    const guard = await requireRoot(req);
+    if (!guard.ok) {
+      return NextResponse.json({ success: false, error: guard.code }, { status: guard.status });
     }
+    const operador = guard.usuario;
 
     const body = await req.json().catch(() => ({}));
     const origen = String(body.origen || "").toUpperCase() as OrigenExterno;
-    const usernames: string[] = Array.isArray(body.usernames) ? body.usernames : [];
+    const usernamesRaw: unknown[] = Array.isArray(body.usernames) ? body.usernames : [];
+    // Opt-in explícito: `!== false` es fail-open sobre un switch que otorga
+    // privilegios (assignDespachoOnNewUser / applyAdmsecGroupRoles, que puede
+    // escribir esRoot='S'). Un campo omitido, un typo, o un body malformado
+    // ya no habilitan roles por default.
+    const conRoles = body.conRoles === true;
+    // conPreferencias sigue con default true a propósito: no otorga
+    // privilegios, y apagarlo por omisión degradaría importaciones en silencio.
     const conPreferencias = body.conPreferencias !== false;
-    const conRoles = body.conRoles !== false;
     const dryRun = body.dryRun === true;
 
     if (!ORIGENES.includes(origen)) {
       return NextResponse.json({ success: false, error: `Origen inválido: ${origen}` }, { status: 400 });
     }
+    if (usernamesRaw.length > MAX_USERNAMES) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Se enviaron ${usernamesRaw.length} usernames; el máximo por importación es ${MAX_USERNAMES}`,
+        },
+        { status: 400 },
+      );
+    }
+    // Descarta lo que no sea string o quede vacío tras trim: un elemento
+    // no-string rompía normalizarUsername (.trim de un número) y devolvía 500
+    // en vez de 400; un string vacío podía aparearse con una fila de origen
+    // en blanco y llegar a crear un username: "".
+    const usernames: string[] = usernamesRaw
+      .filter((u): u is string => typeof u === "string")
+      .map((u) => u.trim())
+      .filter(Boolean);
     if (usernames.length === 0) {
       return NextResponse.json({ success: false, error: "No se seleccionó ningún usuario" }, { status: 400 });
     }
