@@ -33,8 +33,20 @@ async function postLista<T>(path: string, body: unknown): Promise<RespuestaLista
 export const listarSgm = (soloHabilitados: boolean) =>
   postLista<FilaSgm>("/api/users/sgm/list", { soloHabilitados });
 
-export const listarAdmsec = (soloHabilitados: boolean) =>
-  postLista<FilaAdmsec>("/api/users/admsec/list", { soloHabilitados });
+/** Promesas en vuelo de listarAdmsec, deduplicadas por soloHabilitados. */
+const admsecInFlight = new Map<string, Promise<RespuestaLista<FilaAdmsec>>>();
+
+export const listarAdmsec = (soloHabilitados: boolean) => {
+  const clave = String(soloHabilitados);
+  const existente = admsecInFlight.get(clave);
+  if (existente) return existente;
+
+  const promesa = postLista<FilaAdmsec>("/api/users/admsec/list", { soloHabilitados }).finally(() => {
+    admsecInFlight.delete(clave);
+  });
+  admsecInFlight.set(clave, promesa);
+  return promesa;
+};
 
 export const listarLdapAd = (soloHabilitados: boolean) =>
   postLista<FilaLdapAd>("/api/users/ldap/list", { soloHabilitados });

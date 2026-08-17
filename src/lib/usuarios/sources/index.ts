@@ -46,7 +46,8 @@ const ldapSource: ExternalUserSource = {
   async available() {
     if (hayServiceAccountAd()) {
       const r = await listarLdapAd(true);
-      return r.ok ? { ok: true } : { ok: false, reason: r.reason };
+      if (r.ok) return { ok: true };
+      // Si el AD falla, caemos a ADMSEC en vez de devolver error.
     }
     const r = await listarAdmsec(true);
     return r.ok
