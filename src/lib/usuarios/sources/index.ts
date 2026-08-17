@@ -1,5 +1,5 @@
 import type { ExternalUser, OrigenExterno } from "../tipos";
-import { listarAdmsec, listarLdapAd, listarSgm } from "./as400Users";
+import { listarAdmsec, listarLdapAd, listarSgm, type RespuestaLista } from "./as400Users";
 import { mapearFilaAdmsec, mapearFilaLdapAd, mapearFilaSgm } from "./mapeo";
 
 export interface Disponibilidad {
@@ -12,6 +12,19 @@ export interface ExternalUserSource {
   label: string;
   available(): Promise<Disponibilidad>;
   list(opts: { soloHabilitados: boolean }): Promise<ExternalUser[]>;
+}
+
+/**
+ * Helper que lanza un Error si la respuesta no es OK.
+ * El mensaje del error incluye reason y error para diagnosticar en el endpoint.
+ * El try/catch del endpoint entonces atrapa esto y lo reporta en `fuentes[].reason`.
+ */
+function validarRespuesta<T>(origen: string, r: RespuestaLista<T>): T[] {
+  if (r.ok && r.rows) return r.rows;
+
+  const parts = [origen, r.reason || "UNKNOWN"];
+  if (r.error) parts.push(r.error);
+  throw new Error(parts.join(": "));
 }
 
 /** ¿Hay cuenta de servicio de AD configurada? Es el único switch de §4.2. */
@@ -28,8 +41,8 @@ const sgmSource: ExternalUserSource = {
   },
   async list({ soloHabilitados }) {
     const r = await listarSgm(soloHabilitados);
-    if (!r.ok || !r.rows) return [];
-    return r.rows.map(mapearFilaSgm);
+    const rows = validarRespuesta("SGM", r);
+    return rows.map(mapearFilaSgm);
   },
 };
 
@@ -39,6 +52,9 @@ const sgmSource: ExternalUserSource = {
  *
  * ESTE ES EL ÚNICO LUGAR donde vive esa decisión. El resto de la app no se
  * entera de cuál de los dos caminos se usó.
+ *
+ * Fallback: Si hay service account de AD y el AD falla, cae a ADMSEC sin lanzar.
+ * Solo lanza si ADMSEC también falla.
  */
 const ldapSource: ExternalUserSource = {
   key: "LDAP",
@@ -58,11 +74,11 @@ const ldapSource: ExternalUserSource = {
     if (hayServiceAccountAd()) {
       const r = await listarLdapAd(soloHabilitados);
       if (r.ok && r.rows) return r.rows.map(mapearFilaLdapAd);
-      // Si el AD falla, caemos a ADMSEC en vez de devolver vacío.
+      // Si el AD falla, caemos a ADMSEC en vez de lanzar.
     }
     const r = await listarAdmsec(soloHabilitados);
-    if (!r.ok || !r.rows) return [];
-    return r.rows.map(mapearFilaAdmsec).filter((u) => u.origen === "LDAP");
+    const rows = validarRespuesta("LDAP", r);
+    return rows.map(mapearFilaAdmsec).filter((u) => u.origen === "LDAP");
   },
 };
 
@@ -75,8 +91,8 @@ const gsistSource: ExternalUserSource = {
   },
   async list({ soloHabilitados }) {
     const r = await listarAdmsec(soloHabilitados);
-    if (!r.ok || !r.rows) return [];
-    return r.rows.map(mapearFilaAdmsec).filter((u) => u.origen === "GSIST");
+    const rows = validarRespuesta("GSIST", r);
+    return rows.map(mapearFilaAdmsec).filter((u) => u.origen === "GSIST");
   },
 };
 
