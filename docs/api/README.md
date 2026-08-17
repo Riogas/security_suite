@@ -15,6 +15,29 @@ docs/api/
 sobre lo inferido:** el generador dice lo que el código hace, la anotación dice
 el porqué y quién lo llama.
 
+Del lado de la app:
+
+```
+src/lib/docs/
+├── root-guard.ts    gate solo-root, fail-closed (ver "Gate de acceso")
+├── spec.ts          merge de openapi.json + anotaciones.yaml
+├── catalogo.ts      el documento mergeado → la estructura que pinta el visor
+├── ambiente.ts      host → DEV / PROD
+├── try-request.ts   validación y ejecución del "Try it"
+└── try-handler.ts   el manejador de POST /api/docs/try (guard + contexto)
+
+src/components/docs/
+├── visor-apis.tsx          buscador, filtros, navegación por módulo, lista
+├── panel-autenticacion.tsx "Estado de la autenticación"
+├── detalle-endpoint.tsx    parámetros, cuerpo, respuestas, errores, ejemplos
+├── probador.tsx            el formulario del "Try it" y su confirmación
+├── ejemplos.ts             curl / fetch / VB6
+├── bloque-codigo.tsx       bloque de código con botón Copiar
+├── texto-rico.tsx          `código` y **negrita** inline, sin markdown renderer
+├── etiqueta-metodo.tsx     los badges de método y de autenticación
+└── usar-ambiente.ts        origen y ambiente reales, leídos del navegador
+```
+
 ---
 
 ## Regenerar
@@ -57,8 +80,9 @@ Dos precisiones sobre `x-auth`:
   endpoint de esta app que hace `jwt.verify` es `GET /api/db/menu`; todo el resto
   decodifica el payload y resuelve el usuario contra Postgres. El otro lugar que
   verifica es el gate de `/docs` (ver más abajo), que no es un endpoint: por eso
-  `GET /api/docs/spec` sale con `verificaFirma: false` aunque su guard sí
-  verifique.
+  `GET /api/docs/spec` y `POST /api/docs/try` salen con `verificaFirma: false`
+  aunque su guard sí verifique. Los dos están anotados a mano con
+  `auth: { verificaFirma: true }` justamente para corregir eso.
 - `detectadoEn: "archivo"` significa que el token no se lee en el cuerpo del
   handler sino en algún helper del módulo: el dato es correcto pero menos preciso
   que `detectadoEn: "handler"`. Si te importa la precisión, anotalo.
@@ -80,42 +104,99 @@ endpoints:
   "POST /api/db/mi-endpoint":
     summary: Una línea, lo que hace
     description: |
-      Markdown. El porqué, las decisiones raras, el contexto que el código no dice.
+      El porqué, las decisiones raras, el contexto que el código no dice.
+      Del formato inline solo se interpretan `código` y **negrita**.
     consumidores:
       - "Quién lo llama: pantalla, app, sistema externo."
     notas:
       - "Advertencias: deudas, comportamientos que muerden."
+    parameters:
+      - name: estado
+        in: query
+        required: false
+        description: "Se mergea con lo que detectó el parser, campo a campo."
+    requestBody:
+      requerido: true
+      descripcion: "Qué se manda."
+      campos:
+        - nombre: username
+          tipo: string
+          requerido: true
+          descripcion: "..."
+      ejemplo: |
+        { "username": "jperez" }
+    responses:
+      "200": { description: "..." }
+    errores:
+      - status: 409
+        code: YA_EXISTE
+        cuando: "Ya hay un usuario con ese username."
     ejemplos:
       - lenguaje: curl
         titulo: Caso típico
         codigo: |
-          curl -X POST http://localhost:4005/api/db/mi-endpoint \
+          curl -X POST {{ORIGEN}}/api/db/mi-endpoint \
             -H "Authorization: Bearer $TOKEN" -d '{}'
     auth:
       modo: jwt
       detalle: "Solo si la detección estática se queda corta."
-    responses:
-      "200": { description: "..." }
 ```
 
 Todos los campos son opcionales: anotá lo que haga falta y nada más. Si la clave
 no matchea ningún endpoint (renombraste la ruta, o hay un typo), la anotación
-aparece como **huérfana** en `x-anotaciones.huerfanas` y la página lo avisa
-arriba de todo.
+aparece como **huérfana** en `x-anotaciones.huerfanas`, la página lo avisa arriba
+de todo y `pnpm test:docs-anotaciones` falla.
+
+Tres cosas que conviene saber al escribir una anotación:
+
+- **El host va como `{{ORIGEN}}`.** El visor lo reemplaza por el origen real del
+  ambiente en el que está parado el navegador. Un host escrito a mano se copia
+  igual y falla en el otro ambiente —o, peor, funciona contra producción sin que
+  nadie lo haya querido—. Hay un test que falla si aparece un `http://` que no
+  sea el marcador.
+- **`consumidores` con "VB6" activa el ejemplo VB6.** El visor genera curl y
+  fetch siempre; el de VB6 (`MSXML2.ServerXMLHTTP`, sincrónico, comillas
+  duplicadas) aparece solo si algún consumidor lo menciona.
+- **`requestBody` y `errores` son la única fuente.** El parser no infiere cuerpos
+  —esta app no tiene DTOs ni zod— ni sabe qué errores devuelve de verdad un
+  handler. Sin lista de `errores`, el visor cae a las respuestas `>= 400`.
 
 `GET /api/docs/spec` agrega en la raíz del documento:
 
 ```jsonc
 "x-anotaciones": {
-  "total": 69,
-  "anotados": 3,
+  "total": 70,
+  "anotados": 19,
   "sinAnotar": ["GET /api/db/accesos", "..."],
   "huerfanas": []
 }
 ```
 
-Ese objeto es la materia prima del test antienvejecimiento de la fase 7 (falla si
-aparece un endpoint sin anotar).
+## Test antienvejecimiento
+
+```bash
+pnpm test:docs-anotaciones
+```
+
+`scripts/test-docs-anotaciones.ts` **falla si un endpoint nuevo entra al
+repositorio sin entrada en `anotaciones.yaml`**. Los que hoy no están anotados
+—hoy 51, el CRUD del RBAC que solo consume el propio panel— están enumerados uno
+por uno en la constante `SIN_ANOTAR_ACEPTADOS` de ese archivo. Por eso el test
+arranca en verde: solo se queja de lo que se agregue a partir de ahora.
+
+La lista es una deuda declarada, no una alfombra, así que el test también falla
+al revés:
+
+| Falla | Qué hacer |
+|---|---|
+| Endpoint nuevo sin anotar | Anotalo. Si de verdad no lo merece, sumalo a `SIN_ANOTAR_ACEPTADOS` **explicando por qué**. |
+| Una excepción ya no existe (ruta renombrada o borrada) | Sacala de la lista. |
+| Una excepción **ya está anotada** | Sacala de la lista: solo puede achicarse. |
+| Una anotación no matchea ningún endpoint | Typo o renombre en la clave. |
+| La lista tiene duplicados o está desordenada | Ordenala alfabéticamente (el diff se lee mejor). |
+
+Anotar es lo que hace que la lista se achique; el test es lo que evita que
+vuelva a crecer sin que nadie lo decida.
 
 ## Qué se colapsó y qué quedó afuera
 
@@ -224,9 +305,55 @@ Sumar a alguien es **darle el rol Root de la aplicación**, sin tocar código ni
 marcar `es_root`. Ver `scripts/seed-docs-funcionalidad.ts`.
 
 ```bash
-pnpm test              # alias de test:docs-guard, punto de entrada estándar
-pnpm test:docs-guard   # 24 casos, sin base ni red (dependencias inyectadas)
+pnpm test                    # los cuatro, punto de entrada estándar
+pnpm test:docs-guard         # 24 casos — el gate solo-root
+pnpm test:docs-try           # 33 casos — el ejecutor del "Try it"
+pnpm test:docs-catalogo      # 25 casos — catálogo, ambiente y ejemplos
+pnpm test:docs-anotaciones   #  6 casos — antienvejecimiento del catálogo
 ```
+
+Ninguno toca la base ni la red: las dependencias se inyectan.
+
+## Ejecutar una llamada — `POST /api/docs/try`
+
+El "Try it" del portal. Ejecuta, **del lado del servidor** y con la sesión del
+root que está mirando la pantalla, una llamada contra una API de esta misma
+aplicación, y devuelve `{ status, statusText, headers, body, duracionMs,
+truncado }`. Pasa por el mismo `requireRoot` que `GET /api/docs/spec`.
+
+El cuerpo es `{ payload }`, donde `payload` es el **base64 de un JSON**
+`{ metodo, path, query?, headers?, body?, confirmacion? }`.
+
+**Codificarlo no es ofuscación: es transporte.** El WAF de nginx de TrackMovil
+inspecciona el cuerpo del request entrante y devuelve 403 ante sintaxis de shell
+—justo lo que tiene un ejemplo de `curl` pegado en el formulario—. El contrato es
+idéntico en las tres aplicaciones.
+
+Las reglas, todas en `src/lib/docs/try-request.ts`:
+
+| Regla | Detalle |
+|---|---|
+| Solo el propio host | El origen lo pone el servidor; la ruta no puede cambiarlo. |
+| Solo bajo `/api/` | Cualquier otro prefijo → 400 `RUTA_FUERA_DE_API`. |
+| **Nunca un proxy abierto** | URL absoluta, `//host`, backslash → 400 `RUTA_ABSOLUTA`. `..`, `%2e`, `%2f`, `%5c` → 400 `RUTA_CON_TRAVERSAL`. |
+| No se llama a sí mismo | `/api/docs/try` como destino → 400 `RECURSION_NO_PERMITIDA`. |
+| Escrituras confirmadas | `POST`/`PUT`/`PATCH`/`DELETE` exigen `confirmacion` **igual al path exacto**; si no, 428 `CONFIRMACION_REQUERIDA`. El diálogo de la UI es la cortesía; el 428 es la regla. |
+| La sesión la pone el servidor | `authorization` y `cookie` salen del root logueado. Los que mande el cliente se descartan (junto con `host`, `content-length`, `x-forwarded-*`, `origin`…) y se informan en el header `x-docs-try-headers-descartados`. |
+| Límites | Timeout 30 s (504 `TIMEOUT`), cuerpo truncado a 1 MB (`truncado: true`). |
+
+El `status` que viene adentro de la respuesta es el del endpoint probado: un 500
+de la API probada es un resultado, no un error de este endpoint.
+
+`DOCS_TRY_ORIGEN` (opcional) fija el origen contra el que se ejecuta, para el
+caso en que el header `Host` que llega no sea de fiar. Sin ella, se usa el origen
+del propio request.
+
+### El ambiente que muestra la UI
+
+Se deriva del host: si contiene `dev` es **DEV**, si no se trata como **PROD** y
+el diálogo de confirmación sale en rojo. `localhost` cae en PROD a propósito: el
+error caro es mostrar DEV cuando en realidad es producción; mostrar PROD de más
+solo agrega una confirmación que igual se iba a escribir.
 
 ## Deploy
 

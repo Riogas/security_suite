@@ -12,11 +12,19 @@
 #   summary        una línea
 #   description    markdown
 #   tags           [modulo]              pisa el módulo inferido de la carpeta
-#   consumidores   [quién llama]
+#   consumidores   [quién llama]         si alguno dice "VB6", el visor suma el ejemplo VB6
 #   notas          [advertencias]
 #   ejemplos       [{lenguaje, titulo, codigo}]
 #   auth           {modo, verificaFirma, detalle}   pisa lo detectado por el parser
+#   parameters     [{name, in, required, description, schema}]  se mergean con los detectados
+#   requestBody    {requerido, descripcion, campos[], ejemplo}  el parser no infiere cuerpos
 #   responses      mapa OpenAPI de respuestas por código
+#   errores        [{status, code, cuando}]   los errores conocidos, con su condición
+#
+# En los `ejemplos`, el host se escribe como {{ORIGEN}}: el visor lo reemplaza
+# por el origen real del ambiente en el que está parado el navegador. Nunca
+# hardcodear un host ni una IP — el ejemplo se copia y se pega en el otro
+# ambiente, y ahí es donde duele.
 #
 # Ver docs/api/README.md para el procedimiento completo.
 
@@ -68,7 +76,7 @@ endpoints:
       - lenguaje: curl
         titulo: Login local
         codigo: |
-          curl -X POST http://localhost:4005/api/db/login \
+          curl -X POST {{ORIGEN}}/api/db/login \
             -H 'Content-Type: application/json' \
             -d '{"UserName":"dmedaglia","Password":"...","Sistema":"SecuritySuite"}'
 
@@ -99,7 +107,7 @@ endpoints:
       - lenguaje: curl
         titulo: Chequear el acceso al portal de docs
         codigo: |
-          curl -X POST http://localhost:4005/api/db/permisos \
+          curl -X POST {{ORIGEN}}/api/db/permisos \
             -H "Authorization: Bearer $TOKEN" \
             -H 'Content-Type: application/json' \
             -d '{"AplicacionId":1,"ObjetoKey":"docs","AccionKey":"view"}'
@@ -144,7 +152,7 @@ endpoints:
       - lenguaje: curl
         titulo: Menú de GOYA
         codigo: |
-          curl "http://localhost:4005/api/db/menu?aplicacionId=3" \
+          curl "{{ORIGEN}}/api/db/menu?aplicacionId=3" \
             -H "Authorization: Bearer $TOKEN"
 
   "GET /api/docs/spec":
@@ -182,5 +190,597 @@ endpoints:
       - lenguaje: curl
         titulo: Traer el catálogo
         codigo: |
-          curl http://localhost:4005/api/docs/spec \
+          curl {{ORIGEN}}/api/docs/spec \
             -H "Authorization: Bearer $TOKEN"
+
+  "POST /api/docs/try":
+    summary: Ejecuta una llamada contra esta misma app, con la sesión del root
+    description: |
+      El motor del "Try it" del portal. Recibe el pedido en base64, lo valida y
+      lo ejecuta del lado del servidor contra el propio host, devolviendo status,
+      headers y cuerpo.
+
+      **No es un proxy.** Solo ejecuta rutas de esta aplicación bajo `/api/`.
+      Una URL absoluta, un `//otro-host`, un backslash o un `..` / `%2e` se
+      rechazan antes de construir la URL, no después.
+
+      `authorization` y `cookie` los pone el servidor con la sesión del root que
+      está mirando la pantalla. Los que mande el cliente —junto con el resto de
+      la lista negra: `host`, `content-length`, `x-forwarded-*`, `origin`…— se
+      descartan y se informan en el header `x-docs-try-headers-descartados` de
+      la respuesta.
+    consumidores:
+      - "El formulario \"Probar\" del propio portal `/dashboard/docs`."
+      - "Nadie más: no es una API para integrar."
+    notas:
+      - "**El payload va en base64 y eso no es ofuscación: es transporte.** El WAF de nginx de TrackMovil inspecciona el cuerpo del request entrante y devuelve 403 ante sintaxis de shell — que es justo lo que tiene un ejemplo de `curl` pegado en el formulario. Codificarlo lo hace atravesar el WAF sin aflojar la configuración de nginx en ninguna de las tres apps."
+      - "**Toda escritura exige `confirmacion` igual al path exacto.** Sin eso responde 428 `CONFIRMACION_REQUERIDA`. El diálogo de la UI es la cortesía; el 428 es la regla, y vale también para quien llame al endpoint a mano."
+      - "El ambiente que muestra la UI se deriva del host: si dice \"dev\" es DEV, si no se trata como PROD. `localhost` cae en PROD a propósito — el error caro es mostrar DEV cuando es producción."
+      - "No se llama a sí mismo: `/api/docs/try` como destino responde 400 `RECURSION_NO_PERMITIDA`."
+      - "Timeout de 30 s y cuerpo truncado a 1 MB (`truncado: true` en la respuesta lo avisa)."
+    auth:
+      modo: jwt
+      verificaFirma: true
+      detalle: "JWT en `Authorization: Bearer` o cookie `token`, verificado (firma + vencimiento) por `src/lib/docs/root-guard.ts`, y además exige ser root. Es el mismo guard que `GET /api/docs/spec`."
+    requestBody:
+      requerido: true
+      descripcion: "`payload` es el base64 de un JSON `{ metodo, path, query?, headers?, body?, confirmacion? }`."
+      campos:
+        - nombre: payload
+          tipo: string (base64)
+          requerido: true
+          descripcion: "El pedido a ejecutar, codificado. Se acepta base64 y base64url."
+        - nombre: confirmacion
+          tipo: string
+          requerido: false
+          descripcion: "Alternativa a mandarla adentro del payload. Un path no tiene sintaxis que el WAF mire, así que puede viajar en claro."
+      ejemplo: |
+        {
+          "payload": "eyJtZXRvZG8iOiJHRVQiLCJwYXRoIjoiL2FwaS9kYi9yb2xlcyJ9"
+        }
+    responses:
+      "200":
+        description: |
+          `{ status, statusText, headers, body, duracionMs, truncado }`.
+          El `status` de adentro es el del endpoint probado: un 500 de la API
+          probada es un resultado, no un error de este endpoint.
+      "400":
+        description: 'Pedido mal armado o destino no permitido.'
+      "428":
+        description: 'Escritura sin `confirmacion` igual al path exacto.'
+      "502":
+        description: 'La app no contestó (`ERROR_DE_RED`).'
+      "504":
+        description: 'La llamada superó los 30 s (`TIMEOUT`).'
+    errores:
+      - status: 400
+        code: PAYLOAD_FALTANTE
+        cuando: "No vino `payload`, o el cuerpo no es un objeto JSON."
+      - status: 400
+        code: PAYLOAD_INVALIDO
+        cuando: "El base64 no decodifica, o adentro no hay un objeto JSON."
+      - status: 400
+        code: METODO_NO_PERMITIDO
+        cuando: "Método fuera de GET, HEAD, POST, PUT, PATCH, DELETE."
+      - status: 400
+        code: RUTA_INVALIDA
+        cuando: "Path vacío, con `#`, o con caracteres de control."
+      - status: 400
+        code: RUTA_ABSOLUTA
+        cuando: "El path trae esquema (http://), empieza con //, tiene una barra invertida, o no empieza con /."
+      - status: 400
+        code: RUTA_CON_TRAVERSAL
+        cuando: "El path tiene un segmento `..`, o `%2e` / `%2f` / `%5c`."
+      - status: 400
+        code: RUTA_FUERA_DE_API
+        cuando: "El path no está bajo `/api/`."
+      - status: 400
+        code: RECURSION_NO_PERMITIDA
+        cuando: "El destino es el propio `/api/docs/try`."
+      - status: 400
+        code: HEADER_INVALIDO
+        cuando: "Nombre de header mal formado, valor con caracteres de control, valor de más de 4096 caracteres, o más de 30 headers."
+      - status: 401
+        code: SIN_TOKEN / TOKEN_INVALIDO / TOKEN_VENCIDO
+        cuando: "Del guard: no vino token, la firma no verifica, o venció."
+      - status: 403
+        code: NO_ROOT / USUARIO_NO_ENCONTRADO
+        cuando: "Del guard: el usuario existe pero no es root para `/docs`."
+      - status: 428
+        code: CONFIRMACION_REQUERIDA
+        cuando: "POST / PUT / PATCH / DELETE sin `confirmacion` igual al path exacto."
+      - status: 503
+        code: SECRETO_NO_CONFIGURADO / ERROR_GUARD
+        cuando: "`JWT_SECRET` ausente o con el default del código, o el guard no pudo decidir (fail-closed)."
+    ejemplos:
+      - lenguaje: fetch
+        titulo: Probar un GET desde la consola
+        codigo: |
+          const pedido = { metodo: "GET", path: "/api/db/roles", query: { page: 1 } };
+          const payload = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(pedido))));
+
+          const r = await fetch("{{ORIGEN}}/api/docs/try", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payload }),
+          });
+          const { status, body, duracionMs } = await r.json();
+      - lenguaje: fetch
+        titulo: Una escritura, con la confirmación que el servidor exige
+        codigo: |
+          const path = "/api/db/roles/12/clonar";
+          const pedido = { metodo: "POST", path, body: { nombre: "Root (copia)" }, confirmacion: path };
+          const payload = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(pedido))));
+
+          // Sin `confirmacion` exactamente igual a `path`, esto responde 428.
+          await fetch("{{ORIGEN}}/api/docs/try", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payload }),
+          });
+
+  "POST /api/db/usuarios/sync":
+    summary: Trae usuarios del SGM (GeneXus) y los espeja en Postgres
+    description: |
+      Llama a `POST {BACKEND_BASE_URL}/syncUser` con el JWT de la sesión y vuelca
+      lo que devuelve GeneXus a Postgres: el usuario, sus roles por aplicación y
+      sus preferencias (`usuario_preferencias`). Es un upsert: crea lo que falta
+      y actualiza lo que ya está.
+
+      Sin `UserName` sincroniza el lote completo que devuelva el servicio; con
+      `UserName` sincroniza a esa persona sola, que es como lo usa la pantalla
+      de usuarios cuando alguien aparece en el SGM y todavía no está acá.
+    consumidores:
+      - "Pantalla de usuarios de SecuritySuite (botón de sincronizar)."
+      - "El SGM/GeneXus (`{BACKEND_BASE_URL}/syncUser`) es la dependencia, no el consumidor: este endpoint le pega a él."
+    notas:
+      - "El JWT sale de la **cookie `token`**, no del header `Authorization`: llamarlo con Bearer solamente da 401. Es la única forma en que lo usa la pantalla, pero conviene saberlo antes de probarlo con curl."
+      - "El JSON que manda GeneXus llega con comas colgando (`[{...},]`); el handler lo sanea antes de parsearlo. Si algún día el servicio se arregla, ese saneo sigue siendo inocuo."
+      - "Las fechas `0000-00-00T00:00:00` de GeneXus se guardan como `null`."
+      - "Los strings se truncan al largo de la columna en vez de fallar: un nombre larguísimo entra recortado, no rompe el lote."
+      - "Si el servicio externo responde distinto de 2xx, devuelve **502** con el status y el cuerpo del otro lado adentro del mensaje."
+    requestBody:
+      requerido: false
+      descripcion: "Todo opcional. Sin cuerpo, sincroniza lo que el servicio devuelva por defecto."
+      campos:
+        - nombre: UserName
+          tipo: string
+          requerido: false
+          descripcion: "Usuario a sincronizar. Vacío = el lote completo."
+        - nombre: Desde
+          tipo: string
+          requerido: false
+          descripcion: "Sistema de origen. Default `SGM`."
+      ejemplo: |
+        {
+          "UserName": "jperez",
+          "Desde": "SGM"
+        }
+    responses:
+      "200":
+        description: "`{ success: true, ... }` con el detalle de lo creado y actualizado."
+      "401":
+        description: "No hay cookie `token`."
+      "502":
+        description: "El servicio de GeneXus respondió con error; el cuerpo trae su status y su respuesta."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Sincronizar a una persona (el token va como cookie)
+        codigo: |
+          curl -X POST "{{ORIGEN}}/api/db/usuarios/sync" -H "Content-Type: application/json" --cookie "token=$TOKEN" -d '{"UserName":"jperez","Desde":"SGM"}'
+
+  "GET /api/db/usuarios/por-username":
+    summary: Ficha del usuario por username, con sus empresas fleteras normalizadas
+    description: |
+      Devuelve la fila de `usuarios` (match exacto: la columna es UNIQUE) más las
+      empresas fleteras del usuario, tomadas de `usuario_preferencias` con
+      `atributo = 'EmpFletera'`.
+
+      Ese campo acumuló cinco formas distintas a lo largo del tiempo —array de
+      objetos, objeto único, diccionario nombre→id, varias filas, y string
+      pelado— y el endpoint las normaliza todas a `[{ Nombre, Valor }]` para que
+      el consumidor no tenga que adivinar cuál le tocó.
+    consumidores:
+      - "TrackMovil (aplicación 5): resuelve la fletera del usuario logueado."
+      - "La propia SecuritySuite, en el mismo camino de `extractEmpFletera`."
+    notas:
+      - "**No valida nada.** Cualquiera con acceso de red al puerto obtiene la ficha completa de cualquier usuario por username, incluidos `es_root`, teléfono y observaciones. Está en la lista de endpoints sin auth de este portal por eso."
+      - "El match es exacto y sensible a mayúsculas: no hace `ilike`."
+      - "Nunca devuelve contraseñas ni hashes: el `select` es explícito y no los incluye."
+    parameters:
+      - name: username
+        in: query
+        required: true
+        description: "Username exacto. Sin él responde 400."
+    responses:
+      "200":
+        description: "`{ success: true, usuario: {...}, empFletera: [{ Nombre, Valor }] }`"
+      "400":
+        description: "Falta el parámetro `username`."
+      "404":
+        description: "`usuario no encontrado`."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Ficha de un usuario
+        codigo: |
+          curl "{{ORIGEN}}/api/db/usuarios/por-username?username=jperez"
+
+  "GET /api/db/usuarios/por-empresa-fletera":
+    summary: Usuarios de una o más empresas fleteras, con su estado de login
+    description: |
+      Busca en `usuario_preferencias` (`atributo = 'EmpFletera'`) por coincidencia
+      parcial e insensible a mayúsculas contra cada empresa pedida, con OR entre
+      ellas, y devuelve los usuarios que matcheen junto con el valor crudo de su
+      preferencia y si tienen habilitado el login.
+
+      Es una búsqueda por `contains` sobre un campo de texto libre, no un join:
+      una empresa cuyo nombre sea prefijo de otra va a traer las dos.
+    consumidores:
+      - "TrackMovil (aplicación 5): arma la lista de choferes/usuarios de una fletera."
+    notas:
+      - "**No valida nada.** Enumera usuarios de la organización sin pedir credenciales."
+      - "El filtro es `contains`, insensible a mayúsculas, contra el texto de la preferencia: nombres que se contienen entre sí se pisan. Pedir `FLET` trae todas las que empiecen así."
+      - "`estado` vacío (el default) devuelve activos e inactivos."
+    parameters:
+      - name: empresas
+        in: query
+        required: true
+        description: "Nombres o códigos separados por coma. Sin esto responde 400."
+      - name: estado
+        in: query
+        required: false
+        description: "`A`, `I`, o vacío para todos. Default: vacío."
+    responses:
+      "200":
+        description: "`{ success: true, usuarios: [{ ..., empFletera, habilitado }] }`"
+      "400":
+        description: "Falta `empresas`, o la lista quedó vacía después de limpiarla."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Usuarios activos de dos fleteras
+        codigo: |
+          curl "{{ORIGEN}}/api/db/usuarios/por-empresa-fletera?empresas=FLETERA_1,FLETERA_2&estado=A"
+
+  "POST /api/db/admin/import-sgm-preferences":
+    summary: Barrido one-off que trae Escenario y EmpFletera del AS400 al Postgres
+    description: |
+      Proceso de importación masiva, pensado para correrse a mano y pocas veces.
+
+      Paso 1: para cada usuario de Postgres con `desde_sistema = 'SGM'` y username
+      numérico (cédula), consulta el AS400 (lookup sin password) y **sobreescribe**
+      `Escenario` y `EmpFletera` en `usuario_preferencias` (DELETE + INSERT). Si el
+      AS400 devuelve `null` para un atributo, conserva el valor que ya estaba: no
+      pisa datos cargados a mano con vacío.
+
+      Paso 2: a todo usuario con `FWL_Distribuidor` le asigna el rol Distribuidor.
+      Aplica a todos los usuarios, no solo a los del paso 1, y es idempotente.
+    consumidores:
+      - "Nadie automático: se dispara a mano. `scripts/import-sgm-preferences.ts` (`pnpm import:sgm-prefs`) es la versión de línea de comandos."
+      - "El AS400 API (Express :5000) es la dependencia: este endpoint le pega para el lookup."
+    notas:
+      - "**Escribe sobre datos existentes.** El paso 1 es DELETE + INSERT sobre `usuario_preferencias`: correrlo sin `dryRun` no se deshace solo."
+      - "Empezá siempre por `?dryRun=true`: devuelve exactamente el mismo resumen y detalle sin tocar la base."
+      - "El JWT sale de la cookie `token`, igual que `POST /api/db/usuarios/sync`."
+      - "Depende del AS400 API levantado. Si no contesta, los usuarios de esa tanda quedan contados como errores en el resumen y el proceso sigue."
+    parameters:
+      - name: dryRun
+        in: query
+        required: false
+        description: "`true` muestra qué haría sin escribir nada. Usalo primero, siempre."
+    responses:
+      "200":
+        description: |
+          `{ success, dryRun, summary: { candidatos, escenarioActualizados,
+          escenarioSkipped, empFleteraActualizados, empFleteraSkipped,
+          fwlDistribuidorEncontrados, distribuidorAsignados, errores },
+          detalles: [{ username, status, escenario?, empFletera?, error? }] }`
+      "401":
+        description: "No hay cookie `token`."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Ensayo, sin escribir nada
+        codigo: |
+          curl -X POST "{{ORIGEN}}/api/db/admin/import-sgm-preferences?dryRun=true" --cookie "token=$TOKEN"
+
+  "POST /api/db/solicitudes":
+    summary: Autoservicio — pedir acceso a un objeto + acción
+    description: |
+      Lo dispara el botón de `/no-autorizado`: cuando a alguien el motor de
+      permisos le dice que no, en vez de mandarlo a buscar a quién pedirle, se
+      crea una solicitud con el objeto y la acción exactos que le faltaron.
+
+      Si el objeto no existe todavía en la tabla `objetos`, lo crea. Cuando la
+      ruta es dinámica (`/clientes/5/editar`), deriva la clave del recurso con el
+      mismo matching por patrón que usa `POST /api/db/permisos`, así la solicitud
+      queda contra el objeto genérico y no contra un id suelto.
+
+      Contrato en PascalCase, igual que el chequeo de permisos y que GeneXus.
+    consumidores:
+      - "La pantalla `/no-autorizado` de SecuritySuite."
+      - "La misma pantalla en GOYA (aplicación 3), que comparte el flujo."
+    notas:
+      - "La firma del JWT no se verifica: se decodifica el payload y se resuelve el usuario por `username`/`email` contra la base."
+      - "Crea el `Objeto` si no existe. Una solicitud contra una ruta con typo deja un objeto huérfano en la tabla."
+      - "El panel de aprobación es `GET /api/db/solicitudes`; el pedido en sí no otorga nada."
+    requestBody:
+      requerido: true
+      descripcion: "PascalCase (se aceptan también las claves en camelCase)."
+      campos:
+        - nombre: ObjetoKey
+          tipo: string
+          requerido: true
+          descripcion: "Clave del objeto al que se pide acceso."
+        - nombre: ObjetoTipo
+          tipo: string
+          requerido: false
+          descripcion: "Default `PAGE`."
+        - nombre: AccionKey
+          tipo: string
+          requerido: false
+          descripcion: "Default `view`."
+        - nombre: ObjetoPath
+          tipo: string
+          requerido: false
+          descripcion: "Ruta real; habilita el matching por patrón para rutas dinámicas."
+        - nombre: AplicacionId
+          tipo: number
+          requerido: false
+          descripcion: "Aplicación. Sin ella cae a la del ambiente."
+      ejemplo: |
+        {
+          "AplicacionId": 1,
+          "ObjetoKey": "usuarios",
+          "ObjetoTipo": "PAGE",
+          "AccionKey": "edit",
+          "ObjetoPath": "/dashboard/usuarios"
+        }
+    responses:
+      "201":
+        description: "Solicitud creada."
+      "400":
+        description: "`ObjetoKey es requerido`, `APP_NOT_FOUND` o `RUTA_INVALIDA`."
+      "401":
+        description: "`NO_AUTORIZADO` — no hay token o no resuelve a un usuario activo."
+    errores:
+      - status: 400
+        code: APP_NOT_FOUND
+        cuando: "La `AplicacionId` no existe."
+      - status: 400
+        code: RUTA_INVALIDA
+        cuando: "De `ObjetoPath` no se pudo derivar ningún recurso real."
+      - status: 401
+        code: NO_AUTORIZADO
+        cuando: "Sin token, o el token no resuelve a un usuario activo."
+
+  "GET /api/db/solicitudes":
+    summary: Panel de aprobación — listado paginado, solo para aprobadores
+    description: |
+      Lista las solicitudes de acceso para quien puede resolverlas. El gate es
+      `usuarioPuedeAprobar` (`src/lib/permisos.ts`): quien no lo cumple recibe
+      403, no una lista vacía.
+    consumidores:
+      - "`/dashboard/solicitudes` de SecuritySuite."
+    notas:
+      - "Este sí filtra por permiso de aprobación, a diferencia de casi todo el resto de `/api/db/*`."
+      - "La firma del JWT no se verifica."
+    parameters:
+      - name: estado
+        in: query
+        required: false
+        description: "Filtra por estado de la solicitud (pendiente / aprobada / rechazada)."
+      - name: search
+        in: query
+        required: false
+        description: "Texto libre sobre el usuario y el objeto."
+      - name: page
+        in: query
+        required: false
+        description: "Página, base 1."
+      - name: pageSize
+        in: query
+        required: false
+        description: "Tamaño de página."
+    responses:
+      "200":
+        description: "`{ success: true, solicitudes: [...], total, page, pageSize }`"
+      "401":
+        description: "`NO_AUTORIZADO`."
+      "403":
+        description: "`SIN_PERMISO_APROBAR`."
+    ejemplos:
+      - lenguaje: curl
+        titulo: Pendientes, primera página
+        codigo: |
+          curl "{{ORIGEN}}/api/db/solicitudes?estado=pendiente&page=1&pageSize=20" -H "Authorization: Bearer $TOKEN"
+
+  "GET /api/db/solicitudes/mias":
+    summary: Las solicitudes propias, para ver en qué quedaron
+    description: |
+      Devuelve las solicitudes del usuario del token. No requiere permiso de
+      aprobación: cada uno ve las suyas.
+    consumidores:
+      - "`/no-autorizado` de SecuritySuite, para mostrar 'ya lo pediste' en vez de duplicar el pedido."
+    notas:
+      - "La firma del JWT no se verifica: quien pueda fabricar un payload ve las solicitudes de otro."
+    responses:
+      "200":
+        description: "`{ success: true, solicitudes: [...] }`"
+      "401":
+        description: "`NO_AUTORIZADO`."
+
+  "POST /api/db/solicitudes/{id}/aprobar":
+    summary: Aprobar una solicitud y otorgar el acceso de verdad
+    description: |
+      Marca la solicitud como aprobada y crea el acceso correspondiente en
+      `accesos`, con la vigencia que se le pase. Es el punto donde el pedido se
+      convierte en permiso: hasta acá no otorgaba nada.
+    consumidores:
+      - "`/dashboard/solicitudes` de SecuritySuite."
+    notas:
+      - "Exige permiso de aprobación (`usuarioPuedeAprobar`), no solo estar logueado."
+      - "Una solicitud que ya no está pendiente responde **409**: no se re-aprueba."
+      - "`fechaDesde` tiene que ser menor o igual a `fechaHasta`; si no, 400."
+      - "La funcionalidad tiene que existir y estar activa."
+    requestBody:
+      requerido: true
+      campos:
+        - nombre: funcionalidadId
+          tipo: number
+          requerido: true
+          descripcion: "Funcionalidad que se otorga."
+        - nombre: fechaDesde
+          tipo: string (fecha)
+          requerido: false
+          descripcion: "Inicio de la vigencia."
+        - nombre: fechaHasta
+          tipo: string (fecha)
+          requerido: false
+          descripcion: "Fin de la vigencia."
+        - nombre: comentario
+          tipo: string
+          requerido: false
+          descripcion: "Queda registrado con la aprobación."
+      ejemplo: |
+        {
+          "funcionalidadId": 61,
+          "fechaDesde": "2026-08-17",
+          "comentario": "Alta pedida por su jefe"
+        }
+    responses:
+      "200":
+        description: "Aprobada; el acceso quedó creado."
+      "400":
+        description: "`ID inválido`, `funcionalidadId es requerido`, rango de fechas al revés, o funcionalidad inexistente/inactiva."
+      "401":
+        description: "`NO_AUTORIZADO`."
+      "403":
+        description: "`SIN_PERMISO_APROBAR`."
+      "404":
+        description: "`Solicitud no encontrada`."
+      "409":
+        description: "La solicitud ya no está pendiente."
+
+  "POST /api/db/solicitudes/{id}/rechazar":
+    summary: Rechazar una solicitud, con comentario opcional
+    description: |
+      Cierra la solicitud sin otorgar nada. Mismo gate de aprobación que
+      `/aprobar`.
+    consumidores:
+      - "`/dashboard/solicitudes` de SecuritySuite."
+    notas:
+      - "Una solicitud que ya no está pendiente responde 409."
+    requestBody:
+      requerido: false
+      campos:
+        - nombre: comentario
+          tipo: string
+          requerido: false
+          descripcion: "Motivo del rechazo. Queda registrado."
+      ejemplo: |
+        {
+          "comentario": "No corresponde al puesto"
+        }
+    responses:
+      "200":
+        description: "Rechazada."
+      "401":
+        description: "`NO_AUTORIZADO`."
+      "403":
+        description: "`SIN_PERMISO_APROBAR`."
+      "404":
+        description: "`Solicitud no encontrada`."
+      "409":
+        description: "La solicitud ya no está pendiente."
+
+  "GET /api/{proxy}":
+    summary: Passthrough a GeneXus/Tomcat — lectura
+    description: |
+      Catch-all que reenvía a `BACKEND_BASE_URL` (por defecto
+      `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite`). Es el camino por
+      el que esta app habla con el SGM de GeneXus: auth legacy, menú y las
+      operaciones de permisos que todavía viven del otro lado.
+
+      Los endpoints del otro lado pertenecen a GeneXus y **no se enumeran acá**:
+      documentar cada uno sería inventar un contrato ajeno que además envejece
+      sin que nos enteremos. El catálogo documenta que el proxy existe y a dónde
+      apunta.
+    consumidores:
+      - "`src/services/api.ts` de SecuritySuite, para todo lo que sigue siendo GeneXus."
+      - "El SGM/GeneXus (Tomcat, host `sgm`) es el destino, no el consumidor."
+    notas:
+      - "**Esta app no autentica nada acá:** los headers viajan al backend y quien decide es GeneXus. Por eso el modo figura como `passthrough` y no como `ninguna`: hay control, pero del otro lado."
+      - "Reenvía todos los headers **salvo** los que empiezan con `x-`, más `host`, `connection` y `content-length`. Un `x-api-key` que le mandes no llega."
+      - "`NODE_TLS_REJECT_UNAUTHORIZED=0` está puesto globalmente por el certificado autofirmado del backend: las llamadas salientes de este proceso no validan el certificado del servidor."
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: "El resto de la ruta, tal cual, pegado a `BACKEND_BASE_URL`."
+    responses:
+      "200":
+        description: "Lo que haya devuelto GeneXus, sin tocar."
+      "502":
+        description: "El backend no contestó."
+
+  "POST /api/{proxy}":
+    summary: Passthrough a GeneXus/Tomcat — escritura
+    description: |
+      Igual que el GET: reenvía a `BACKEND_BASE_URL` con el cuerpo del request.
+      Es por acá que salen el login legacy y las operaciones de permisos de
+      GeneXus.
+    consumidores:
+      - "`src/services/api.ts` de SecuritySuite."
+    notas:
+      - "Autentica GeneXus, no esta app."
+      - "Los headers `x-*` no se reenvían."
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: "El resto de la ruta, pegado a `BACKEND_BASE_URL`."
+    responses:
+      "200":
+        description: "Lo que haya devuelto GeneXus."
+
+  "PUT /api/{proxy}":
+    summary: Passthrough a GeneXus/Tomcat — actualización
+    description: |
+      Reenvía a `BACKEND_BASE_URL`. Ver `GET /api/{proxy}` para el detalle del
+      contrato y de qué headers viajan.
+    consumidores:
+      - "`src/services/api.ts` de SecuritySuite."
+    notas:
+      - "Autentica GeneXus, no esta app."
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: "El resto de la ruta, pegado a `BACKEND_BASE_URL`."
+
+  "PATCH /api/{proxy}":
+    summary: Passthrough a GeneXus/Tomcat — actualización parcial
+    description: |
+      Reenvía a `BACKEND_BASE_URL`. Ver `GET /api/{proxy}`.
+    consumidores:
+      - "`src/services/api.ts` de SecuritySuite."
+    notas:
+      - "Autentica GeneXus, no esta app."
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: "El resto de la ruta, pegado a `BACKEND_BASE_URL`."
+
+  "DELETE /api/{proxy}":
+    summary: Passthrough a GeneXus/Tomcat — baja
+    description: |
+      Reenvía a `BACKEND_BASE_URL`. Ver `GET /api/{proxy}`.
+    consumidores:
+      - "`src/services/api.ts` de SecuritySuite."
+    notas:
+      - "Autentica GeneXus, no esta app."
+    parameters:
+      - name: proxy
+        in: path
+        required: true
+        description: "El resto de la ruta, pegado a `BACKEND_BASE_URL`."

@@ -2376,6 +2376,37 @@
         ]
       }
     },
+    "/api/docs/try": {
+      "post": {
+        "tags": [
+          "docs"
+        ],
+        "summary": "Ejecuta una llamada HTTP y evalúa el guard por request: runtime Node, nunca",
+        "description": "Ejecuta una llamada HTTP y evalúa el guard por request: runtime Node, nunca\nEdge, y sin cachear nada.",
+        "operationId": "post_api_docs_try",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": false,
+          "detectadoEn": "archivo",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+        },
+        "x-archivo": "src/app/api/docs/try/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
     "/api/{proxy}": {
       "get": {
         "tags": [
@@ -2536,7 +2567,7 @@
   },
   "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
   "x-aplicacion-id": 1,
-  "x-operaciones": 69,
+  "x-operaciones": 70,
   "x-colapsados": [
     {
       "patron": "\\[\\.\\.\\.proxy\\]",

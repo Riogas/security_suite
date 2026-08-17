@@ -35,6 +35,20 @@ export interface Anotacion {
   auth?: Record<string, unknown>;
   /** Respuestas por código, en formato OpenAPI. */
   responses?: Record<string, unknown>;
+  /**
+   * Parámetros de query/path. Se mergean con los que detectó el parser por
+   * `name` + `in`: la anotación gana campo a campo, y los que el parser no
+   * encontró (headers, un query que se lee en un helper) se suman.
+   */
+  parameters?: Array<Record<string, unknown>>;
+  /**
+   * Cuerpo del request, en formato OpenAPI (`{ description, required, content }`)
+   * o en la forma corta `{ descripcion, ejemplo, campos }`. El parser no infiere
+   * cuerpos —esta app no tiene DTOs ni zod—, así que esto es lo único que hay.
+   */
+  requestBody?: Record<string, unknown>;
+  /** Errores conocidos: los que devuelve de verdad, con su condición. */
+  errores?: Array<{ status?: number; code?: string; cuando?: string }>;
 }
 
 export interface ArchivoAnotaciones {
@@ -100,6 +114,30 @@ function clave(metodo: string, ruta: string): string {
   return `${metodo.toUpperCase()} ${ruta}`;
 }
 
+type Parametro = Record<string, unknown>;
+
+/** Clave de identidad de un parámetro OpenAPI: mismo nombre y mismo lugar. */
+function claveParametro(p: Parametro): string {
+  return `${String(p.in ?? "query")}:${String(p.name ?? "")}`;
+}
+
+/**
+ * Los parámetros del parser (los `searchParams.get` que encontró) más los
+ * anotados. La anotación gana **campo a campo** sobre el detectado, así que
+ * describir el `usuarioId` a mano no borra el `schema` que el parser dedujo, y
+ * anotar uno que el parser no vio simplemente lo agrega.
+ */
+function mergearParametros(detectados: unknown, anotados: Parametro[]): Parametro[] {
+  const base = Array.isArray(detectados) ? (detectados as Parametro[]) : [];
+  const salida = new Map<string, Parametro>();
+  for (const p of base) salida.set(claveParametro(p), p);
+  for (const p of anotados) {
+    const k = claveParametro(p);
+    salida.set(k, { ...(salida.get(k) ?? {}), ...p });
+  }
+  return [...salida.values()];
+}
+
 function aplicarAnotacion(operacion: Operacion, anotacion: Anotacion): Operacion {
   const fusionada: Operacion = { ...operacion, "x-anotado": true };
 
@@ -109,7 +147,12 @@ function aplicarAnotacion(operacion: Operacion, anotacion: Anotacion): Operacion
   if (anotacion.consumidores?.length) fusionada["x-consumidores"] = anotacion.consumidores;
   if (anotacion.notas?.length) fusionada["x-notas"] = anotacion.notas;
   if (anotacion.ejemplos?.length) fusionada["x-ejemplos"] = anotacion.ejemplos;
+  if (anotacion.errores?.length) fusionada["x-errores"] = anotacion.errores;
   if (anotacion.responses) fusionada.responses = anotacion.responses;
+  if (anotacion.requestBody) fusionada.requestBody = anotacion.requestBody;
+  if (anotacion.parameters?.length) {
+    fusionada.parameters = mergearParametros(operacion.parameters, anotacion.parameters);
+  }
   if (anotacion.auth) {
     fusionada["x-auth"] = { ...(operacion["x-auth"] as object), ...anotacion.auth };
   }
