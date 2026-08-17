@@ -135,6 +135,18 @@ export async function POST(req: NextRequest) {
     if (!guard.ok) {
       return NextResponse.json({ success: false, error: guard.code }, { status: guard.status });
     }
+    // requireRoot también deja pasar a quien tenga la funcionalidad `docs`
+    // otorgada (pensada para VER el portal de documentación de APIs), y ese
+    // permiso no tiene nada que ver con crear usuarios ni con otorgar Root.
+    // Este endpoint exige es_root='S' explícitamente, encima del guard.
+    if (guard.usuario.esRoot !== "S") {
+      return NextResponse.json(
+        { success: false, error: "La importación de usuarios requiere ser root" },
+        { status: 403 },
+      );
+    }
+    // Username ya verificado por requireRoot (jwt.verify + resolución contra
+    // PG): no hace falta una segunda llamada a resolveUsuario.
     const operador = guard.usuario;
 
     const body = await req.json().catch(() => ({}));
