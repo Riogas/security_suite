@@ -28,7 +28,6 @@ import {
   Download,
   Mail,
   Phone,
-  Plus,
   Loader2,
   ShieldCheck,
 } from "lucide-react";
@@ -462,79 +461,6 @@ export default function UsuariosTable() {
     </>
   );
 
-  /**
-   * Botón "Importación masiva" del header. Dos guardas antes de navegar:
-   *
-   * - Root: el endpoint de importar exige `esRoot='S'` y devuelve 403 si no.
-   *   Sin esto, un operador sin permisos completaba las 3 enumeraciones del
-   *   AS400 y recién en el último paso se enteraba que no podía.
-   * - `modo === "ext:todos"`: el wizard (`OpcionesImport.origen`) y el
-   *   endpoint de importar solo aceptan un origen puntual (SGM/LDAP/GSIST),
-   *   nunca "todos" — mandarlo tal cual hoy cae silencioso a SGM en
-   *   `/dashboard/usuarios/importar` (ORIGENES_VALIDOS no incluye "todos").
-   *   Se prefiere deshabilitar con un tooltip antes que ese aterrizaje mudo
-   *   en una sola fuente cuando el operador venía mirando las tres.
-   */
-  function botonImportacionMasiva() {
-    if (!modo.startsWith("ext:")) return null;
-
-    if (modo === "ext:todos") {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button variant="outline" disabled className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Importación masiva
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Elegí un origen (SGM, LDAP o GSIST) para importar</TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    if (!esRoot) {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button variant="outline" disabled className="flex items-center gap-2">
-                <Download className="w-4 h-4" />
-                Importación masiva
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Requiere permisos de root</TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return (
-      <Button
-        variant="outline"
-        onClick={() => router.push(`/dashboard/usuarios/importar?origen=${modo.slice(4)}`)}
-        className="flex items-center gap-2"
-      >
-        <Download className="w-4 h-4" />
-        Importación masiva
-      </Button>
-    );
-  }
-
-  const headerActions = (
-    <>
-      {botonImportacionMasiva()}
-      <Button
-        onClick={() => router.push("/dashboard/usuarios/crear")}
-        className="flex items-center gap-2"
-      >
-        <Plus className="w-4 h-4" />
-        Nuevo Usuario
-      </Button>
-    </>
-  );
-
   return (
     <>
       <DataTable
@@ -550,7 +476,6 @@ export default function UsuariosTable() {
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
         searchPlaceholder="Buscar por nombre, email o documento..."
         filters={filters}
-        headerActions={headerActions}
         emptyTitle="Sin usuarios"
         emptyDescription="No se encontraron usuarios con los filtros actuales."
         pageSizeOptions={[10, 25, 50]}
