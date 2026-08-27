@@ -1503,6 +1503,9 @@ export interface AplicacionesDBResponse {
  *     cartelito y el usuario se quedaba mirando una pantalla vacía con la
  *     sesión vencida. Ahora se limpia la sesión y se manda al login, que es lo
  *     mismo que ya hacía `apiValidarPermiso`.
+ *  3. Separar el 503 `SECRETO_NO_CONFIGURADO` del 401. Los dos dejan al panel
+ *     sin datos, pero se arreglan de forma opuesta: el 401 lo arregla el
+ *     usuario volviendo a entrar; el 503 no lo arregla nadie desde el navegador.
  */
 async function dbFetch(url: string, options?: RequestInit) {
   const headers = new Headers(options?.headers);
@@ -1512,6 +1515,12 @@ async function dbFetch(url: string, options?: RequestInit) {
   }
 
   const res = await fetch(url, { ...options, headers, credentials: "same-origin" });
+
+  // El guard central nunca pone el code en el body (son nombres internos): lo
+  // manda en el header `x-auth-guard` y deja en `error` el texto para el
+  // usuario. Es el único lugar donde se puede distinguir un 503 por falta de
+  // secreto de cualquier otro 503. Ver `denegar()` en src/lib/auth/apiGuard.ts.
+  const codigoGuard = res.headers.get("x-auth-guard");
 
   if (res.status === 401) {
     limpiarSesionLocal();
@@ -1526,6 +1535,30 @@ async function dbFetch(url: string, options?: RequestInit) {
   }
 
   const json = await res.json().catch(() => ({}));
+
+  // 503 SECRETO_NO_CONFIGURADO no es la sesión del usuario: es el proceso, que
+  // no tiene `JWT_SECRET` (ausente, con el default del código, o más corta que
+  // el mínimo). NO se limpia la sesión ni se manda a /login a propósito, que es
+  // lo contrario del 401: el token del usuario puede estar perfecto y el guard
+  // va a seguir devolviendo 503 igual, así que volver a entrar solo lo hace dar
+  // vueltas. Encima el login tampoco es salida: `POST /api/db/login` —el que
+  // usan Goya, TrackMovil y Granel— corta con este mismo 503 antes de firmar
+  // (src/lib/auth/responses.ts). Se muestra el mensaje y se queda donde está.
+  // El code llega por el header `x-auth-guard` cuando lo deniega el guard, y
+  // por el body cuando el que corta es el login, que sí lo pone en `error`.
+  if (
+    res.status === 503 &&
+    (codigoGuard === "SECRETO_NO_CONFIGURADO" || json?.error === "SECRETO_NO_CONFIGURADO")
+  ) {
+    const e = new Error(
+      "El servidor no está configurado para autenticar: falta la variable JWT_SECRET. " +
+        "No se arregla volviendo a iniciar sesión — avisá a sistemas.",
+    );
+    (e as any).status = 503;
+    (e as any).code = "SECRETO_NO_CONFIGURADO";
+    throw e;
+  }
+
   if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
   return json;
 }

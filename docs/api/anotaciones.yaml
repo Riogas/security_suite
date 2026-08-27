@@ -53,7 +53,7 @@ endpoints:
       - "as400-api (Express :5000) es la dependencia, no el consumidor: este endpoint le pega para SGM y LDAP."
     notas:
       - "**El JWT no lleva el flag root.** Ninguna app puede decidir “es root” leyendo el token: hay que preguntarle a secapi. Es la razón de ser del gate de `/docs`."
-      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y **todo `/api/db/*` responde 503 igual**: desde que existe el guard central, sin secreto real no se autentica nadie. Este endpoint es la única excepción — sigue emitiendo tokens, porque si no nadie podría loguearse para arreglarlo."
+      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y **todo `/api/db/*` responde 503 igual**: desde que existe el guard central, sin secreto real no se autentica nadie. Este endpoint es la única excepción **al pedido de token** (es público: entra sin credencial y por eso el guard no lo frena), pero **no emite token igual**: valida las credenciales, y antes de firmar corta con 503 `SECRETO_NO_CONFIGURADO` (`src/lib/auth/responses.ts`). O sea: sin la variable configurada no se loguea nadie, tampoco para arreglarlo — se arregla en el ambiente del servidor y no desde la aplicación."
       - "**Cambiar `JWT_SECRET` desloguea a todo el mundo de golpe.** Los tokens vigentes duran 7 días y quedan invalidados en el mismo momento: secapi, GOYA, TrackMovil y el panel de Granel piden login de nuevo. Es esperable; lo que no conviene es hacerlo en el mismo deploy que otro cambio de auth, porque después no se distingue qué rompió qué."
       - "El filtro por escenario puede dejar a un usuario válido afuera con 403 `FORBIDDEN_SCENARIO` si ninguno de sus roles aplica al escenario activo."
     auth:
@@ -73,6 +73,8 @@ endpoints:
         description: Usuario deshabilitado, o `FORBIDDEN_SCENARIO` (ningún rol aplica al escenario activo).
       "500":
         description: 'Error interno; el cuerpo mantiene la forma de error, con `token` vacío.'
+      "503":
+        description: '`SECRETO_NO_CONFIGURADO`: las credenciales se validaron bien, pero falta `JWT_SECRET` (o tiene el default del código) y el token no se firma. No se resuelve reintentando el login.'
     ejemplos:
       - lenguaje: curl
         titulo: Login local
