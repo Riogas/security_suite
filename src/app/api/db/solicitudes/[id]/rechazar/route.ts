@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveUsuario, usuarioPuedeAprobar } from "@/lib/permisos";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // POST /api/db/solicitudes/[id]/rechazar
 // Body: { comentario? }
@@ -9,6 +10,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Guard de /api/db (src/lib/auth/apiGuard.ts): exige sesión válida. Quién
+  // puede rechazar lo sigue decidiendo `usuarioPuedeAprobar`, más abajo.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const usuario = await resolveUsuario(request);
     if (!usuario) {

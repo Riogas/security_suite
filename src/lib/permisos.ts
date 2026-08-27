@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verificarJwtConSecretoDelAmbiente } from "@/lib/auth/verificarJwt";
 
 // =====================================================================
 // Helpers compartidos de permisos / accesos (Postgres).
@@ -21,16 +22,17 @@ export const EFECTO_DENY = "deny";
 export const APROBADOR_OBJETO_KEY = "solicitudes";
 export const APROBADOR_ACCION_KEY = "approve";
 
-export function decodeJwt(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(b64));
-  } catch {
-    return null;
-  }
-}
+// Acá vivía `decodeJwt`, que hacía `JSON.parse(atob(partes[1]))`: leía el
+// payload sin mirar la firma ni `exp`. Con eso, "Bearer <lo-que-sea>.<base64 de
+// {"username":"dmedaglia"}>.<x>" entraba como root a todo lo que dependiera de
+// `resolveUsuario` — y de ahí colgaban /api/db/permisos (el gate de CADA
+// pantalla de Goya y TrackMovil), las solicitudes y su aprobación.
+//
+// No se reemplazó por otro decodificador: la verificación completa (firma HS256,
+// vencimiento, secreto real y no el default del código) está en
+// `@/lib/auth/verificarJwt` y es la ÚNICA puerta. Si necesitás el payload,
+// llamá a `verificarJwtConSecretoDelAmbiente`; si necesitás el usuario,
+// `resolveUsuario`. Volver a poner un `atob` acá reabre el agujero entero.
 
 export function extractToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization") ?? "";
@@ -47,6 +49,11 @@ export interface UsuarioAuth {
 /**
  * Resuelve el usuario autenticado a partir del JWT (header o cookie).
  * Devuelve null si no hay token válido o el usuario no existe / inactivo.
+ *
+ * "Token válido" significa firma HS256 verificada contra JWT_SECRET y `exp`
+ * vigente, con un secreto real (no el default del código). Fail-closed: si
+ * JWT_SECRET no está bien configurada, esto devuelve null y NADIE se autentica
+ * — preferible a que cualquiera se autentique como cualquiera.
  */
 export async function resolveUsuario(
   req: NextRequest,
@@ -54,7 +61,7 @@ export async function resolveUsuario(
   const token = extractToken(req);
   if (!token) return null;
 
-  const payload = decodeJwt(token);
+  const payload = verificarJwtConSecretoDelAmbiente(token);
   if (!payload) return null;
 
   const rawUsername = (payload.username ??

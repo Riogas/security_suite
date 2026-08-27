@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // GET /api/db/usuarios/por-empresa-fletera
 // Query params:
@@ -12,6 +13,11 @@ import { prisma } from "@/lib/prisma";
 //   Se filtra con ILIKE "%empresa%" por cada empresa pedida (OR entre empresas).
 //   Un usuario aparece si al menos una de sus preferencias EmpFletera contiene alguna empresa.
 export async function GET(req: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { searchParams } = new URL(req.url);
 

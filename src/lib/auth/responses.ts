@@ -2,8 +2,18 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import type { VerifiedBy } from "./types";
+import { leerSecretoJwt } from "./verificarJwt";
 
-const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
+/*
+ * El firmante usa EXACTAMENTE el mismo criterio que el verificador
+ * (`leerSecretoJwt`). Antes tenía su propio `|| "security-suite-secret-key"`, y
+ * eso dejaba firmante y verificador en desacuerdo por construcción: sin
+ * JWT_SECRET seteada, el login devolvía 200 con un token firmado con el secreto
+ * de compromiso que después TODOS los endpoints rechazaban. El operador veía
+ * "el login anda" y buscaba el problema en cualquier otro lado.
+ *
+ * Ahora, sin secreto válido, el login corta en la puerta con 503.
+ */
 
 function emptyAuthBody(message: string) {
   return {
@@ -100,9 +110,18 @@ export async function buildSuccessResponse(
     }),
   ]);
 
+  const secreto = leerSecretoJwt();
+  if (!secreto.ok) {
+    console.error(`[login] no se puede emitir token: ${secreto.motivo}`);
+    return NextResponse.json(
+      { success: false, error: "SECRETO_NO_CONFIGURADO", message: "El servidor no está configurado para emitir sesiones." },
+      { status: 503 },
+    );
+  }
+
   const token = jwt.sign(
     { iss: "security-suite", username: usuario.username, userId: usuario.id, sistema },
-    JWT_SECRET,
+    secreto.secreto,
     { expiresIn: "7d" }
   );
 

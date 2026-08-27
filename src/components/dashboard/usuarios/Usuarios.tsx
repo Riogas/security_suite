@@ -12,26 +12,34 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DataTable } from "@/components/ui/data-table";
 import { type ColumnDef } from "@tanstack/react-table";
-import { apiUsuarios, apiImportarUsuario, apiUsuariosDB, apiEliminarUsuarioDB } from "@/services/api";
+import {
+  apiUsuariosDB,
+  apiEliminarUsuarioDB,
+  apiUsuariosExternos,
+  apiImportarUsuariosDB,
+} from "@/services/api";
+import { BadgeOrigen } from "@/components/dashboard/usuarios/importar/badges";
 import VerPermisosModal from "@/components/dashboard/usuarios/VerPermisosModal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Pencil,
   Trash,
   Download,
   Mail,
   Phone,
-  Plus,
   Loader2,
   ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useUser } from "@/hooks/useUser";
 
-// Unified row type: DB users come with _source="db", GeneXus users with _source="genexus"
-// Using index signature to allow GeneXus dynamic keys
+// Unified row type: filas locales vienen con _source="db", filas de
+// orígenes externos (SGM/LDAP/GSIST) con _source="externo".
+// Using index signature to allow claves dinámicas de cada origen.
 type UsuarioRow = {
-  _source: "db" | "genexus";
+  _source: "db" | "externo";
   [key: string]: unknown;
 };
 
@@ -40,17 +48,24 @@ export default function UsuariosTable() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [estado, setEstado] = useState("todos");
-  const [tipoUsuario, setTipoUsuario] = useState("locales");
+  // "locales" | "ext:todos" | "ext:SGM" | "ext:LDAP" | "ext:GSIST"
+  const [modo, setModo] = useState("locales");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [importingUsers, setImportingUsers] = useState<Set<number>>(new Set());
-  const [importedUsers, setImportedUsers] = useState<Set<number>>(new Set());
+  const [importingUsers, setImportingUsers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [permisosModal, setPermisosModal] = useState<{ userId: number; userName: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<UsuarioRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importConfirm, setImportConfirm] = useState<UsuarioRow | null>(null);
   const router = useRouter();
+  // Nombrado distinto de las filas de la tabla (que también usan "user" en
+  // varios lugares) para no pisarse.
+  const { user: usuarioActual } = useUser();
+  // Antes de que useUser() termine de leer localStorage, `usuarioActual` es
+  // null: por defecto NO root (fail-closed en la UI), igual que el backend.
+  const esRoot = usuarioActual?.isRoot === "S";
 
   // debounce
   useEffect(() => {
@@ -61,28 +76,22 @@ export default function UsuariosTable() {
   // =============================================
   // Fetchers
   // =============================================
-  const fetcherGeneXus = async (opts: {
-    FiltroTexto: string;
-    Estado: string;
-    Pagesize: number;
-    CurrentPage: number;
+  const fetcherExternos = async (opts: {
+    origen: "todos" | "SGM" | "LDAP" | "GSIST";
+    filtro: string;
+    page: number;
+    pageSize: number;
     signal?: AbortSignal;
   }) => {
-    const res = await apiUsuarios(
-      {
-        FiltroTexto: opts.FiltroTexto,
-        Estado: opts.Estado,
-        sinMigrar: true,
-        Pagesize: String(opts.Pagesize),
-        CurrentPage: String(opts.CurrentPage),
-      },
-      { signal: opts.signal },
-    );
-    const items = res?.SdtUsuarios || res?.sdtUsuarios || res?.items || [];
-    const totalCount = Number(
-      res?.MaxRegistros ?? res?.maxRegistros ?? res?.total ?? (items?.length || 0),
-    );
-    return { items: items as Record<string, unknown>[], total: totalCount };
+    const res = await apiUsuariosExternos({
+      origen: opts.origen,
+      filtro: opts.filtro,
+      estadoComparacion: "NUEVO",
+      page: opts.page,
+      pageSize: opts.pageSize,
+      signal: opts.signal,
+    });
+    return { items: res.items as unknown as Record<string, unknown>[], total: res.total };
   };
 
   const fetcherDB = async (opts: {
@@ -102,6 +111,13 @@ export default function UsuariosTable() {
     return { items: res.items as unknown as Record<string, unknown>[], total: res.total };
   };
 
+  // El filtro de Estado no aplica a los modos "ext:*" (fetcherExternos nunca
+  // lo manda, y el control ni siquiera se muestra en ese modo — ver
+  // `filters` más abajo). Esta copia estable evita que un `estado` que quedó
+  // en memoria de un cambio de modo anterior dispare una re-enumeración
+  // completa del AS400 para devolver exactamente lo mismo.
+  const estadoEfectivo = modo.startsWith("ext:") ? "todos" : estado;
+
   // load
   useEffect(() => {
     const ac = new AbortController();
@@ -109,16 +125,16 @@ export default function UsuariosTable() {
       try {
         setLoading(true);
 
-        if (tipoUsuario === "sinImportar") {
-          const estadoGx = estado === "S" ? "S" : estado === "N" ? "N" : "";
-          const { items, total: fetchedTotal } = await fetcherGeneXus({
-            FiltroTexto: debouncedSearch,
-            Estado: estadoGx,
-            Pagesize: pageSize,
-            CurrentPage: page,
+        if (modo.startsWith("ext:")) {
+          const origen = modo.slice(4) as "todos" | "SGM" | "LDAP" | "GSIST";
+          const { items, total: fetchedTotal } = await fetcherExternos({
+            origen,
+            filtro: debouncedSearch,
+            page,
+            pageSize,
             signal: ac.signal,
           });
-          setRows(items.map((u) => ({ ...u, _source: "genexus" as const })));
+          setRows(items.map((u) => ({ ...u, _source: "externo" as const })));
           setTotal(fetchedTotal);
         } else {
           const estadoDB = estado === "S" ? "A" : estado === "N" ? "I" : "";
@@ -140,7 +156,7 @@ export default function UsuariosTable() {
       }
     })();
     return () => ac.abort();
-  }, [debouncedSearch, estado, tipoUsuario, page, pageSize]);
+  }, [debouncedSearch, estadoEfectivo, modo, page, pageSize]);
 
   // =============================================
   // Helpers
@@ -155,67 +171,70 @@ export default function UsuariosTable() {
   const getUserName = (row: UsuarioRow): string =>
     row._source === "db"
       ? `${row.nombre || ""} ${row.apellido || ""}`.trim() || String(row.username ?? "")
-      : String(row.UserExtendedNombre ?? "Sin nombre");
+      : String(row.nombre ?? "Sin nombre");
 
   const getUserUsername = (row: UsuarioRow): string =>
     row._source === "db"
       ? String(row.username ?? "sin-usuario")
-      : String(row.UserExtendedUserName ?? "sin-usuario");
+      : String(row.username ?? "sin-usuario");
 
   const getUserEmail = (row: UsuarioRow): string | undefined =>
     row._source === "db"
       ? (row.email as string | null | undefined) ?? undefined
-      : (row.UserExtendedEmail as string | null | undefined) ?? undefined;
+      : (row.email as string | null | undefined) ?? undefined;
 
   const getUserId = (row: UsuarioRow): number =>
-    row._source === "db"
-      ? (row.id as number)
-      : (row.UserExtendedId as number);
+    row._source === "db" ? (row.id as number) : 0;
 
   const getUserTelefono = (row: UsuarioRow): string | undefined =>
     row._source === "db"
       ? (row.telefono as string | null | undefined) ?? undefined
-      : (row.UserExtendedTelefono as string | null | undefined) ?? undefined;
+      : undefined;
 
   const getUserEstado = (row: UsuarioRow): boolean => {
     if (row._source === "db") return row.estado === "A";
-    const est = row.UserExtendedEstado as string | undefined;
-    return est === "S" || est === "A";
+    return Boolean(row.habilitado);
   };
 
   const isFromDB = (row: UsuarioRow): boolean => row._source === "db";
 
-  const shouldShowImportButton = (user: UsuarioRow): boolean => {
-    const userId = user.UserExtendedId as number | undefined;
-    return (
-      tipoUsuario === "sinImportar" &&
-      userId != null &&
-      !importedUsers.has(userId) &&
-      Boolean(user.UserExtendedNombre)
-    );
-  };
+  const shouldShowImportButton = (user: UsuarioRow): boolean =>
+    user._source === "externo" && user.estadoComparacion === "NUEVO";
 
   const handleImportUser = async (user: UsuarioRow) => {
-    const userId = user.UserExtendedId as number | undefined;
-    if (!userId) { console.error("ID de usuario no válido"); return; }
+    const username = String(user.username || "");
+    const origen = String(user.origen || "") as "SGM" | "LDAP" | "GSIST";
+    if (!username || !origen) return;
+    // Mismo criterio que el wizard (PasoComparacion.tsx:176,180): preferencias
+    // y roles solo aplican a SGM. Importar de a uno tiene que pedir el mismo
+    // consentimiento que el wizard para la misma operación, no menos — antes
+    // esto otorgaba el rol Despacho a cualquier usuario de LDAP/GSIST sin que
+    // conRoles tuviera ningún sentido para esos orígenes.
+    const conPreferencias = origen === "SGM";
+    const conRoles = origen === "SGM";
     try {
-      setImportingUsers((prev) => new Set(prev).add(userId));
-      const response = await apiImportarUsuario({ UserExtendedId: userId, AplicacionId: 2 });
-      if (response.success) {
-        toast.success(`Usuario ${String(user.UserExtendedNombre)} importado exitosamente`);
-        setImportedUsers((prev) => new Set(prev).add(userId));
+      setImportingUsers((prev) => new Set(prev).add(username));
+      const res = await apiImportarUsuariosDB({
+        origen,
+        usernames: [username],
+        conPreferencias,
+        conRoles,
+      });
+      if (res.creados === 1) {
+        toast.success(`Usuario ${username} importado`);
+        setRows((prev) => prev.filter((r) => r.username !== username));
       } else {
-        toast.error("Error al importar usuario: " + (response.message || ""));
+        toast.error(res.detalles[0]?.motivo || "No se pudo importar");
       }
     } catch (error) {
-      console.error("Error en la importación:", error);
-      toast.error("Error al importar usuario");
+      toast.error("Error al importar: " + (error as Error).message);
     } finally {
       setImportingUsers((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(userId);
-        return newSet;
+        const s = new Set(prev);
+        s.delete(username);
+        return s;
       });
+      setImportConfirm(null);
     }
   };
 
@@ -273,15 +292,12 @@ export default function UsuariosTable() {
     {
       id: "id",
       header: "ID",
-      cell: ({ row }) => {
-        if (isFromDB(row.original)) {
-          return <Badge variant="secondary">ID: {getUserId(row.original)}</Badge>;
-        }
-        if (row.original.sinMigrar) {
-          return <Badge variant="outline" className="text-muted-foreground">Sin asignar</Badge>;
-        }
-        return <Badge variant="secondary">ID: {getUserId(row.original) || "-"}</Badge>;
-      },
+      cell: ({ row }) =>
+        row.original._source === "db" ? (
+          <Badge variant="secondary">ID: {getUserId(row.original)}</Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">Sin asignar</Badge>
+        ),
     },
     {
       id: "telefono",
@@ -312,80 +328,92 @@ export default function UsuariosTable() {
       id: "origen",
       header: "Origen",
       cell: ({ row }) =>
-        isFromDB(row.original) ? (
-          <Badge variant="outline" className="border-blue-500 text-blue-400">
-            PostgreSQL
-          </Badge>
+        row.original._source === "db" ? (
+          <BadgeOrigen origen={row.original.desdeSistema as string | null} />
         ) : (
-          <Badge variant="outline" className="border-yellow-500 text-yellow-400">
-            GeneXus
-          </Badge>
+          <BadgeOrigen origen={row.original.origen as string} />
         ),
     },
     {
       id: "acciones",
       header: "Acciones",
-      cell: ({ row }) => (
-        <div className="space-x-2">
-          {shouldShowImportButton(row.original) ? (
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleImportUser(row.original)}
-                disabled={importingUsers.has(row.original.UserExtendedId as number)}
-              >
-                {importingUsers.has(row.original.UserExtendedId as number) ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="ml-1">Importando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span className="ml-1">Importar</span>
-                  </>
-                )}
-              </Button>
-              {importedUsers.has(row.original.UserExtendedId as number) && (
-                <Badge variant="success">Importado</Badge>
-              )}
-            </>
-          ) : (
-            <>
-              {isFromDB(row.original) && (
+      cell: ({ row }) => {
+        const username = String(row.original.username || "");
+        return (
+          <div className="space-x-2">
+            {shouldShowImportButton(row.original) ? (
+              esRoot ? (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
-                  title="Visualizar permisos"
-                  onClick={() =>
-                    setPermisosModal({
-                      userId: getUserId(row.original),
-                      userName: getUserName(row.original),
-                    })
-                  }
+                  // Pide confirmación antes de crear, igual que el wizard
+                  // (ConfirmDialog más abajo) — importar de a uno es la misma
+                  // operación que "Importar N usuarios" del paso 2, y ahí
+                  // hace falta confirmar.
+                  onClick={() => setImportConfirm(row.original)}
+                  disabled={importingUsers.has(username)}
                 >
-                  <ShieldCheck className="w-4 h-4" />
+                  {importingUsers.has(username) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="ml-1">Importando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span className="ml-1">Importar</span>
+                    </>
+                  )}
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/dashboard/usuarios/editar/${getUserId(row.original)}`)}
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteConfirm(row.original)}
-              >
-                <Trash className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-        </div>
-      ),
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button variant="secondary" size="sm" disabled>
+                        <Download className="w-4 h-4" />
+                        <span className="ml-1">Importar</span>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Requiere permisos de root</TooltipContent>
+                </Tooltip>
+              )
+            ) : (
+              isFromDB(row.original) && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Visualizar permisos"
+                    onClick={() =>
+                      setPermisosModal({
+                        userId: getUserId(row.original),
+                        userName: getUserName(row.original),
+                      })
+                    }
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/dashboard/usuarios/editar/${getUserId(row.original)}`)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteConfirm(row.original)}
+                  >
+                    <Trash className="w-4 h-4" />
+                  </Button>
+                </>
+              )
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -394,47 +422,43 @@ export default function UsuariosTable() {
   // =============================================
   const filters = (
     <>
-      <Select
-        value={tipoUsuario}
-        onValueChange={(v) => { setTipoUsuario(v); setPage(1); }}
-      >
-        <SelectTrigger className="w-44">
-          {tipoUsuario === "sinImportar"
-            ? "Sin importar (GX)"
-            : tipoUsuario === "locales"
-              ? "Locales (DB)"
-              : "Todos (DB)"}
+      <Select value={modo} onValueChange={(v) => { setModo(v); setPage(1); }}>
+        <SelectTrigger className="w-56">
+          {{
+            locales: "Locales (PostgreSQL)",
+            "ext:todos": "Sin importar — todos",
+            "ext:SGM": "Sin importar — SGM",
+            "ext:LDAP": "Sin importar — LDAP",
+            "ext:GSIST": "Sin importar — ADMSEC/GSIST",
+          }[modo] ?? "Locales (PostgreSQL)"}
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="locales">Locales (DB)</SelectItem>
-          <SelectItem value="todos">Todos (DB)</SelectItem>
-          <SelectItem value="sinImportar">Sin importar (GX)</SelectItem>
+          <SelectItem value="locales">Locales (PostgreSQL)</SelectItem>
+          <SelectItem value="ext:todos">Sin importar — todos</SelectItem>
+          <SelectItem value="ext:SGM">Sin importar — SGM</SelectItem>
+          <SelectItem value="ext:LDAP">Sin importar — LDAP</SelectItem>
+          <SelectItem value="ext:GSIST">Sin importar — ADMSEC/GSIST</SelectItem>
         </SelectContent>
       </Select>
-      <Select
-        value={estado}
-        onValueChange={(v) => { setEstado(v); setPage(1); }}
-      >
-        <SelectTrigger className="w-32">
-          {estado === "S" ? "Activo" : estado === "N" ? "Inactivo" : "Estado"}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="S">Activo</SelectItem>
-          <SelectItem value="N">Inactivo</SelectItem>
-          <SelectItem value="todos">Todos</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* No aplica a los modos "ext:*": fetcherExternos nunca manda `estado`,
+          así que ahí es un control que no hace nada (y cambiarlo disparaba
+          una re-enumeración completa del AS400 para el mismo resultado). */}
+      {!modo.startsWith("ext:") && (
+        <Select
+          value={estado}
+          onValueChange={(v) => { setEstado(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-32">
+            {estado === "S" ? "Activo" : estado === "N" ? "Inactivo" : "Estado"}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="S">Activo</SelectItem>
+            <SelectItem value="N">Inactivo</SelectItem>
+            <SelectItem value="todos">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
     </>
-  );
-
-  const headerActions = (
-    <Button
-      onClick={() => router.push("/dashboard/usuarios/crear")}
-      className="flex items-center gap-2"
-    >
-      <Plus className="w-4 h-4" />
-      Nuevo Usuario
-    </Button>
   );
 
   return (
@@ -452,7 +476,6 @@ export default function UsuariosTable() {
         onSearchChange={(v) => { setSearch(v); setPage(1); }}
         searchPlaceholder="Buscar por nombre, email o documento..."
         filters={filters}
-        headerActions={headerActions}
         emptyTitle="Sin usuarios"
         emptyDescription="No se encontraron usuarios con los filtros actuales."
         pageSizeOptions={[10, 25, 50]}
@@ -476,6 +499,25 @@ export default function UsuariosTable() {
         tone="danger"
         onConfirm={handleDeleteConfirm}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={importConfirm !== null}
+        onOpenChange={(open) => { if (!open) setImportConfirm(null); }}
+        title={`¿Importar a "${importConfirm ? getUserUsername(importConfirm) : ""}"?`}
+        description={
+          importConfirm
+            ? `Se va a crear el usuario "${getUserUsername(importConfirm)}" desde ${String(importConfirm.origen || "")}. ` +
+              `Preferencias: ${importConfirm.origen === "SGM" ? "sí" : "no"}. ` +
+              `Roles: ${importConfirm.origen === "SGM" ? "sí" : "no"}.`
+            : undefined
+        }
+        confirmLabel="Importar"
+        tone="default"
+        onConfirm={() => {
+          if (importConfirm) return handleImportUser(importConfirm);
+        }}
+        loading={importConfirm ? importingUsers.has(String(importConfirm.username || "")) : false}
       />
     </>
   );

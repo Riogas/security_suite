@@ -1,0 +1,3103 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SecuritySuite (secapi) — APIs propias",
+    "version": "0.1.0",
+    "description": "Catálogo generado por `pnpm docs:api` a partir de `src/app/api/**/route.ts`.\n\nLo generado describe **lo que el código hace hoy**, incluida la autenticación real de\ncada handler. Las descripciones a mano viven en `docs/api/anotaciones.yaml` y ganan\nsobre lo inferido; `GET /api/docs/spec` devuelve el documento ya mergeado.\n\nNo editar este archivo a mano: se regenera."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4005",
+      "description": "desarrollo local (pnpm dev)"
+    },
+    {
+      "url": "https://secapi.riogas.com.uy",
+      "description": "secapi (PM2, puerto 3001)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "accesos"
+    },
+    {
+      "name": "acciones"
+    },
+    {
+      "name": "admin"
+    },
+    {
+      "name": "aplicaciones"
+    },
+    {
+      "name": "docs"
+    },
+    {
+      "name": "funcionalidades"
+    },
+    {
+      "name": "login"
+    },
+    {
+      "name": "menu"
+    },
+    {
+      "name": "objetos"
+    },
+    {
+      "name": "permisos"
+    },
+    {
+      "name": "proxy"
+    },
+    {
+      "name": "roles"
+    },
+    {
+      "name": "solicitudes"
+    },
+    {
+      "name": "usuario-preferencias"
+    },
+    {
+      "name": "usuarios"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerJwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT emitido por `POST /api/db/login`. Payload: `{ iss, username, userId, sistema }` — no lleva el flag root."
+      },
+      "cookieToken": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token",
+        "description": "El mismo JWT, tomado de la cookie `token` cuando no hay header."
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  },
+  "paths": {
+    "/api/db/accesos": {
+      "get": {
+        "tags": [
+          "accesos"
+        ],
+        "summary": "GET /api/db/accesos?usuarioId=&aplicacionId=&funcionalidadId=",
+        "description": "GET /api/db/accesos?usuarioId=&aplicacionId=&funcionalidadId=",
+        "operationId": "get_api_db_accesos",
+        "parameters": [
+          {
+            "name": "aplicacionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "funcionalidadId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "usuarioId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/accesos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "accesos"
+        ],
+        "summary": "POST /api/db/accesos — upsert de un acceso individual",
+        "description": "POST /api/db/accesos — upsert de un acceso individual\nBody: { usuarioId, funcionalidadId, efecto?, creadoEn?, fechaDesde?, fechaHasta? }",
+        "operationId": "post_api_db_accesos",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/accesos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "accesos"
+        ],
+        "summary": "DELETE /api/db/accesos?usuarioId=&funcionalidadId=",
+        "description": "DELETE /api/db/accesos?usuarioId=&funcionalidadId=",
+        "operationId": "delete_api_db_accesos",
+        "parameters": [
+          {
+            "name": "funcionalidadId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "usuarioId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/accesos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/acciones": {
+      "get": {
+        "tags": [
+          "acciones"
+        ],
+        "summary": "GET /api/db/acciones?funcionalidadId=&estado=&search=",
+        "description": "GET /api/db/acciones?funcionalidadId=&estado=&search=",
+        "operationId": "get_api_db_acciones",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "funcionalidadId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/acciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "acciones"
+        ],
+        "summary": "Body: { nombre, descripcion?, estado?, funcionalidadIds?: number[] }",
+        "description": "POST /api/db/acciones\nBody: { nombre, descripcion?, estado?, funcionalidadIds?: number[] }",
+        "operationId": "post_api_db_acciones",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/acciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/acciones/{id}": {
+      "get": {
+        "tags": [
+          "acciones"
+        ],
+        "summary": "GET /api/db/acciones/[id]",
+        "description": "GET /api/db/acciones/[id]",
+        "operationId": "get_api_db_acciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "acciones"
+        ],
+        "summary": "PUT /api/db/acciones/[id]",
+        "description": "PUT /api/db/acciones/[id]",
+        "operationId": "put_api_db_acciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "acciones"
+        ],
+        "summary": "DELETE /api/db/acciones/[id]",
+        "description": "DELETE /api/db/acciones/[id]",
+        "operationId": "delete_api_db_acciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/admin/import-sgm-preferences": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Handler principal",
+        "description": "Handler principal",
+        "operationId": "post_api_db_admin_import_sgm_preferences",
+        "parameters": [
+          {
+            "name": "dryRun",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/admin/import-sgm-preferences/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/aplicaciones": {
+      "get": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "GET /api/db/aplicaciones?filtro=&estado=&page=1&pageSize=20",
+        "description": "GET /api/db/aplicaciones?filtro=&estado=&page=1&pageSize=20",
+        "operationId": "get_api_db_aplicaciones",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "POST /api/db/aplicaciones — crear",
+        "description": "POST /api/db/aplicaciones — crear",
+        "operationId": "post_api_db_aplicaciones",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/aplicaciones/{id}": {
+      "get": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "GET /api/db/aplicaciones/[id]",
+        "description": "GET /api/db/aplicaciones/[id]",
+        "operationId": "get_api_db_aplicaciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "PUT /api/db/aplicaciones/[id]",
+        "description": "PUT /api/db/aplicaciones/[id]",
+        "operationId": "put_api_db_aplicaciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "DELETE /api/db/aplicaciones/[id] — soft delete",
+        "description": "DELETE /api/db/aplicaciones/[id] — soft delete",
+        "operationId": "delete_api_db_aplicaciones_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/aplicaciones/{id}/roles": {
+      "get": {
+        "tags": [
+          "aplicaciones"
+        ],
+        "summary": "Query params: estado (A | I | \"\" para todos)",
+        "description": "GET /api/db/aplicaciones/[id]/roles\nQuery params: estado (A | I | \"\" para todos)",
+        "operationId": "get_api_db_aplicaciones_id_roles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/aplicaciones/[id]/roles/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/funcionalidades": {
+      "get": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "GET /api/db/funcionalidades?aplicacionId=&filtro=&estado=&page=1&pageSize=100",
+        "description": "GET /api/db/funcionalidades?aplicacionId=&filtro=&estado=&page=1&pageSize=100",
+        "operationId": "get_api_db_funcionalidades",
+        "parameters": [
+          {
+            "name": "aplicacionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "POST /api/db/funcionalidades — crear",
+        "description": "POST /api/db/funcionalidades — crear",
+        "operationId": "post_api_db_funcionalidades",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/funcionalidades/{id}": {
+      "get": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "GET /api/db/funcionalidades/[id]",
+        "description": "GET /api/db/funcionalidades/[id]",
+        "operationId": "get_api_db_funcionalidades_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "PUT /api/db/funcionalidades/[id]",
+        "description": "PUT /api/db/funcionalidades/[id]",
+        "operationId": "put_api_db_funcionalidades_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "DELETE /api/db/funcionalidades/[id] — soft delete",
+        "description": "DELETE /api/db/funcionalidades/[id] — soft delete",
+        "operationId": "delete_api_db_funcionalidades_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/funcionalidades/{id}/acciones": {
+      "get": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "Devuelve los ObjetoAccion seleccionados para esta funcionalidad",
+        "description": "GET /api/db/funcionalidades/[id]/acciones\nDevuelve los ObjetoAccion seleccionados para esta funcionalidad",
+        "operationId": "get_api_db_funcionalidades_id_acciones",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/[id]/acciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "funcionalidades"
+        ],
+        "summary": "Reemplaza el set completo de items seleccionados",
+        "description": "PUT /api/db/funcionalidades/[id]/acciones\nReemplaza el set completo de items seleccionados\nBody: { items: Array<{ objetoId: number, objetoAccionId?: number | null }> }",
+        "operationId": "put_api_db_funcionalidades_id_acciones",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/funcionalidades/[id]/acciones/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/login": {
+      "post": {
+        "tags": [
+          "login"
+        ],
+        "summary": "Flujo de autenticación multi-fuente (PG / SGM-USUMOBILE / GSIST-ADMSEC / LDAP).",
+        "description": "POST /api/db/login\n\nFlujo de autenticación multi-fuente (PG / SGM-USUMOBILE / GSIST-ADMSEC / LDAP).\n\n - Si el usuario existe en PG: routeo por esExterno + desdeSistema.\n     esExterno='N' → valida contra PG.\n     esExterno='S' + desdeSistema='SGM'  → USUMOBILE; fallback a PG si UNAVAILABLE/NOT_FOUND.\n     esExterno='S' + desdeSistema='LDAP' → LDAP; fallback a PG si UNAVAILABLE/NOT_FOUND.\n     esExterno='S' + desdeSistema='GSIST'→ ADMSEC.lookup; UsuAutAD='A' va por LDAP (con\n                                           fallback a ADMSEC), 'G' va directo a ADMSEC.\n\n - Si NO existe en PG y el username es alfa (al menos un no-dígito):\n     ADMSEC.lookup → árbol UsuAutAD → upsert PG con desdeSistema='LDAP' o 'GSIST'.\n\n - Si NO existe en PG y el username es numérico:\n     USUMOBILE.validate → si OK upsert con desdeSistema='SGM'.\n     Si NOT_FOUND/DISABLED/UNAVAILABLE → árbol ADMSEC.\n\nReglas de fallback:\n - INVALID_CREDS desde una fuente conectada → 401 directo (sin fallback).\n - NOT_FOUND / DISABLED / UNAVAILABLE → degradar al siguiente nodo del árbol.\n\nPost-validación (antes de buildSuccessResponse):\n - assignDistribuidorIfNeeded: si el usuario tiene FWL_Distribuidor activo,\n   asigna también el rol Distribuidor (idempotente).\n - Filtro de escenario: si el usuario tiene escenario configurado, solo los\n   roles que aplican al escenario se incluyen en la respuesta (JWT + payload).\n   Si ningún rol aplica → FORBIDDEN_SCENARIO (403).\n\nBody: { UserName, Password, Sistema? }\nRespuesta éxito: { success, token, user, verifiedBy, roles, preferencias, accesos, escenario }\n  verifiedBy ∈ { local-db, sgm, gsist, gsist-fallback, ldap, local-fallback }",
+        "operationId": "post_api_db_login",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/login/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/menu": {
+      "get": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "GET /api/db/menu?aplicacionId=",
+        "description": "GET /api/db/menu?aplicacionId=\n\nConstruye el menú de navegación.\n - Si la app tiene objetos tipo MENU, arma el ÁRBOL jerárquico:\n   cada ObjetoAccion de un MENU/SUBMENU es un punto de menú; si su `key`\n   referencia a otro objeto SUBMENU/MENU, se recurre como submenú.\n   Gateo: con usuario identificado, solo se incluyen los puntos accesibles\n   (funcionalidad activa que matchea objetoKey+accionKey/codigo); submenús\n   visibles si tienen hijos visibles. Sin usuario → árbol completo activo.\n - Si la app NO tiene objetos MENU, cae al modelo plano por funcionalidad.",
+        "operationId": "get_api_db_menu",
+        "parameters": [
+          {
+            "name": "aplicacionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/menu/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/menu/builder": {
+      "get": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "GET: árbol editable",
+        "description": "GET: árbol editable",
+        "operationId": "get_api_db_menu_builder",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/menu/builder/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "menu"
+        ],
+        "summary": "PUT: reconciliar",
+        "description": "PUT: reconciliar",
+        "operationId": "put_api_db_menu_builder",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/menu/builder/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/objetos": {
+      "get": {
+        "tags": [
+          "objetos"
+        ],
+        "summary": "GET /api/db/objetos?filtro=&estado=&esPublico=&tipo=&aplicacionId=&page=1&pageSize=20",
+        "description": "GET /api/db/objetos?filtro=&estado=&esPublico=&tipo=&aplicacionId=&page=1&pageSize=20",
+        "operationId": "get_api_db_objetos",
+        "parameters": [
+          {
+            "name": "aplicacionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "esPublico",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/objetos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "objetos"
+        ],
+        "summary": "POST /api/db/objetos — crear",
+        "description": "POST /api/db/objetos — crear",
+        "operationId": "post_api_db_objetos",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/objetos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/objetos/{id}": {
+      "get": {
+        "tags": [
+          "objetos"
+        ],
+        "summary": "GET /api/db/objetos/[id]",
+        "description": "GET /api/db/objetos/[id]",
+        "operationId": "get_api_db_objetos_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "objetos"
+        ],
+        "summary": "PUT /api/db/objetos/[id]",
+        "description": "PUT /api/db/objetos/[id]",
+        "operationId": "put_api_db_objetos_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "objetos"
+        ],
+        "summary": "DELETE /api/db/objetos/[id] — soft delete",
+        "description": "DELETE /api/db/objetos/[id] — soft delete",
+        "operationId": "delete_api_db_objetos_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/permisos": {
+      "post": {
+        "tags": [
+          "permisos"
+        ],
+        "summary": "Verifica si el usuario autenticado tiene acceso para uno o varios",
+        "description": "POST /api/db/permisos\n\nVerifica si el usuario autenticado tiene acceso para uno o varios\nobjetos + acciones de una aplicacion dada (Postgres/Prisma).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nModo single:\n  Body: { aplicacion, ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }\n  Resp: { permitido: \"GRANTED\"|\"DENIED\", razon, objetoKey, accionKey?, accionCodigo?, funcionalidadId? }\n\nModo batch:\n  Body: { aplicacion, permisos: [ { ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }, ... ] }\n  Resp: { resultados: [ ...misma shape single... ] }\n\nFlujo:\n  1. JWT -> usuario activo\n  2. esRoot='S' -> GRANTED en todo sin mas checks\n  3. Aplicacion por nombre\n  4. Objeto activo (key + tipo opcional)  -> PUBLIC_OBJECT si esPublico\n  5. ObjetoAccion (filtra accionKey/Codigo/path)\n  6. funcionalidad_objeto_acciones -> Funcionalidades activas/vigentes\n     -> PUBLIC_FUNCIONALIDAD | SOLO_ROOT\n  7. accesos directo (ALLOW, vigente)\n  8. usuario_roles -> rol_funcionalidades\n  9. ACCESS_DENIED",
+        "operationId": "post_api_db_permisos",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/permisos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/roles": {
+      "get": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "GET /api/db/roles?aplicacionId=&estado=&filtro=&page=1&pageSize=100",
+        "description": "GET /api/db/roles?aplicacionId=&estado=&filtro=&page=1&pageSize=100",
+        "operationId": "get_api_db_roles",
+        "parameters": [
+          {
+            "name": "aplicacionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "POST /api/db/roles — crear",
+        "description": "POST /api/db/roles — crear",
+        "operationId": "post_api_db_roles",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/roles/{id}": {
+      "get": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "GET /api/db/roles/[id]",
+        "description": "GET /api/db/roles/[id]",
+        "operationId": "get_api_db_roles_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades",
+        "description": "PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades",
+        "operationId": "put_api_db_roles_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "DELETE /api/db/roles/[id] — soft delete",
+        "description": "DELETE /api/db/roles/[id] — soft delete",
+        "operationId": "delete_api_db_roles_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/roles/{id}/atributos": {
+      "get": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "GET /api/db/roles/[id]/atributos — atributos del rol",
+        "description": "GET /api/db/roles/[id]/atributos — atributos del rol",
+        "operationId": "get_api_db_roles_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "POST /api/db/roles/[id]/atributos — agregar o actualizar un único atributo",
+        "description": "POST /api/db/roles/[id]/atributos — agregar o actualizar un único atributo",
+        "operationId": "post_api_db_roles_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "PUT /api/db/roles/[id]/atributos — reemplaza todos los atributos del rol",
+        "description": "PUT /api/db/roles/[id]/atributos — reemplaza todos los atributos del rol\nBody: { atributos: [{ atributo, valor }] }",
+        "operationId": "put_api_db_roles_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/roles/{id}/clonar": {
+      "post": {
+        "tags": [
+          "roles"
+        ],
+        "summary": "POST /api/db/roles/[id]/clonar — clonar un rol existente",
+        "description": "POST /api/db/roles/[id]/clonar — clonar un rol existente",
+        "operationId": "post_api_db_roles_id_clonar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/roles/[id]/clonar/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/solicitudes": {
+      "get": {
+        "tags": [
+          "solicitudes"
+        ],
+        "summary": "GET: listar (panel, gated)",
+        "description": "GET: listar (panel, gated)",
+        "operationId": "get_api_db_solicitudes",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/solicitudes/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "solicitudes"
+        ],
+        "summary": "POST: crear solicitud",
+        "description": "POST: crear solicitud",
+        "operationId": "post_api_db_solicitudes",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/solicitudes/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/solicitudes/mias": {
+      "get": {
+        "tags": [
+          "solicitudes"
+        ],
+        "summary": "Devuelve las solicitudes del usuario autenticado (para ver su estado).",
+        "description": "GET /api/db/solicitudes/mias\nDevuelve las solicitudes del usuario autenticado (para ver su estado).",
+        "operationId": "get_api_db_solicitudes_mias",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/solicitudes/mias/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/solicitudes/{id}/aprobar": {
+      "post": {
+        "tags": [
+          "solicitudes"
+        ],
+        "summary": "Body: { funcionalidadId, fechaDesde?, fechaHasta?, comentario? }",
+        "description": "POST /api/db/solicitudes/[id]/aprobar\nBody: { funcionalidadId, fechaDesde?, fechaHasta?, comentario? }\n\nTransacción:\n  1. Valida solicitud PENDIENTE + funcionalidad activa.\n  2. Asegura el vínculo FuncionalidadObjetoAccion (objeto+acción ↔ func).\n  3. Upsert Acceso grant (usuario + funcionalidad).\n  4. Marca la solicitud APROBADA con auditoría.",
+        "operationId": "post_api_db_solicitudes_id_aprobar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/solicitudes/[id]/aprobar/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/solicitudes/{id}/rechazar": {
+      "post": {
+        "tags": [
+          "solicitudes"
+        ],
+        "summary": "Body: { comentario? }",
+        "description": "POST /api/db/solicitudes/[id]/rechazar\nBody: { comentario? }\nMarca la solicitud RECHAZADA. No crea ningún acceso.",
+        "operationId": "post_api_db_solicitudes_id_rechazar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/solicitudes/[id]/rechazar/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuario-preferencias/sugerencias": {
+      "get": {
+        "tags": [
+          "usuario-preferencias"
+        ],
+        "summary": "Devuelve atributos, keys y valores distintos para alimentar comboboxes",
+        "description": "GET /api/db/usuario-preferencias/sugerencias\nDevuelve atributos, keys y valores distintos para alimentar comboboxes",
+        "operationId": "get_api_db_usuario_preferencias_sugerencias",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuario-preferencias/sugerencias/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "GET /api/db/usuarios - Listar usuarios locales (PostgreSQL)",
+        "description": "GET /api/db/usuarios - Listar usuarios locales (PostgreSQL)\nQuery params: filtro, estado, page, pageSize",
+        "operationId": "get_api_db_usuarios",
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "POST /api/db/usuarios - Crear usuario en PostgreSQL",
+        "description": "POST /api/db/usuarios - Crear usuario en PostgreSQL",
+        "operationId": "post_api_db_usuarios",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/externos": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Lista los usuarios de los orígenes externos, cruzados contra PostgreSQL.",
+        "description": "GET /api/db/usuarios/externos\nLista los usuarios de los orígenes externos, cruzados contra PostgreSQL.\nQuery: origen, filtro, estadoComparacion, incluirDeshabilitados, page, pageSize",
+        "operationId": "get_api_db_usuarios_externos",
+        "parameters": [
+          {
+            "name": "estadoComparacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "filtro",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "incluirDeshabilitados",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/externos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/importar": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Body: { origen, usernames[], conPreferencias?, conRoles?, dryRun? }",
+        "description": "POST /api/db/usuarios/importar\nBody: { origen, usernames[], conPreferencias?, conRoles?, dryRun? }\nSolo CREA. Lo que ya existe se omite con su motivo.",
+        "operationId": "post_api_db_usuarios_importar",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/importar/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/por-empresa-fletera": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Query params:",
+        "description": "GET /api/db/usuarios/por-empresa-fletera\nQuery params:\n  empresas  — requerido, comma-separated list of fletera company names/codes\n              e.g. ?empresas=FLETERA_1,FLETERA_2\n  estado    — opcional (A | I | \"\" para todos). Default: \"\" (todos)\n\nLógica:\n  UsuarioPreferencia almacena atributo=\"EmpFletera\" con valor=<JSON o string con empresas>.\n  Se filtra con ILIKE \"%empresa%\" por cada empresa pedida (OR entre empresas).\n  Un usuario aparece si al menos una de sus preferencias EmpFletera contiene alguna empresa.",
+        "operationId": "get_api_db_usuarios_por_empresa_fletera",
+        "parameters": [
+          {
+            "name": "empresas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/por-empresa-fletera/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/por-username": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "GET /api/db/usuarios/por-username?username=X",
+        "description": "GET /api/db/usuarios/por-username?username=X\nDevuelve los datos del usuario (tabla `usuarios`) que coincida con el\nusername pasado. Match exacto (la columna username es UNIQUE).",
+        "operationId": "get_api_db_usuarios_por_username",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/por-username/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/{id}": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "GET /api/db/usuarios/[id] - Obtener un usuario por ID",
+        "description": "GET /api/db/usuarios/[id] - Obtener un usuario por ID",
+        "operationId": "get_api_db_usuarios_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "PUT /api/db/usuarios/[id] - Actualizar un usuario",
+        "description": "PUT /api/db/usuarios/[id] - Actualizar un usuario",
+        "operationId": "put_api_db_usuarios_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "DELETE /api/db/usuarios/[id] - Eliminar (o desactivar) un usuario",
+        "description": "DELETE /api/db/usuarios/[id] - Eliminar (o desactivar) un usuario",
+        "operationId": "delete_api_db_usuarios_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/{id}/accesos": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Devuelve todas las funcionalidades del sistema con:",
+        "description": "GET /api/db/usuarios/[id]/accesos\nDevuelve todas las funcionalidades del sistema con:\n  - accesoDirecto: override en tabla `accesos` (grant/deny) o null\n  - viaRoles: nombres de roles del usuario que la otorgan",
+        "operationId": "get_api_db_usuarios_id_accesos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/accesos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Bulk upsert/delete de accesos directos.",
+        "description": "PUT /api/db/usuarios/[id]/accesos\nBulk upsert/delete de accesos directos.\nBody: { cambios: CambioAcceso[] }",
+        "operationId": "put_api_db_usuarios_id_accesos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/accesos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/{id}/atributos": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "GET /api/db/usuarios/[id]/atributos — preferencias del usuario",
+        "description": "GET /api/db/usuarios/[id]/atributos — preferencias del usuario",
+        "operationId": "get_api_db_usuarios_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "POST /api/db/usuarios/[id]/atributos — agregar un único atributo",
+        "description": "POST /api/db/usuarios/[id]/atributos — agregar un único atributo",
+        "operationId": "post_api_db_usuarios_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "PUT /api/db/usuarios/[id]/atributos — reemplaza todos los atributos del usuario",
+        "description": "PUT /api/db/usuarios/[id]/atributos — reemplaza todos los atributos del usuario\nBody: { atributos: [{ atributo, valor }] }",
+        "operationId": "put_api_db_usuarios_id_atributos",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/{id}/permite-login": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Body (opcional): { accion?: \"toggle\" | \"grant\" | \"revoke\" }   default: \"toggle\"",
+        "description": "POST /api/db/usuarios/[id]/permite-login\nBody (opcional): { accion?: \"toggle\" | \"grant\" | \"revoke\" }   default: \"toggle\"\n\nAsigna o quita el rol \"Pistero\" (id=54) al usuario via tabla `usuario_roles`.\nEl rol \"Pistero\" incluye la funcionalidad PermiteLogin, por lo que asignarlo\nhabilita el login del usuario en RiogasTracking.\n  - toggle: si ya tiene el rol lo quita, si no lo tiene lo asigna.\n  - grant: lo asigna (idempotente, no falla si ya lo tenia).\n  - revoke: lo quita (idempotente, no falla si no lo tenia).\n\nNota: el campo `habilitado` en la respuesta refleja PermiteLogin real\n(considerando todos los roles del usuario y la tabla `accesos`). Puede ser\ntrue incluso despues de un revoke si el usuario tiene PermiteLogin por\notro rol o por acceso directo.",
+        "operationId": "post_api_db_usuarios_id_permite_login",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/permite-login/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/db/usuarios/{id}/roles": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "GET /api/db/usuarios/[id]/roles — roles asignados al usuario",
+        "description": "GET /api/db/usuarios/[id]/roles — roles asignados al usuario",
+        "operationId": "get_api_db_usuarios_id_roles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/roles/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "PUT /api/db/usuarios/[id]/roles — reemplaza la asignación completa de roles",
+        "description": "PUT /api/db/usuarios/[id]/roles — reemplaza la asignación completa de roles\nBody: { roles: [{ rolId, fechaDesde?, fechaHasta? }] }\nAdemás de recrear UsuarioRol, hace UPSERT en accesos para todas las funcionalidades\nde los roles asignados (efecto=\"grant\").",
+        "operationId": "put_api_db_usuarios_id_roles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Segmento dinámico `[id]` de la ruta."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/[id]/roles/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/docs/spec": {
+      "get": {
+        "tags": [
+          "docs"
+        ],
+        "summary": "Catálogo de las APIs propias de SecuritySuite: docs/api/openapi.json",
+        "description": "GET /api/docs/spec\n\nCatálogo de las APIs propias de SecuritySuite: docs/api/openapi.json\n(generado por `pnpm docs:api`) mergeado con docs/api/anotaciones.yaml\n(escrito a mano). Las anotaciones ganan sobre lo inferido.\n\nAuth: SOLO ROOT. Pasa por requireRoot(), que es fail-closed y que —a\ndiferencia del resto de la app— verifica firma y vencimiento del JWT contra\nJWT_SECRET. El documento incluye qué endpoints de esta app no validan nada:\nes información sensible y es exactamente por eso que el portal es solo-root\n(spec §2 y §7).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nRespuesta 200: el documento OpenAPI 3.1 completo, con `x-anotaciones`\n  { total, anotados, sinAnotar[], huerfanas[] } agregado en la raíz.\nErrores: 401 SIN_TOKEN | TOKEN_INVALIDO | TOKEN_VENCIDO\n         403 USUARIO_NO_ENCONTRADO | NO_ROOT\n         503 SECRETO_NO_CONFIGURADO (JWT_SECRET ausente o con el default del\n             código) | ERROR_GUARD (guard fail-closed) | SPEC_NO_GENERADO",
+        "operationId": "get_api_docs_spec",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": false,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+        },
+        "x-archivo": "src/app/api/docs/spec/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/docs/try": {
+      "post": {
+        "tags": [
+          "docs"
+        ],
+        "summary": "Ejecuta una llamada HTTP y evalúa el guard por request: runtime Node, nunca",
+        "description": "Ejecuta una llamada HTTP y evalúa el guard por request: runtime Node, nunca\nEdge, y sin cachear nada.",
+        "operationId": "post_api_docs_try",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": false,
+          "detectadoEn": "archivo",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+        },
+        "x-archivo": "src/app/api/docs/try/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
+    "/api/{proxy}": {
+      "get": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy a GeneXus",
+        "description": "Catch-all que reenvía cualquier request a `BACKEND_BASE_URL`\n(GeneXus/Tomcat, `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite` por defecto),\npreservando método, query, headers y cuerpo.\n\nLos endpoints del otro lado son de GeneXus: este catálogo documenta que el proxy\nexiste y a dónde apunta, no el contrato de cada endpoint remoto.\nSe usa para auth, menú y las operaciones legacy de permisos.",
+        "operationId": "proxy_get",
+        "parameters": [
+          {
+            "name": "proxy",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ruta completa a reenviar al backend GeneXus (catch-all `[...proxy]`)."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "La respuesta del backend GeneXus, tal cual."
+          }
+        },
+        "x-auth": {
+          "modo": "passthrough",
+          "verificaFirma": false,
+          "detalle": "Los headers viajan sin tocar; autentica GeneXus, no esta app."
+        },
+        "x-archivo": "src/app/api/[...proxy]/route.ts",
+        "x-generado": true
+      },
+      "post": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy a GeneXus",
+        "description": "Catch-all que reenvía cualquier request a `BACKEND_BASE_URL`\n(GeneXus/Tomcat, `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite` por defecto),\npreservando método, query, headers y cuerpo.\n\nLos endpoints del otro lado son de GeneXus: este catálogo documenta que el proxy\nexiste y a dónde apunta, no el contrato de cada endpoint remoto.\nSe usa para auth, menú y las operaciones legacy de permisos.",
+        "operationId": "proxy_post",
+        "parameters": [
+          {
+            "name": "proxy",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ruta completa a reenviar al backend GeneXus (catch-all `[...proxy]`)."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "La respuesta del backend GeneXus, tal cual."
+          }
+        },
+        "x-auth": {
+          "modo": "passthrough",
+          "verificaFirma": false,
+          "detalle": "Los headers viajan sin tocar; autentica GeneXus, no esta app."
+        },
+        "x-archivo": "src/app/api/[...proxy]/route.ts",
+        "x-generado": true
+      },
+      "put": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy a GeneXus",
+        "description": "Catch-all que reenvía cualquier request a `BACKEND_BASE_URL`\n(GeneXus/Tomcat, `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite` por defecto),\npreservando método, query, headers y cuerpo.\n\nLos endpoints del otro lado son de GeneXus: este catálogo documenta que el proxy\nexiste y a dónde apunta, no el contrato de cada endpoint remoto.\nSe usa para auth, menú y las operaciones legacy de permisos.",
+        "operationId": "proxy_put",
+        "parameters": [
+          {
+            "name": "proxy",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ruta completa a reenviar al backend GeneXus (catch-all `[...proxy]`)."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "La respuesta del backend GeneXus, tal cual."
+          }
+        },
+        "x-auth": {
+          "modo": "passthrough",
+          "verificaFirma": false,
+          "detalle": "Los headers viajan sin tocar; autentica GeneXus, no esta app."
+        },
+        "x-archivo": "src/app/api/[...proxy]/route.ts",
+        "x-generado": true
+      },
+      "patch": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy a GeneXus",
+        "description": "Catch-all que reenvía cualquier request a `BACKEND_BASE_URL`\n(GeneXus/Tomcat, `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite` por defecto),\npreservando método, query, headers y cuerpo.\n\nLos endpoints del otro lado son de GeneXus: este catálogo documenta que el proxy\nexiste y a dónde apunta, no el contrato de cada endpoint remoto.\nSe usa para auth, menú y las operaciones legacy de permisos.",
+        "operationId": "proxy_patch",
+        "parameters": [
+          {
+            "name": "proxy",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ruta completa a reenviar al backend GeneXus (catch-all `[...proxy]`)."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "La respuesta del backend GeneXus, tal cual."
+          }
+        },
+        "x-auth": {
+          "modo": "passthrough",
+          "verificaFirma": false,
+          "detalle": "Los headers viajan sin tocar; autentica GeneXus, no esta app."
+        },
+        "x-archivo": "src/app/api/[...proxy]/route.ts",
+        "x-generado": true
+      },
+      "delete": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Proxy a GeneXus",
+        "description": "Catch-all que reenvía cualquier request a `BACKEND_BASE_URL`\n(GeneXus/Tomcat, `https://sgm.glp.riogas.com.uy/servicios/SecuritySuite` por defecto),\npreservando método, query, headers y cuerpo.\n\nLos endpoints del otro lado son de GeneXus: este catálogo documenta que el proxy\nexiste y a dónde apunta, no el contrato de cada endpoint remoto.\nSe usa para auth, menú y las operaciones legacy de permisos.",
+        "operationId": "proxy_delete",
+        "parameters": [
+          {
+            "name": "proxy",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ruta completa a reenviar al backend GeneXus (catch-all `[...proxy]`)."
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "La respuesta del backend GeneXus, tal cual."
+          }
+        },
+        "x-auth": {
+          "modo": "passthrough",
+          "verificaFirma": false,
+          "detalle": "Los headers viajan sin tocar; autentica GeneXus, no esta app."
+        },
+        "x-archivo": "src/app/api/[...proxy]/route.ts",
+        "x-generado": true
+      }
+    }
+  },
+  "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
+  "x-aplicacion-id": 1,
+  "x-operaciones": 71,
+  "x-colapsados": [
+    {
+      "patron": "\\[\\.\\.\\.proxy\\]",
+      "entrada": "/api/{proxy}",
+      "motivo": "Catch-all que reenvía a GeneXus/Tomcat (BACKEND_BASE_URL). Aparece en `paths` como una sola entrada (`/api/{proxy}`) en lugar de un handler por método; los endpoints del otro lado pertenecen a GeneXus y no se enumeran acá."
+    }
+  ],
+  "x-excluidos": [
+    {
+      "patron": "(^|[\\\\/])test-proxy([\\\\/]|$)",
+      "motivo": "Endpoint de diagnóstico del proxy, no es parte del contrato público de la app."
+    }
+  ]
+}

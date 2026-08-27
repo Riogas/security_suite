@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // GET /api/db/usuarios/[id]/atributos — preferencias del usuario
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const usuarioId = parseInt(id);
@@ -22,6 +28,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // PUT /api/db/usuarios/[id]/atributos — reemplaza todos los atributos del usuario
 // Body: { atributos: [{ atributo, valor }] }
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const usuarioId = parseInt(id);
@@ -56,6 +67,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // POST /api/db/usuarios/[id]/atributos — agregar un único atributo
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const usuarioId = parseInt(id);

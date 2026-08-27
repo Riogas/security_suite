@@ -356,6 +356,83 @@ async function resolveNewNumericUser(
   };
 }
 
+/**
+ * Completa nombre / apellido / email de un usuario LDAP a partir de lo que
+ * devolvió el AD.
+ *
+ * Los usuarios importados desde ADMSEC nacen sin nombre ni email porque
+ * ADMSEC.USUARIOS no tiene esas columnas. El AD sí los tiene y el login ya los
+ * recibe en cada ingreso — hasta ahora los descartaba.
+ *
+ * SOLO rellena huecos: cada campo (nombre, apellido, email) tiene su propio
+ * gate y se evalúa por separado, así que nunca pisa un valor que ya esté
+ * cargado, para no deshacer una edición manual del operador.
+ *
+ * El backfill de nombre/apellido y el de email se persisten en dos updates
+ * independientes: `email` es @unique, y si choca con el de otro usuario ese
+ * update falla solo a él — no debe llevarse puesto el backfill del nombre,
+ * que no tiene ningún conflicto.
+ */
+async function backfillDatosLdap(
+  usuario: {
+    id: number;
+    username: string;
+    nombre: string | null;
+    apellido: string | null;
+    email: string | null;
+  },
+  ldapUser: { nombre?: string; email?: string } | undefined
+): Promise<void> {
+  if (!ldapUser) return;
+
+  const partes = (ldapUser.nombre || "").trim().split(/\s+/).filter(Boolean);
+  const nombreAd = partes[0];
+  const apellidoAd = partes.slice(1).join(" ").trim();
+
+  const datosNombre: { nombre?: string; apellido?: string } = {};
+  if (!usuario.nombre && nombreAd) {
+    datosNombre.nombre = nombreAd.slice(0, 60);
+  }
+  if (!usuario.apellido && apellidoAd) {
+    datosNombre.apellido = apellidoAd.slice(0, 60);
+  }
+
+  const datosEmail: { email?: string } = {};
+  if (!usuario.email) {
+    const mail = (ldapUser.email || "").trim();
+    if (mail) datosEmail.email = mail.slice(0, 120);
+  }
+
+  if (Object.keys(datosNombre).length > 0) {
+    try {
+      await prisma.usuario.update({ where: { id: usuario.id }, data: datosNombre });
+      authLog.info("backfill de datos LDAP", { username: usuario.username, campos: Object.keys(datosNombre) });
+    } catch (err) {
+      authLog.warn("no se pudo hacer backfill de datos LDAP", {
+        username: usuario.username,
+        campos: Object.keys(datosNombre),
+        message: (err as Error).message,
+      });
+    }
+  }
+
+  if (Object.keys(datosEmail).length > 0) {
+    try {
+      await prisma.usuario.update({ where: { id: usuario.id }, data: datosEmail });
+      authLog.info("backfill de datos LDAP", { username: usuario.username, campos: Object.keys(datosEmail) });
+    } catch (err) {
+      // El email es @unique: si otro usuario ya lo tiene, no es motivo para
+      // fallar el login. Se loguea y sigue (y no afecta el update de nombre,
+      // que ya se hizo por separado arriba).
+      authLog.warn("no se pudo hacer backfill de datos LDAP", {
+        username: usuario.username,
+        campos: Object.keys(datosEmail),
+        message: (err as Error).message,
+      });
+    }
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Caso 2: usuario ya existe en PG → routea según esExterno + desdeSistema.
 // ────────────────────────────────────────────────────────────────────────────
@@ -472,6 +549,8 @@ async function resolveExistingUser(
       // el control fino por ruta/funcionalidad lo hace el frontend (proxy.ts)
       // contra la API de permisos. Acá solo validamos credenciales y asignamos
       // los roles que correspondan más abajo.
+      // Completar nombre/email si faltan (ADMSEC.USUARIOS no los tiene).
+      await backfillDatosLdap(usuario, ldap.user);
       // Escenario B: asignar Despacho si corresponde.
       await assignDespachoIfEligible({
         usuario,

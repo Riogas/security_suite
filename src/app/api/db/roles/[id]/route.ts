@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // GET /api/db/roles/[id]
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const rol = await prisma.rol.findUnique({
@@ -24,6 +30,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const rolId = parseInt(id);
@@ -60,7 +71,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 // DELETE /api/db/roles/[id] — soft delete
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { id } = await params;
     const rol = await prisma.rol.update({ where: { id: parseInt(id) }, data: { estado: "I" } });

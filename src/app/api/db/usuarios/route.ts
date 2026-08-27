@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // =============================================
 // GET /api/db/usuarios - Listar usuarios locales (PostgreSQL)
 // Query params: filtro, estado, page, pageSize
 // =============================================
 export async function GET(req: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { searchParams } = new URL(req.url);
     const filtro = searchParams.get("filtro") || "";
@@ -88,6 +94,11 @@ export async function GET(req: NextRequest) {
 // POST /api/db/usuarios - Crear usuario en PostgreSQL
 // =============================================
 export async function POST(req: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const body = await req.json();
 
@@ -96,6 +107,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Username y password son requeridos" },
         { status: 400 },
+      );
+    }
+
+    // Otorgar root es la única escritura de esta ruta que no puede depender de
+    // "tener sesión": `esRoot='S'` es el bypass global del motor de permisos.
+    // Sin esto, cualquiera con una sesión válida se creaba un usuario root y
+    // entraba a todo — cerrar el endpoint al anónimo no alcanzaba.
+    const pideRoot = String(body.esRoot ?? "N").toUpperCase() === "S";
+    if (pideRoot && guard.usuario?.esRoot !== "S") {
+      return NextResponse.json(
+        { success: false, error: "Solo un usuario root puede crear otro usuario root" },
+        { status: 403 },
       );
     }
 

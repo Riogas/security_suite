@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // Máximo de valores únicos por key para no inflar la respuesta
 const MAX_VALORES_POR_KEY = 50;
@@ -18,7 +19,12 @@ export interface SugerenciasAtributos {
 
 // GET /api/db/usuario-preferencias/sugerencias
 // Devuelve atributos, keys y valores distintos para alimentar comboboxes
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const filas = await prisma.usuarioPreferencia.findMany({
       select: { atributo: true, valor: true },
