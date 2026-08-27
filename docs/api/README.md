@@ -229,47 +229,94 @@ qué **no** está mirando y en qué sentido.
 
 ### Requisito: `JWT_SECRET` seteada con un secreto real
 
-**Sin esto, `/docs` no abre.** El guard responde `503 SECRETO_NO_CONFIGURADO`
-—y deja el motivo en el log del proceso— cuando `JWT_SECRET` no está seteada, o
-cuando su valor es el que quedó como *default en el código* (el
-`process.env.JWT_SECRET || "..."` de `src/lib/auth/responses.ts` y de
-`src/app/api/db/menu/route.ts`).
+**Sin esto no abre `/docs` ni `/api/db/*`.** Los dos guards responden `503`
+—y dejan el motivo en el log del proceso— cuando `JWT_SECRET` no está seteada,
+cuando tiene menos de 32 caracteres, o cuando su valor es el que quedó como
+*default en el código* (el `process.env.JWT_SECRET || "..."` de
+`src/lib/auth/responses.ts`, el único lugar donde sigue existiendo ese literal).
 
 El porqué:
 
-1. **El resto de la app no verifica el JWT.** `decodeJwt` (`src/lib/permisos.ts`)
-   hace base64 del payload y ni mira `exp`. Cualquiera que arme
-   `Bearer <header>.<base64 de {"username":"dmedaglia"}>.<lo que sea>` pasa por
-   root en los endpoints que resuelven el usuario así. Un portal que publica qué
-   endpoints están sin autenticación no se puede apoyar en eso, así que el guard
-   de `/docs` hace `jwt.verify` (firma **y** vencimiento) antes de tocar la base.
-2. **Verificar contra un secreto conocido no prueba nada.** Si el secreto es el
+1. **Verificar contra un secreto conocido no prueba nada.** Si el secreto es el
    default del código, cualquiera que pueda leer el repositorio firma un token
    válido para el usuario que quiera y la verificación queda de adorno. Por eso
-   el guard es *fail-closed ante mala configuración*: prefiere no abrir a abrir
-   con una verificación decorativa.
+   los guards son *fail-closed ante mala configuración*: prefieren no abrir a
+   abrir con una verificación decorativa.
+2. **Hasta el 2026-08-27, el resto de la app no verificaba el JWT.** `decodeJwt`
+   (`src/lib/permisos.ts`) hacía base64 del payload y ni miraba `exp`: cualquiera
+   que armara `Bearer <header>.<base64 de {"username":"dmedaglia"}>.<lo que sea>`
+   pasaba por root. Eso se cerró — hoy la verificación vive en
+   `src/lib/auth/verificarJwt.ts` y la usan `resolveUsuario`, el guard de `/docs`
+   y el guard de `/api/db` —, pero el precio es que ahora **la variable es
+   obligatoria para que la app funcione**, no solo para que `/docs` abra.
 
 Qué hay que hacer, entonces:
 
 - Setear `JWT_SECRET` en el ambiente de secapi (`.env.local` en desarrollo, el
   bloque `env` de `pm2.config.js` o el `.env` del server en producción) con un
-  valor aleatorio largo. Hoy no está seteada en ningún lado: los tokens de
-  producción se están firmando con el default.
-- **Tiene que ser el mismo valor con el que secapi firma**, porque secapi es
-  quien emite los JWT de las tres aplicaciones (`POST /api/db/login`) y el guard
-  verifica con `process.env.JWT_SECRET` del propio proceso. Si `/docs` de GOYA o
-  de TrackMovil también verifica la firma, esas apps necesitan el mismo valor.
-- Ojo al cambiarla en un ambiente que ya está andando: **invalida los tokens
-  emitidos con el secreto anterior**. `GET /api/db/menu` (el otro `jwt.verify`
-  de la app) deja de gatear por usuario y los `/docs` dejan de aceptar tokens
-  viejos hasta que la gente vuelva a loguearse. Conviene hacerlo en una ventana
-  donde el re-login no moleste.
+  valor aleatorio largo (`openssl rand -hex 32`).
+- **Tiene que ser el mismo valor con el que se firman los tokens.** secapi emite
+  los JWT de todo el ecosistema (`POST /api/db/login`) y además el login del
+  propio panel sale por GeneXus, que firma con el MISMO valor pero haciendo
+  `Hex.decode` primero. Los guards prueban las dos derivaciones (el string UTF-8
+  y, si el secreto es hex puro, sus bytes), así que un solo valor sirve para las
+  dos puertas; lo que no puede pasar es que GeneXus y secapi tengan valores
+  distintos.
+- Ojo al cambiarla en un ambiente que ya está andando: **invalida todos los
+  tokens emitidos con el secreto anterior**, que duran 7 días. secapi, GOYA,
+  TrackMovil y el panel de root de Granel piden login de nuevo, todos a la vez.
+  Es esperable; conviene una ventana donde el re-login no moleste, y **no
+  hacerlo en el mismo deploy que otro cambio de autenticación**, porque después
+  no se distingue qué rompió qué.
 
 El chequeo compara el **SHA-256** del valor configurado contra el digest del
 default: así el secreto de compromiso no vuelve a quedar escrito en claro en
 ningún archivo nuevo. `pnpm test` lee el literal del propio código y verifica que
 el digest le siga correspondiendo, así que si alguien cambia el default el test
 falla en vez de que el chequeo quede mudo.
+
+### El guard de `/api/db/*` y `SECAPI_SERVICE_KEY`
+
+`src/lib/auth/apiGuard.ts` — `requireApiAuth(request)`, primera línea de cada
+handler de `/api/db`. El nivel de cada ruta está declarado en la tabla
+`POLITICAS` del mismo archivo, que es la fuente única de verdad:
+
+| Nivel | Qué exige | Cuántas operaciones |
+|---|---|---|
+| `PUBLICA` | nada | 1 — `POST /api/db/login`, y solo esa |
+| `SERVICIO` | `x-api-key` válida **o** JWT de usuario | 4 — las que el edge de Granel llama sin usuario |
+| `AUTENTICADA` | JWT verificado + usuario activo en Postgres | el resto del RBAC |
+| `ROOT` | lo anterior + `usuarios.es_root='S'` | 2 — `usuarios/importar` y `admin/import-sgm-preferences` |
+
+Lo que **no** está en la tabla se deniega (`403 SIN_POLITICA`): agregar una ruta
+sin decidir su nivel la deja rota, no abierta. `pnpm test:api-guard` recorre
+`src/app/api/db/**/route.ts` y falla si aparece un handler sin guard, un método
+sin política, o una política que ya no le corresponde a ninguna ruta.
+
+**`SECAPI_SERVICE_KEY`** es la credencial de servicio para llamadas
+server-to-server sin usuario. Hoy la usa un solo consumidor: el edge de Granel,
+que consulta secapi *antes* de saber quién se está logueando.
+
+- Se manda en el header **`x-api-key`** (la misma convención con la que secapi
+  sale contra el as400-api; ojo que `USERS_API_KEY` es la de SALIDA y no tiene
+  nada que ver con esta).
+- Mínimo 32 caracteres: una key más corta se ignora entera, no se acepta a
+  medias.
+- Acepta **lista separada por comas**, para poder rotar sin coordinar los dos
+  reinicios en el mismo segundo: se agrega la nueva, se despliega el consumidor,
+  se saca la vieja.
+- Su alcance son cuatro operaciones y ni una más — `GET /api/db/usuarios/por-username`,
+  `GET /api/db/roles`, `GET` y `PUT` de `/api/db/roles/{id}/atributos`. Con la
+  key en la mano, cualquier otro endpoint responde `403 SERVICIO_FUERA_DE_ALCANCE`.
+- Si no está seteada, esos cuatro endpoints siguen andando **para usuarios
+  logueados**, pero el edge de Granel (que no manda ninguno) recibe 401: el
+  login de gestores de Granel se cae en silencio, porque `existeEnSecapi`
+  devuelve `null` ante cualquier respuesta que no sea 200 y el flujo se va al
+  camino de GeneXus.
+
+En el consumidor (repo `granel-app`, `edge/`) hay que guardar el mismo valor y
+mandarlo en las cuatro llamadas de `edge/src/docs/secapi.js`. Ese cambio **no
+está hecho** en este repo: es de otro repositorio.
 
 ### Quién entra
 

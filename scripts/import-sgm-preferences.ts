@@ -303,6 +303,32 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Desde que el endpoint es de nivel ROOT (src/lib/auth/apiGuard.ts), un token
+  // valido de alguien que no es root ya no alcanza. El script firma para el
+  // usuario que le pasaron por IMPORT_ADMIN_USERNAME/USERID, o para el primer
+  // es_root='S' que encuentre en la base: si vino 403, se firmo para el
+  // equivocado.
+  if (res.status === 403) {
+    console.error(
+      "ERROR 403 - El usuario del token no es root.\n" +
+        "Este endpoint exige `usuarios.es_root = 'S'`.\n" +
+        "Revisa IMPORT_ADMIN_USERNAME / IMPORT_ADMIN_USERID, o deja que el script\n" +
+        "busque solo el admin en la base (no los setees)."
+    );
+    process.exit(1);
+  }
+
+  // 503 = el guard no pudo decidir. En la practica: JWT_SECRET sin configurar.
+  if (res.status === 503) {
+    console.error(
+      "ERROR 503 - El servidor no puede autorizar.\n" +
+        "Casi siempre es JWT_SECRET sin setear en el proceso de secapi (o con\n" +
+        "menos de 32 caracteres, o con el valor que quedo por default en el\n" +
+        "codigo). Ver docs/api/README.md."
+    );
+    process.exit(1);
+  }
+
   if (res.status === 500) {
     let body = "";
     try {

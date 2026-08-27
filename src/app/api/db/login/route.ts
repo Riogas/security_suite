@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/responses";
 import { assignDistribuidorIfNeeded } from "@/lib/auth/assignDistribuidorIfNeeded";
 import { authLog } from "@/lib/auth/logger";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 /**
  * POST /api/db/login
@@ -45,6 +46,12 @@ import { authLog } from "@/lib/auth/logger";
  *   verifiedBy ∈ { local-db, sgm, gsist, gsist-fallback, ldap, local-fallback }
  */
 export async function POST(request: NextRequest) {
+  // Nivel PUBLICA en POLITICAS (src/lib/auth/apiGuard.ts): el guard no pide
+  // credencial acá — es el login de las cuatro apps. Igual pasa por la tabla,
+  // para que la excepción esté declarada en un solo lugar y no sea un olvido.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const body = await request.json();
     const { UserName, Password, Sistema } = body || {};

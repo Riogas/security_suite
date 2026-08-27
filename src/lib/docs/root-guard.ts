@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import { extractToken, resolveUsuario, type UsuarioAuth } from "@/lib/permisos";
+import { leerSecretoJwt, verificarJwt } from "@/lib/auth/verificarJwt";
 
 // =====================================================================
 // Gate del portal de documentación de APIs (`/docs`).
@@ -51,23 +51,6 @@ const TTL_NEGATIVO_MS = 30 * 1000; // 30 s
 /** Tope del cache: son tokens de root, nunca van a ser muchos. */
 const MAX_ENTRADAS_CACHE = 200;
 
-/** `src/lib/auth/responses.ts` firma con HS256; no se acepta otra cosa. */
-const ALGORITMOS: jwt.Algorithm[] = ["HS256"];
-
-/**
- * SHA-256 del secreto que quedó como *default en el código* para firmar los JWT
- * (el `process.env.JWT_SECRET || "..."` de `src/lib/auth/responses.ts` y de
- * `src/app/api/db/menu/route.ts`).
- *
- * Se compara por digest a propósito: el valor no se vuelve a escribir en claro
- * en ningún archivo nuevo, y menos en los que el propio portal publica.
- * `scripts/test-docs-root-guard.ts` lee el literal del código y verifica que
- * este digest le siga correspondiendo, así que si alguien cambia el default el
- * test falla en vez de que el chequeo quede mudo.
- */
-const DIGEST_SECRETO_DE_COMPROMISO =
-  "d93d4f2b67f66f09182e7035b51c853cd2ab6f77b96a495f432fe983b7246ddf";
-
 export type ResultadoGuard =
   | { ok: true; usuario: UsuarioAuth }
   | { ok: false; status: number; code: CodigoDenegacion };
@@ -94,100 +77,22 @@ function sha256(valor: string): string {
   return createHash("sha256").update(valor).digest("hex");
 }
 
-// ─── Secreto de firma ───────────────────────────────────────────────────────
-
-export type EstadoSecreto = { ok: true; secreto: string } | { ok: false; motivo: string };
+// ─── Verificación del token ───────────────────────────────────────
 
 /**
- * El secreto con el que se verifica la firma, o el motivo por el que no sirve.
+ * Firma, vencimiento y derivación del secreto viven en
+ * `@/lib/auth/verificarJwt`: este guard fue el primero en verificar en serio,
+ * pero desde que /api/db/* también lo hace, el criterio tiene que ser UNO SOLO
+ * (si no, un token que /docs rechaza podría entrar por la API, que es peor).
+ * Acá solo se traduce el resultado a los códigos del guard.
  *
- * Se lee en cada request (no al importar el módulo) para que un cambio de
- * ambiente no exija reiniciar el proceso para volver a evaluarse.
+ * Devuelve `null` si el token está bien, o el resultado con el que hay que cortar.
  */
-/**
- * Largo mínimo del secreto. Verificar HS256 contra un secreto corto no prueba
- * nada: se rompe offline a partir de cualquier token capturado, y con el
- * secreto en la mano se firma un token de root a mano — que es exactamente el
- * ataque que este guard viene a cerrar.
- */
-export const LARGO_MINIMO_SECRETO = 32;
-
-export function leerSecretoJwt(): EstadoSecreto {
-  const secreto = (process.env.JWT_SECRET ?? "").trim();
-
-  if (secreto === "") {
-    return { ok: false, motivo: "JWT_SECRET no está seteada" };
-  }
-  if (secreto.length < LARGO_MINIMO_SECRETO) {
-    return {
-      ok: false,
-      motivo: `JWT_SECRET tiene ${secreto.length} caracteres: se exigen al menos ${LARGO_MINIMO_SECRETO}`,
-    };
-  }
-  if (sha256(secreto) === DIGEST_SECRETO_DE_COMPROMISO) {
-    return {
-      ok: false,
-      motivo:
-        "JWT_SECRET tiene el valor que quedó como default en el código: es un secreto conocido y verificar la firma con él no prueba nada",
-    };
-  }
-  return { ok: true, secreto };
-}
-
-/**
- * Verifica firma y vencimiento. Devuelve `null` si el token está bien, o el
- * resultado con el que hay que cortar.
- *
- * `TokenExpiredError` extiende `JsonWebTokenError`, así que se chequea primero.
- * Cualquier otro error es fail-closed (503), no un pase libre.
- */
-function esHexPuro(s: string): boolean {
-  return s.length % 2 === 0 && /^[0-9a-f]+$/i.test(s);
-}
-
-/**
- * El ecosistema tiene DOS emisores que firman con el MISMO valor de secreto
- * pero derivan bytes distintos de él:
- *
- *   - GeneXus (el login de la UI de secapi, `/loginUser`): la librería
- *     `GeneXusJWT` hace `Hex.decode(secreto)` antes de firmar HS256 — o sea,
- *     con un secreto de 64 hex usa 32 bytes.
- *   - secapi `/api/db/login` (lo usan Goya y TrackMovil, y el propio secapi si
- *     algún día deja de proxyear a GeneXus): `jwt.sign(secreto)` toma el string
- *     como UTF-8 — 64 bytes.
- *
- * Un guard que probara una sola derivación dejaría afuera a la mitad de los
- * usuarios según por dónde entraron. Probar las dos NO amplía la superficie:
- * las dos claves salen del mismo secreto, que el atacante sigue sin tener.
- */
-function clavesCandidatas(secreto: string): Array<string | Buffer> {
-  const claves: Array<string | Buffer> = [secreto];
-  if (esHexPuro(secreto)) claves.push(Buffer.from(secreto, "hex"));
-  return claves;
-}
-
 function verificarToken(token: string, secreto: string): ResultadoGuard | null {
-  let vencido = false;
-  for (const clave of clavesCandidatas(secreto)) {
-    try {
-      jwt.verify(token, clave, { algorithms: ALGORITMOS });
-      return null;
-    } catch (error) {
-      // TokenExpiredError solo se tira DESPUÉS de que la firma cerró: si aparece,
-      // esta clave era la correcta y el token venció (no seguimos probando).
-      if (error instanceof jwt.TokenExpiredError) {
-        vencido = true;
-        continue;
-      }
-      // Firma que no cierra con ESTA clave: puede cerrar con la otra derivación.
-      if (error instanceof jwt.JsonWebTokenError) continue;
-      // Cualquier otra cosa (p. ej. token que no es string) no depende de la
-      // clave: es un error de verdad y corta acá.
-      console.error("[docs/root-guard] error inesperado verificando el JWT", error);
-      return { ok: false, status: 503, code: "ERROR_GUARD" };
-    }
-  }
-  return { ok: false, status: 401, code: vencido ? "TOKEN_VENCIDO" : "TOKEN_INVALIDO" };
+  const r = verificarJwt(token, secreto);
+  if (r.ok) return null;
+  if (r.codigo === "ERROR_VERIFICACION") return { ok: false, status: 503, code: "ERROR_GUARD" };
+  return { ok: false, status: 401, code: r.codigo };
 }
 
 // ─── Otorgamiento en base ───────────────────────────────────────────────────

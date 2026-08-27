@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { resolveUsuario } from "@/lib/permisos";
 import { compararUsuarios, resumir } from "@/lib/usuarios/comparar";
 import { obtenerFuente, obtenerTodasLasFuentes } from "@/lib/usuarios/sources";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 import type {
   EstadoComparacion,
   ExternalUser,
@@ -29,6 +30,11 @@ function coincideFiltro(u: ExternalUserComparado, filtro: string): boolean {
 // Query: origen, filtro, estadoComparacion, incluirDeshabilitados, page, pageSize
 // =============================================
 export async function GET(req: NextRequest) {
+  // Guard de /api/db (src/lib/auth/apiGuard.ts). La ruta ya exigía token, pero
+  // sin verificar la firma; el guard lo verifica antes de llegar acá.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const usuario = await resolveUsuario(req);
     if (!usuario) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { lookupAs400Agencia } from "@/lib/auth/clients/as400Client";
 import { authLog } from "@/lib/auth/logger";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 /**
  * POST /api/db/admin/import-sgm-preferences
@@ -23,7 +24,11 @@ import { authLog } from "@/lib/auth/logger";
  * Query params:
  *   ?dryRun=true   → muestra lo que haría sin escribir nada en la DB.
  *
- * Autenticación: requiere cookie JWT "token" (mismo mecanismo que /api/db/usuarios/sync).
+ * Autenticación: nivel ROOT del guard de /api/db (src/lib/auth/apiGuard.ts) —
+ * JWT verificado (firma + vencimiento) y `usuarios.es_root='S'`. Antes bastaba
+ * con que la cookie "token" existiera, cosa que hacía cualquiera con `curl -H
+ * "Cookie: token=x"` sobre un proceso que reescribe preferencias y asigna roles
+ * en toda la base.
  *
  * Respuesta:
  * {
@@ -316,16 +321,12 @@ async function procesarUsuario(
 // ──────────────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  try {
-    // Auth: requiere JWT en cookie (mismo patrón que /api/db/usuarios/sync)
-    const token = req.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: "No autenticado. Iniciá sesión primero." },
-        { status: 401 }
-      );
-    }
+  // Guard de /api/db, nivel ROOT (src/lib/auth/apiGuard.ts). Antes alcanzaba
+  // con que la cookie `token` EXISTIERA: ni firma, ni vencimiento, ni usuario.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
 
+  try {
     const { searchParams } = new URL(req.url);
     const dryRun = searchParams.get("dryRun") === "true";
 

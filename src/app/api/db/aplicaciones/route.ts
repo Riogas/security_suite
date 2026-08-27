@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // GET /api/db/aplicaciones?filtro=&estado=&page=1&pageSize=20
 export async function GET(request: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const { searchParams } = new URL(request.url);
     const filtro = searchParams.get("filtro") || "";
@@ -47,6 +53,11 @@ export async function GET(request: NextRequest) {
 
 // POST /api/db/aplicaciones — crear
 export async function POST(request: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const body = await request.json();
     const { nombre, descripcion, estado, url, tecnologia, sistemaId } = body;

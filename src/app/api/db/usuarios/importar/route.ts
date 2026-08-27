@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireRoot } from "@/lib/docs/root-guard";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 import { assignDespachoOnNewUser } from "@/lib/auth/assignDespachoIfEligible";
 import { persistEmpFleteraPreference } from "@/lib/auth/persistEmpFleteraPreference";
 import { persistEscenarioPreference } from "@/lib/auth/persistEscenarioPreference";
@@ -26,32 +26,6 @@ interface Detalle {
   username: string;
   estado: Estado;
   motivo?: string;
-}
-
-/**
- * Traduce el `code` de `requireRoot` a un mensaje en español que un operador
- * entienda. NUNCA se devuelve `guard.code` crudo: son nombres internos del
- * guard (p.ej. "SECRETO_NO_CONFIGURADO") pensados para logs, no para un toast.
- * Ver los códigos posibles en `src/lib/docs/root-guard.ts` (`CodigoDenegacion`).
- */
-function mensajeDenegacion(codigo: string): string {
-  switch (codigo) {
-    case "SIN_TOKEN":
-    case "TOKEN_INVALIDO":
-    case "TOKEN_VENCIDO":
-    case "USUARIO_NO_ENCONTRADO":
-      return "Tu sesión no es válida, volvé a iniciar sesión";
-    case "NO_ROOT":
-      // Mismo texto que el chequeo de esRoot de más abajo: para el operador
-      // es el mismo motivo, aunque acá lo decide `requireRoot` (sin es_root
-      // ni la funcionalidad `docs`) y allá esta ruta con `esRoot !== 'S'`.
-      return "La importación de usuarios requiere ser root";
-    case "SECRETO_NO_CONFIGURADO":
-    case "ERROR_GUARD":
-      return "El servidor no está configurado para autorizar esta operación; avisá a sistemas";
-    default:
-      return "No se pudo autorizar la operación";
-  }
 }
 
 async function crearUsuario(
@@ -160,34 +134,27 @@ async function crearUsuario(
 // Solo CREA. Lo que ya existe se omite con su motivo.
 // =============================================
 export async function POST(req: NextRequest) {
+  // Guard de /api/db, nivel ROOT (src/lib/auth/apiGuard.ts): firma HS256
+  // verificada, vencimiento, secreto real (no el default del código),
+  // usuario activo en PG y `es_root='S'`. Fail-closed: sin secreto configurado
+  // deniega con 503 en vez de dejar pasar.
+  //
+  // Antes acá se llamaba a `requireRoot` (el gate de /docs) y encima se
+  // rechequeaba `esRoot !== 'S'`, porque requireRoot también deja pasar a quien
+  // tenga la funcionalidad `docs` — que sirve para VER el portal de
+  // documentación y nada tiene que ver con crear usuarios. El nivel ROOT del
+  // guard es exactamente `es_root='S'`, así que ese doble chequeo sobra.
+  const guard = await requireApiAuth(req);
+  if (!guard.ok) return guard.respuesta;
+
   try {
-    // Gate real: `resolveUsuario` decodifica el JWT sin verificar firma ni
-    // vencimiento (`decodeJwt` es base64 puro), y este endpoint no pasa por
-    // `src/proxy.ts` (su matcher excluye `/api`). `requireRoot` es la
-    // primitiva que sí hace `jwt.verify` contra JWT_SECRET, exige que el
-    // secreto sea real (no el default del código) y es fail-closed: sin
-    // secreto configurado, deniega con 503 en vez de dejar pasar.
-    // Ya trae `usuario.username`, así que no hace falta resolverlo aparte.
-    const guard = await requireRoot(req);
-    if (!guard.ok) {
-      // Nunca `guard.code` crudo (ver `mensajeDenegacion`): filtró hasta acá
-      // porque este endpoint no pasaba por `src/proxy.ts`, y códigos como
-      // "SECRETO_NO_CONFIGURADO" no le sirven a quien ve el toast.
-      return NextResponse.json({ success: false, error: mensajeDenegacion(guard.code) }, { status: guard.status });
-    }
-    // requireRoot también deja pasar a quien tenga la funcionalidad `docs`
-    // otorgada (pensada para VER el portal de documentación de APIs), y ese
-    // permiso no tiene nada que ver con crear usuarios ni con otorgar Root.
-    // Este endpoint exige es_root='S' explícitamente, encima del guard.
-    if (guard.usuario.esRoot !== "S") {
-      return NextResponse.json(
-        { success: false, error: "La importación de usuarios requiere ser root" },
-        { status: 403 },
-      );
-    }
-    // Username ya verificado por requireRoot (jwt.verify + resolución contra
-    // PG): no hace falta una segunda llamada a resolveUsuario.
+    // Usuario ya verificado y resuelto por el guard: no hace falta una segunda
+    // llamada a resolveUsuario. En nivel ROOT nunca viene null; el `??` es para
+    // el tipo.
     const operador = guard.usuario;
+    if (!operador) {
+      return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
+    }
 
     const body = await req.json().catch(() => ({}));
     const origen = String(body.origen || "").toUpperCase() as OrigenExterno;

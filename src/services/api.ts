@@ -233,6 +233,26 @@ function getAuthToken(): string | null {
   return null;
 }
 
+/**
+ * Borra la sesión local (cookie + localStorage + usuario de Sentry).
+ * Estaba duplicado adentro de `apiValidarPermiso` y de `apiUsuarios`; ahora
+ * también lo necesita `dbFetch`, así que vive en un solo lugar.
+ */
+function limpiarSesionLocal(): void {
+  try {
+    clearSentryUser();
+  } catch {}
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+    if (typeof document !== "undefined") {
+      document.cookie = "token=; path=/; max-age=0";
+    }
+  } catch {}
+}
+
 export const apiValidarPermiso = async (
   payload: ValidarPermisoReq,
   opts?: { signal?: AbortSignal },
@@ -258,16 +278,7 @@ export const apiValidarPermiso = async (
     const data = await res.json();
 
     if (res.status === 401) {
-      try { clearSentryUser(); } catch {}
-      try {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
-        }
-        if (typeof document !== "undefined") {
-          document.cookie = "token=; path=/; max-age=0";
-        }
-      } catch {}
+      limpiarSesionLocal();
       const e = new Error("UNAUTHORIZED");
       (e as any).status = 401;
       throw e;
@@ -1387,17 +1398,12 @@ export const apiUsuariosDB = async (
   if (opts.page) params.set("page", String(opts.page));
   if (opts.pageSize) params.set("pageSize", String(opts.pageSize));
 
-  const res = await fetch(`/api/db/usuarios?${params.toString()}`, {
+  // Vía dbFetch (y no un fetch pelado) para que el 401 por sesión vencida
+  // limpie la sesión y mande al login, igual que el resto del panel.
+  return dbFetch(`/api/db/usuarios?${params.toString()}`, {
     signal: opts.signal,
     headers: { "Content-Type": "application/json" },
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Error ${res.status}`);
-  }
-
-  return res.json();
 };
 
 // ✅ Obtener un usuario por ID desde PostgreSQL
@@ -1405,17 +1411,10 @@ export const apiUsuarioDBById = async (
   id: number,
   opts?: { signal?: AbortSignal },
 ): Promise<{ success: boolean; usuario: UsuarioDB & { roles?: any[]; preferencias?: any[] } }> => {
-  const res = await fetch(`/api/db/usuarios/${id}`, {
+  return dbFetch(`/api/db/usuarios/${id}`, {
     signal: opts?.signal,
     headers: { "Content-Type": "application/json" },
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Error ${res.status}`);
-  }
-
-  return res.json();
 };
 
 // ✅ Crear usuario en PostgreSQL
@@ -1436,19 +1435,11 @@ export const apiCrearUsuarioDB = async (
     creadoPor?: string;
   },
 ): Promise<{ success: boolean; usuario?: UsuarioDB; error?: string }> => {
-  const res = await fetch("/api/db/usuarios", {
+  return dbFetch("/api/db/usuarios", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(json.error || `Error ${res.status}`);
-  }
-
-  return json;
 };
 
 // ✅ Actualizar usuario en PostgreSQL
@@ -1456,37 +1447,21 @@ export const apiActualizarUsuarioDB = async (
   id: number,
   data: Partial<Omit<UsuarioDB, "id" | "fechaCreacion">>,
 ): Promise<{ success: boolean; usuario?: UsuarioDB; error?: string }> => {
-  const res = await fetch(`/api/db/usuarios/${id}`, {
+  return dbFetch(`/api/db/usuarios/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(json.error || `Error ${res.status}`);
-  }
-
-  return json;
 };
 
 // ✅ Eliminar (desactivar) usuario en PostgreSQL
 export const apiEliminarUsuarioDB = async (
   id: number,
 ): Promise<{ success: boolean; message?: string; error?: string }> => {
-  const res = await fetch(`/api/db/usuarios/${id}`, {
+  return dbFetch(`/api/db/usuarios/${id}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
   });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(json.error || `Error ${res.status}`);
-  }
-
-  return json;
 };
 
 // =====================================================================
@@ -1513,9 +1488,44 @@ export interface AplicacionesDBResponse {
   totalPages: number;
 }
 
+/**
+ * Helper de las ~60 llamadas del panel a /api/db/*.
+ *
+ * Dos cosas que antes no hacía, y que hacen falta desde que /api/db exige
+ * credencial (src/lib/auth/apiGuard.ts):
+ *
+ *  1. Mandar el token EXPLÍCITO. Hasta ahora esto funcionaba de rebote: son
+ *     URLs relativas del mismo origen, así que el navegador adjunta la cookie
+ *     `token` sola. Sigue siendo cierto, pero depender de un default es frágil
+ *     (basta que alguien mueva una llamada a otro origen, o que el navegador
+ *     endurezca SameSite) y el bug sería "todo el panel tira 401 sin motivo".
+ *  2. Distinguir el 401. Antes cualquier error salía como `Error 401` en un
+ *     cartelito y el usuario se quedaba mirando una pantalla vacía con la
+ *     sesión vencida. Ahora se limpia la sesión y se manda al login, que es lo
+ *     mismo que ya hacía `apiValidarPermiso`.
+ */
 async function dbFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, options);
-  const json = await res.json();
+  const headers = new Headers(options?.headers);
+  const token = getAuthToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(url, { ...options, headers, credentials: "same-origin" });
+
+  if (res.status === 401) {
+    limpiarSesionLocal();
+    // Redirigir, no solo tirar el error: sin esto el panel queda mostrando
+    // "Error 401" en cada pantalla hasta que el usuario recargue a mano.
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    const e = new Error("UNAUTHORIZED");
+    (e as any).status = 401;
+    throw e;
+  }
+
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
   return json;
 }

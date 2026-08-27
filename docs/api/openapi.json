@@ -127,13 +127,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/accesos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -148,13 +156,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/accesos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -189,13 +205,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/accesos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/acciones": {
@@ -241,13 +265,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/acciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -262,13 +294,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/acciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/acciones/{id}": {
@@ -296,13 +336,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -328,13 +376,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -360,13 +416,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/acciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/admin/import-sgm-preferences": {
@@ -395,9 +459,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/admin/import-sgm-preferences/route.ts",
         "x-generado": true,
@@ -463,13 +527,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -484,13 +556,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/aplicaciones/{id}": {
@@ -518,13 +598,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -550,13 +638,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -582,13 +678,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/aplicaciones/{id}/roles": {
@@ -625,13 +729,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/aplicaciones/[id]/roles/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/funcionalidades": {
@@ -695,13 +807,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -716,13 +836,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/funcionalidades/{id}": {
@@ -750,13 +878,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -782,13 +918,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -814,13 +958,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/funcionalidades/{id}/acciones": {
@@ -848,13 +1000,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/[id]/acciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -880,13 +1040,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/funcionalidades/[id]/acciones/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/login": {
@@ -903,13 +1071,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/login/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/menu": {
@@ -940,7 +1116,7 @@
           "modo": "jwt",
           "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma verificada (`jwt.verify`)."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/menu/route.ts",
         "x-generado": true,
@@ -968,13 +1144,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/menu/builder/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -989,13 +1173,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/menu/builder/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/objetos": {
@@ -1077,13 +1269,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/objetos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1098,13 +1298,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/objetos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/objetos/{id}": {
@@ -1132,13 +1340,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1164,13 +1380,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -1196,13 +1420,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/objetos/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/permisos": {
@@ -1220,9 +1452,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/permisos/route.ts",
         "x-generado": true,
@@ -1297,13 +1529,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1318,13 +1558,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/roles/{id}": {
@@ -1352,13 +1600,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1384,13 +1640,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -1416,13 +1680,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/roles/{id}/atributos": {
@@ -1450,13 +1722,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1482,13 +1762,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1514,13 +1802,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/roles/{id}/clonar": {
@@ -1548,13 +1844,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/roles/[id]/clonar/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/solicitudes": {
@@ -1610,9 +1914,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/solicitudes/route.ts",
         "x-generado": true,
@@ -1639,9 +1943,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/solicitudes/route.ts",
         "x-generado": true,
@@ -1670,9 +1974,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/solicitudes/mias/route.ts",
         "x-generado": true,
@@ -1712,9 +2016,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/solicitudes/[id]/aprobar/route.ts",
         "x-generado": true,
@@ -1754,9 +2058,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/solicitudes/[id]/rechazar/route.ts",
         "x-generado": true,
@@ -1784,13 +2088,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuario-preferencias/sugerencias/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios": {
@@ -1845,13 +2157,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1866,13 +2186,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/externos": {
@@ -1946,9 +2274,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/externos/route.ts",
         "x-generado": true,
@@ -1977,9 +2305,9 @@
         },
         "x-auth": {
           "modo": "jwt",
-          "verificaFirma": false,
+          "verificaFirma": true,
           "detectadoEn": "handler",
-          "detalle": "JWT en `Authorization: Bearer` o cookie `token`. La firma NO se verifica: se decodifica el payload y se resuelve el usuario contra la base."
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/importar/route.ts",
         "x-generado": true,
@@ -2027,13 +2355,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/por-empresa-fletera/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/por-username": {
@@ -2061,13 +2397,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/por-username/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/{id}": {
@@ -2095,13 +2439,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -2127,13 +2479,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -2159,13 +2519,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/{id}/accesos": {
@@ -2193,13 +2561,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/accesos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -2225,13 +2601,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/accesos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/{id}/atributos": {
@@ -2259,13 +2643,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -2291,13 +2683,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -2323,13 +2723,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/atributos/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/{id}/permite-login": {
@@ -2357,13 +2765,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/permite-login/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/db/usuarios/{id}/roles": {
@@ -2391,13 +2807,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/roles/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -2423,13 +2847,21 @@
           }
         },
         "x-auth": {
-          "modo": "ninguna",
-          "verificaFirma": false,
-          "detectadoEn": "archivo",
-          "detalle": "No se detectó lectura de token: cualquiera con acceso de red al puerto puede llamarlo."
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
         },
         "x-archivo": "src/app/api/db/usuarios/[id]/roles/route.ts",
-        "x-generado": true
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
       }
     },
     "/api/docs/spec": {

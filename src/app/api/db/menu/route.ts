@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import jwt from "jsonwebtoken";
 import { EFECTOS_ALLOW } from "@/lib/permisos";
-
-const JWT_SECRET = process.env.JWT_SECRET || "security-suite-secret-key";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // Mapeo de nombre de funcionalidad → ruta + ícono (fallback plano, apps sin árbol MENU)
 const FUNCIONALIDAD_ROUTE_MAP: Record<string, { path: string; icon: string; order: number }> = {
@@ -42,6 +40,11 @@ interface MenuNode {
 //    visibles si tienen hijos visibles. Sin usuario → árbol completo activo.
 //  - Si la app NO tiene objetos MENU, cae al modelo plano por funcionalidad.
 export async function GET(request: NextRequest) {
+  // Guard de /api/db (src/lib/auth/apiGuard.ts). Antes esto FALLABA ABIERTO:
+  // sin token, o con un token inválido, devolvía el árbol de menú completo.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const qpAplicacionId = new URL(request.url).searchParams.get("aplicacionId");
     const aplicacionId = Number(
@@ -51,32 +54,20 @@ export async function GET(request: NextRequest) {
         0,
     );
 
-    // Usuario del JWT (para gateo)
-    let userId: number | null = null;
-    const authHeader = request.headers.get("authorization") || "";
-    const cookieToken = request.cookies.get("token")?.value;
-    const rawToken = authHeader.replace("Bearer ", "") || cookieToken || "";
-    if (rawToken) {
-      try {
-        const decoded = jwt.verify(rawToken, JWT_SECRET) as any;
-        userId = decoded.userId ?? null;
-      } catch {
-        // token inválido/expirado → sin gateo
-      }
-    }
+    // Usuario para el gateo. Lo trae el guard ya verificado y resuelto contra
+    // Postgres; acá se hacía a mano un `jwt.verify` con el secreto por defecto
+    // del código y, si fallaba, se seguía de largo con userId=null — que en
+    // esta ruta significaba "devolvele el árbol entero". Ese era el bug: la
+    // única ruta que verificaba la firma era también la que fallaba abierta.
+    //
+    // De paso se ahorra una consulta: `resolveUsuario` ya trae `esRoot`.
+    const userId: number | null = guard.usuario?.id ?? null;
 
     // Un usuario con es_root='S' ve el menú completo sin depender de roles.
     // Sin esto, un root entra a cualquier pantalla escribiendo la URL (el
     // chequeo de permisos sí lo contempla) pero el sidebar le queda vacío,
     // que es justo la inconsistencia que se veía en GOYA.
-    let esRoot = false;
-    if (userId) {
-      const u = await prisma.usuario.findUnique({
-        where: { id: userId },
-        select: { esRoot: true },
-      });
-      esRoot = u?.esRoot === "S";
-    }
+    const esRoot = guard.usuario?.esRoot === "S";
 
     // Funcionalidades accesibles por el usuario (roles + accesos directos).
     // null = no se identificó usuario, o es root → no se filtra (árbol completo).

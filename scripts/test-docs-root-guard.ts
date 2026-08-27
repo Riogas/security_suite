@@ -15,6 +15,7 @@
  * guard verifica firma y vencimiento antes de mirar nada más.
  */
 
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { NextRequest } from "next/server";
@@ -188,11 +189,28 @@ const conRequest = (headers: Record<string, string>) =>
  * No se transcribe acá: si alguien lo cambia, el test sigue apuntando al valor
  * vigente y el guard tiene que seguir rechazándolo.
  */
-function secretoPorDefectoDelCodigo(archivo: string): string {
-  const fuente = fs.readFileSync(path.join(process.cwd(), archivo), "utf8");
-  const m = /JWT_SECRET\s*\|\|\s*"([^"]+)"/.exec(fuente);
-  if (!m) throw new Error(`no se encontró el default de JWT_SECRET en ${archivo}`);
-  return m[1];
+/*
+ * El secreto que quedó como default en el código durante mucho tiempo, y que
+ * por eso hay que dar por conocido. Antes se leía del propio código con una
+ * regex; desde el cierre de /api/db ya no está en ningún archivo de `src`, así
+ * que vive acá —en un test, que no se publica— y se prueba contra el digest de
+ * `verificarJwt.ts`: si alguien cambia el digest sin cambiar este valor, el
+ * test avisa en vez de quedarse mudo.
+ */
+const SECRETO_DE_COMPROMISO = "security-suite-secret-key";
+
+function secretoPorDefectoDelCodigo(): string {
+  const verificador = fs.readFileSync(
+    path.join(process.cwd(), "src/lib/auth/verificarJwt.ts"),
+    "utf8",
+  );
+  const digest = crypto.createHash("sha256").update(SECRETO_DE_COMPROMISO).digest("hex");
+  if (!verificador.includes(digest)) {
+    throw new Error(
+      "el digest del secreto de compromiso de verificarJwt.ts ya no corresponde a SECRETO_DE_COMPROMISO",
+    );
+  }
+  return SECRETO_DE_COMPROMISO;
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -351,7 +369,7 @@ async function main(): Promise<void> {
   });
 
   await test("JWT_SECRET igual al default del código: 503 SECRETO_NO_CONFIGURADO", async () => {
-    const porDefecto = secretoPorDefectoDelCodigo("src/lib/auth/responses.ts");
+    const porDefecto = secretoPorDefectoDelCodigo();
     const e = espiar({ usuarios: { dmedaglia: ROOT } });
     const { requireRoot } = crearGuardRoot(e.deps);
     // Token firmado con ESE secreto: la firma verifica, y aun así no se abre.
@@ -368,13 +386,32 @@ async function main(): Promise<void> {
     );
   });
 
-  await test("el default del login y el de /api/db/menu son el mismo", async () => {
-    // Si dejaran de coincidir, el chequeo de arriba estaría mirando el equivocado.
-    esperarIgual(
-      secretoPorDefectoDelCodigo("src/app/api/db/menu/route.ts"),
-      secretoPorDefectoDelCodigo("src/lib/auth/responses.ts"),
-      "default de JWT_SECRET",
-    );
+  await test("el default del secreto quedó en un solo lugar (el que firma)", async () => {
+    // Antes había DOS: `src/lib/auth/responses.ts` (firma) y
+    // `src/app/api/db/menu/route.ts` (verificaba). Este test los comparaba para
+    // que el digest de arriba no terminara apuntando al equivocado.
+    //
+    // El de /api/db/menu ya no existe: esa ruta dejó de verificar por su cuenta
+    // y ahora entra por el guard central (src/lib/auth/apiGuard.ts), que lee el
+    // secreto con `leerSecretoJwt` y se niega a trabajar si es el default. Que
+    // ese literal NO vuelva a aparecer es parte de lo que hay que sostener: un
+    // segundo default es un segundo criterio.
+    // Y desde el cierre de /api/db tampoco lo tiene el que firma: `responses.ts`
+    // pasó a usar `leerSecretoJwt()`, el MISMO criterio del verificador. Sin
+    // JWT_SECRET válida el login corta con 503 en vez de emitir un token que
+    // después nadie puede usar. O sea: el default ya no vive en ningún lado, y
+    // eso es lo que hay que sostener.
+    for (const archivo of [
+      "src/lib/auth/responses.ts",
+      "src/app/api/db/menu/route.ts",
+      "src/lib/permisos.ts",
+    ]) {
+      const fuente = fs.readFileSync(path.join(process.cwd(), archivo), "utf8");
+      esperar(
+        !/JWT_SECRET\s*\|\|\s*"/.test(fuente),
+        `${archivo} no puede tener un default de JWT_SECRET: un segundo default es un segundo criterio`,
+      );
+    }
   });
 
   await test("el 503 por secreto no se cachea: al configurarlo, entra", async () => {

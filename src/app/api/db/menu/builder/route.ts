@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generarAccionCodigo } from "@/lib/objetoAccionCode";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // =====================================================================
 // /api/db/menu/builder
@@ -35,6 +36,11 @@ function resolveAplicacionIdParam(req: NextRequest): number {
 
 // ─── GET: árbol editable ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const aplicacionId = resolveAplicacionIdParam(request);
     if (!aplicacionId) {
@@ -118,6 +124,11 @@ export async function GET(request: NextRequest) {
 
 // ─── PUT: reconciliar ────────────────────────────────────────────────
 export async function PUT(request: NextRequest) {
+  // Guard de /api/db: el nivel de esta ruta se declara en POLITICAS
+  // (src/lib/auth/apiGuard.ts). Antes esto no chequeaba nada.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const body = await request.json().catch(() => ({}));
     const aplicacionId = Number(body.aplicacionId);

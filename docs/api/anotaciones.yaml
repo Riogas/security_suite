@@ -53,7 +53,8 @@ endpoints:
       - "as400-api (Express :5000) es la dependencia, no el consumidor: este endpoint le pega para SGM y LDAP."
     notas:
       - "**El JWT no lleva el flag root.** Ninguna app puede decidir “es root” leyendo el token: hay que preguntarle a secapi. Es la razón de ser del gate de `/docs`."
-      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y no abre."
+      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y **todo `/api/db/*` responde 503 igual**: desde que existe el guard central, sin secreto real no se autentica nadie. Este endpoint es la única excepción — sigue emitiendo tokens, porque si no nadie podría loguearse para arreglarlo."
+      - "**Cambiar `JWT_SECRET` desloguea a todo el mundo de golpe.** Los tokens vigentes duran 7 días y quedan invalidados en el mismo momento: secapi, GOYA, TrackMovil y el panel de Granel piden login de nuevo. Es esperable; lo que no conviene es hacerlo en el mismo deploy que otro cambio de auth, porque después no se distingue qué rompió qué."
       - "El filtro por escenario puede dejar a un usuario válido afuera con 403 `FORBIDDEN_SCENARIO` si ninguno de sus roles aplica al escenario activo."
     auth:
       modo: ninguna
@@ -101,7 +102,7 @@ endpoints:
     notas:
       - "La razón de la respuesta importa tanto como el veredicto: `ROOT`, `PUBLIC_OBJECT`, `PUBLIC_FUNCIONALIDAD`, `SOLO_ROOT`, `DIRECT_ACCESO`, `ROL_FUNCIONALIDAD`, `ACCESS_DENIED`, `OBJETO_NOT_FOUND`."
       - "`solo_root='S'` deniega con razón `SOLO_ROOT` a todo el que no tenga `usuarios.es_root='S'` — hoy una sola cuenta. Por eso la funcionalidad `docs` se sembró con `'N'`."
-      - "La firma del JWT no se verifica: se decodifica el payload y se resuelve el usuario por `username`/`email` contra la base."
+      - "La firma del JWT **se verifica** (HS256 contra `JWT_SECRET`, más vencimiento) en el guard central de `/api/db` antes de entrar al handler; recién después se resuelve el usuario por `username`/`email` contra la base. Hasta el 2026-08-27 se decodificaba el payload en base64 sin mirar la firma: cualquiera se hacía pasar por root en el gate de CADA pantalla de GOYA y TrackMovil."
       - "El batch reusa los roles vigentes calculados una sola vez, pero evalúa cada ítem con su propio round-trip a Postgres."
     ejemplos:
       - lenguaje: curl
@@ -144,8 +145,8 @@ endpoints:
       - "El sidebar de GOYA (aplicación 3, menú raíz 10)."
       - "TrackMovil NO lo usa: su menú es código (`FloatingToolbar.tsx`)."
     notas:
-      - "**Es el único endpoint de esta aplicación que hace `jwt.verify`.** El otro lugar que verifica la firma es el gate de `/docs` (`src/lib/docs/root-guard.ts`), que no es un endpoint. Todo el resto decodifica el payload sin validar la firma."
-      - "Si el token no verifica, no devuelve 401: sigue sin gateo. Un token inválido obtiene el árbol completo de la aplicación."
+      - "**Exige token desde el 2026-08-27.** Antes fallaba ABIERTO: sin token, o con un token que no verificaba, devolvía el árbol completo de la aplicación en vez de 401. GOYA manda el `Authorization` solo si tiene la cookie (`api/auth/menuApp/route.ts`), así que quien no la tenga pasa de ver todo el menú a ver el menú vacío; es el cambio buscado."
+      - "El usuario del gateo lo resuelve el guard central de `/api/db` (firma + vencimiento + usuario activo en Postgres), no un `jwt.verify` propio de esta ruta."
       - "Sin `aplicacionId` en la query cae a `NEXT_PUBLIC_APLICACION_ID` / `APLICACION_ID` del ambiente."
       - "El punto de menú de `/docs` está diferido a propósito: la base es la misma que usa producción y un item antes de que la página exista es un link a 404 (`pnpm seed:docs --con-menu`)."
     ejemplos:
@@ -319,6 +320,43 @@ endpoints:
             body: JSON.stringify({ payload }),
           });
 
+  "GET /api/db/roles":
+    summary: Listado de roles, filtrable por aplicación
+    consumidores:
+      - "Panel de roles de SecuritySuite."
+      - "Edge de Granel (`listarRolesGranel`, `aplicacionId=6`): arma la grilla tipo-de-documento × rol del panel de root. Llama sin usuario, con la api-key de servicio."
+    notas:
+      - "**Nivel SERVICIO.** Es uno de los cuatro endpoints que abre la api-key (`x-api-key` / `SECAPI_SERVICE_KEY`); el `POST` del mismo path NO, ese pide JWT de usuario."
+    auth:
+      modo: api-key
+      verificaFirma: true
+      detalle: "`x-api-key` con el valor de `SECAPI_SERVICE_KEY`, **o** JWT en `Authorization: Bearer` / cookie `token` (firma y vencimiento verificados). Ver `POLITICAS` en `src/lib/auth/apiGuard.ts`."
+
+  "GET /api/db/roles/{id}/atributos":
+    summary: Atributos (preferencias) de un rol
+    consumidores:
+      - "Panel de roles de SecuritySuite."
+      - "Edge de Granel (`atributosDeRol`, y `tiposPorRol` en loop): lee `GranelTiposDoc`. Llama sin usuario, con la api-key de servicio."
+    notas:
+      - "**Nivel SERVICIO.** Ver `POLITICAS` en `src/lib/auth/apiGuard.ts`."
+    auth:
+      modo: api-key
+      verificaFirma: true
+      detalle: "`x-api-key` con el valor de `SECAPI_SERVICE_KEY`, **o** JWT en `Authorization: Bearer` / cookie `token` (firma y vencimiento verificados)."
+
+  "PUT /api/db/roles/{id}/atributos":
+    summary: Reemplaza el juego completo de atributos de un rol
+    consumidores:
+      - "Panel de roles de SecuritySuite."
+      - "Edge de Granel (`guardarTiposDeRol`, desde `configRouter.js`): reasigna los tipos de documento del rol. Llama sin usuario, con la api-key de servicio."
+    notas:
+      - "**Es la única ESCRITURA que abre la api-key de servicio.** Se le concedió porque el panel de root de Granel depende de ella; el `POST` del mismo path quedó afuera a propósito, porque ese lo usa solo el front de SecuritySuite."
+      - "Reemplaza el juego entero de atributos del rol: lo que no venga en el body se borra."
+    auth:
+      modo: api-key
+      verificaFirma: true
+      detalle: "`x-api-key` con el valor de `SECAPI_SERVICE_KEY`, **o** JWT en `Authorization: Bearer` / cookie `token` (firma y vencimiento verificados)."
+
   "GET /api/db/usuarios/por-username":
     summary: Ficha del usuario por username, con sus empresas fleteras normalizadas
     description: |
@@ -334,9 +372,14 @@ endpoints:
       - "TrackMovil (aplicación 5): resuelve la fletera del usuario logueado."
       - "La propia SecuritySuite, en el mismo camino de `extractEmpFletera`."
     notas:
-      - "**No valida nada.** Cualquiera con acceso de red al puerto obtiene la ficha completa de cualquier usuario por username, incluidos `es_root`, teléfono y observaciones. Está en la lista de endpoints sin auth de este portal por eso."
+      - "**Nivel SERVICIO.** Acepta la api-key de servicio (`x-api-key`, `SECAPI_SERVICE_KEY`) *o* un JWT de usuario. La api-key existe por el edge de Granel, que llama a este endpoint antes de saber quién se está logueando, y solo abre estos cuatro: este, `GET /api/db/roles`, y `GET`/`PUT` de `/api/db/roles/{id}/atributos`."
+      - "Hasta el 2026-08-27 no validaba nada: cualquiera con acceso de red al puerto obtenía la ficha completa de cualquier usuario, incluidos `es_root`, teléfono y observaciones."
       - "El match es exacto y sensible a mayúsculas: no hace `ilike`."
       - "Nunca devuelve contraseñas ni hashes: el `select` es explícito y no los incluye."
+    auth:
+      modo: api-key
+      verificaFirma: true
+      detalle: "`x-api-key` con el valor de `SECAPI_SERVICE_KEY`, **o** JWT en `Authorization: Bearer` / cookie `token` (firma y vencimiento verificados). Ver `POLITICAS` en `src/lib/auth/apiGuard.ts`."
     parameters:
       - name: username
         in: query
@@ -368,7 +411,7 @@ endpoints:
     consumidores:
       - "TrackMovil (aplicación 5): arma la lista de choferes/usuarios de una fletera."
     notas:
-      - "**No valida nada.** Enumera usuarios de la organización sin pedir credenciales."
+      - "**Exige JWT desde el 2026-08-27.** TrackMovil ya forwardeaba el `Authorization` del navegador, así que el cambio no le pegó. Antes enumeraba usuarios de la organización sin pedir credenciales."
       - "El filtro es `contains`, insensible a mayúsculas, contra el texto de la preferencia: nombres que se contienen entre sí se pisan. Pedir `FLET` trae todas las que empiecen así."
       - "`estado` vacío (el default) devuelve activos e inactivos."
     parameters:
@@ -410,7 +453,8 @@ endpoints:
     notas:
       - "**Escribe sobre datos existentes.** El paso 1 es DELETE + INSERT sobre `usuario_preferencias`: correrlo sin `dryRun` no se deshace solo."
       - "Empezá siempre por `?dryRun=true`: devuelve exactamente el mismo resumen y detalle sin tocar la base."
-      - "El JWT sale de la cookie `token`."
+      - "**Exige ser root desde el 2026-08-27** (nivel ROOT del guard de `/api/db`): JWT verificado y `usuarios.es_root='S'`. Antes solo miraba que la cookie `token` EXISTIERA — ni firma, ni vencimiento, ni usuario —, o sea que alcanzaba con `--cookie \"token=x\"` para disparar un barrido de escrituras sobre toda la base."
+      - "El JWT sale de la cookie `token` o del header `Authorization`."
       - "Depende del AS400 API levantado. Si no contesta, los usuarios de esa tanda quedan contados como errores en el resumen y el proceso sigue."
     parameters:
       - name: dryRun
@@ -425,7 +469,11 @@ endpoints:
           fwlDistribuidorEncontrados, distribuidorAsignados, errores },
           detalles: [{ username, status, escenario?, empFletera?, error? }] }`
       "401":
-        description: "No hay cookie `token`."
+        description: "Sin token, o token inválido/vencido."
+      "403":
+        description: "El usuario del token no es root."
+      "503":
+        description: "`JWT_SECRET` sin configurar (o con el default del código): fail-closed."
     ejemplos:
       - lenguaje: curl
         titulo: Ensayo, sin escribir nada

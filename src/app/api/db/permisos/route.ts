@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { EFECTOS_ALLOW, resolveAplicacionId } from "@/lib/permisos";
 import { normPath, patternToRegex, specificity } from "@/lib/routePattern";
+import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // =====================================================================
 // POST /api/db/permisos
@@ -31,23 +32,6 @@ import { normPath, patternToRegex, specificity } from "@/lib/routePattern";
 //   8. usuario_roles -> rol_funcionalidades
 //   9. ACCESS_DENIED
 // =====================================================================
-
-function decodeJwt(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(atob(b64));
-  } catch {
-    return null;
-  }
-}
-
-function extractToken(req: NextRequest): string | null {
-  const auth = req.headers.get("authorization") ?? "";
-  if (auth.startsWith("Bearer ")) return auth.slice(7).trim() || null;
-  return req.cookies.get("token")?.value ?? null;
-}
 
 type PermisoInput = {
   ObjetoKey:     string;
@@ -240,6 +224,12 @@ async function evaluarPermiso(
 }
 
 export async function POST(request: NextRequest) {
+  // Guard de /api/db (src/lib/auth/apiGuard.ts). Antes esta ruta decodificaba
+  // el JWT con base64 y sin mirar la firma: cualquiera se hacía pasar por
+  // cualquiera en el gate de CADA pantalla de Goya y TrackMovil.
+  const guard = await requireApiAuth(request);
+  if (!guard.ok) return guard.respuesta;
+
   try {
     const body = await request.json();
     const { aplicacion, AplicacionId, permisos: permisosArray, ...singleItem } = body as {
@@ -252,36 +242,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "MISSING_PARAMS", detail: "AplicacionId o aplicacion es requerido" }, { status: 400 });
     }
 
-    // Auth
-    const token = extractToken(request);
+    // Auth: ya la resolvió el guard de arriba — firma HS256 verificada,
+    // vencimiento, y el usuario buscado en Postgres por username/email con
+    // estado='A'. Lo que acá se hacía a mano (decodeJwt + findFirst) era una
+    // copia de `resolveUsuario` sin la parte de verificar.
     const errAuth = (razon: string, status: number) => {
       const d: PermisoResultado = { permitido: "DENIED", razon, objetoKey: "" };
       return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d, { status });
     };
 
-    if (!token) return errAuth("NO_TOKEN", 401);
-
-    const payload = decodeJwt(token);
-    if (!payload) return errAuth("INVALID_TOKEN", 401);
-
-    const rawUsername = (
-      payload.username ?? payload.sub ?? payload.name ??
-      payload.email   ?? payload.preferred_username ?? null
-    ) as string | null;
-
-    if (!rawUsername) return errAuth("NO_USERNAME_IN_TOKEN", 401);
-
-    const usuario = await prisma.usuario.findFirst({
-      where: {
-        OR: [
-          { username: { equals: String(rawUsername).trim(), mode: "insensitive" } },
-          { email:    { equals: String(rawUsername).trim(), mode: "insensitive" } },
-        ],
-        estado: "A",
-      },
-      select: { id: true, esRoot: true },
-    });
-
+    // En nivel AUTENTICADA el guard nunca deja pasar sin usuario; el chequeo es
+    // para el tipo, y de paso para que nadie afloje la política sin darse cuenta.
+    const usuario = guard.usuario;
     if (!usuario) return errAuth("USER_NOT_FOUND", 403);
 
     // Root -> GRANTED en todo

@@ -233,9 +233,28 @@ interface Auth {
  * información real y es una de las razones por las que este portal es solo-root.
  */
 function detectarAuth(fragmento: string, detectadoEn: "handler" | "archivo"): Auth {
-  const verificaFirma = /jwt\.verify\s*\(/.test(fragmento);
+  // `requireApiAuth` es el guard central de /api/db (src/lib/auth/apiGuard.ts):
+  // verifica firma HS256 y vencimiento antes de tocar la base. Se detecta
+  // aparte porque el `jwt.verify` no está en el archivo de la ruta sino adentro
+  // del guard, y sin esto el catálogo seguiría publicando "la firma NO se
+  // verifica" de todo /api/db — que es justo lo que se acaba de arreglar.
+  //
+  // El NIVEL (pública / servicio / autenticada / root) no se infiere: sale de la
+  // tabla POLITICAS, que este parser no puede leer sin importar la app. Donde
+  // importa, se anota a mano en docs/api/anotaciones.yaml, que pisa esto.
+  const usaGuardApi = /\brequireApiAuth\s*\(/.test(fragmento);
+  const verificaFirma = usaGuardApi || /jwt\.verify\s*\(/.test(fragmento);
   if (/["'`]x-api-key["'`]/i.test(fragmento)) {
     return { modo: "api-key", verificaFirma, detectadoEn, detalle: "Header `x-api-key`." };
+  }
+  if (usaGuardApi) {
+    return {
+      modo: "jwt",
+      verificaFirma: true,
+      detectadoEn,
+      detalle:
+        "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo.",
+    };
   }
   const usaToken =
     /\bextractToken\s*\(/.test(fragmento) ||
