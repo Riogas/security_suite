@@ -13,7 +13,7 @@
  * Uso:
  *   pnpm seed:solicitudes
  *   pnpm seed:solicitudes --app=3
- *   pnpm seed:solicitudes --grant-root          (otorga a todos los es_root='S')
+ *   pnpm seed:solicitudes --grant-root          (otorga a todos los que tienen el rol Root de secapi)
  *   pnpm seed:solicitudes --grant-user=jgomez   (otorga a usuarios puntuales, coma-separados)
  */
 
@@ -21,6 +21,12 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import * as fs from "fs";
 import { PrismaClient } from "@prisma/client";
+import {
+  SELECT_ASIGNACIONES_ROL,
+  aplicacionIdDeSecapi,
+  aplicacionesRootDe,
+} from "../src/lib/permisos";
+
 
 const envLocalPath = path.resolve(process.cwd(), ".env.local");
 const envPath = path.resolve(process.cwd(), ".env");
@@ -35,6 +41,28 @@ function getArg(name: string): string | undefined {
   return hit ? hit.slice(pref.length) : undefined;
 }
 const hasFlag = (name: string) => process.argv.includes(`--${name}`);
+
+// ─── Quiénes son root ────────────────────────────────────────────────────────
+//
+// Root dejó de ser `usuarios.es_root='S'`: es tener asignado el ROL "Root" de la
+// aplicación SecuritySuite, vigente y con el rol activo. Se reusa la MISMA
+// función que usa el guard (`aplicacionesRootDe`) en vez de reescribir el
+// criterio en un `where`: si el criterio cambia, cambia en un solo lugar.
+// Traer los usuarios activos con sus roles es caro-pero-irrelevante acá: esto
+// es un script de una corrida, no un endpoint.
+async function usuariosRootDeSecapi(
+  prisma: PrismaClient,
+): Promise<Array<{ id: number; username: string }>> {
+  const activos = await prisma.usuario.findMany({
+    where: { estado: "A" },
+    select: { id: true, username: true, roles: { select: SELECT_ASIGNACIONES_ROL } },
+    orderBy: { id: "asc" },
+  });
+  const appSecapi = aplicacionIdDeSecapi();
+  return activos
+    .filter((u) => aplicacionesRootDe(u.roles).includes(appSecapi))
+    .map((u) => ({ id: u.id, username: u.username }));
+}
 
 async function main() {
   const appId = Number(
@@ -136,10 +164,7 @@ async function main() {
 
   // 5. (opcional) Otorgar a usuarios root
   if (hasFlag("grant-root")) {
-    const roots = await prisma.usuario.findMany({
-      where: { esRoot: "S", estado: "A" },
-      select: { id: true, username: true },
-    });
+    const roots = await usuariosRootDeSecapi(prisma);
     for (const r of roots) {
       await prisma.acceso.upsert({
         where: {

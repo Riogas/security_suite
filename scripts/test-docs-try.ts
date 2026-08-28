@@ -155,7 +155,7 @@ function requestTry(cuerpo: unknown): NextRequest {
 
 const GUARD_OK: ResultadoGuard = {
   ok: true,
-  usuario: { id: 1, esRoot: "S", username: "dmedaglia" },
+  usuario: { id: 1, username: "dmedaglia", esRootDeSecapi: true, aplicacionesRoot: [1] },
 };
 const GUARD_NO_ROOT: ResultadoGuard = { ok: false, status: 403, code: "NO_ROOT" };
 

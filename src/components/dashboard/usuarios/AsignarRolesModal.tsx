@@ -186,7 +186,22 @@ export default function AsignarRolesModal({
     }));
   };
 
-  const handleSave = async () => {
+  /**
+   * Guarda la asignación.
+   *
+   * `confirmarQuitarmeRoot` es la segunda pasada: el endpoint contesta 409 con
+   * `codigo: "AutoQuitarseRootError"` cuando el que está guardando se está
+   * quitando a sí mismo el rol Root de SecuritySuite, y recién con el flag lo
+   * deja. El motivo del rodeo es que este botón reemplaza TODOS los roles del
+   * usuario de una sola vez: alcanza con destildar sin mirar, o con que la
+   * lista no haya cargado un rol, para quedarse afuera del panel — y de ahí no
+   * se vuelve, porque administrar permisos ahora exige ser root.
+   *
+   * El otro 409 posible (`SistemaSinRootError`, "esto deja la instalación sin
+   * ningún root") NO se ofrece confirmar: ese no se puede hacer ni queriendo.
+   * Se muestra el mensaje del servidor, que ya dice qué hacer.
+   */
+  const handleSave = async (confirmarQuitarmeRoot = false) => {
     try {
       setSaving(true);
 
@@ -204,7 +219,9 @@ export default function AsignarRolesModal({
         };
       });
 
-      const response = await apiAsignarRolesDB(userId, rolesPayload);
+      const response = await apiAsignarRolesDB(userId, rolesPayload, {
+        confirmarQuitarmeRoot,
+      });
 
       if (response?.success !== false) {
         toast.success("Roles asignados correctamente");
@@ -213,8 +230,19 @@ export default function AsignarRolesModal({
         toast.error(response?.error || "Error al asignar roles");
       }
     } catch (error) {
+      const err = error as Error & { codigo?: string };
+      if (err?.codigo === "AutoQuitarseRootError") {
+        toast.warning(err.message, {
+          duration: 15000,
+          action: {
+            label: "Quitármelo igual",
+            onClick: () => void handleSave(true),
+          },
+        });
+        return;
+      }
       console.error("[AsignarRolesModal] Error asignando roles:", error);
-      toast.error("Error al asignar roles");
+      toast.error(err?.message || "Error al asignar roles");
     } finally {
       setSaving(false);
     }
@@ -243,7 +271,10 @@ export default function AsignarRolesModal({
             <X className="w-4 h-4 mr-2" aria-hidden="true" />
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          {/* Sin argumentos: el click de un botón pasa el evento, y `handleSave`
+              interpretaría cualquier cosa truthy como la confirmación de
+              quitarse el propio Root. */}
+          <Button onClick={() => void handleSave()} disabled={saving}>
             <Save className="w-4 h-4 mr-2" aria-hidden="true" />
             {saving ? "Guardando..." : "Guardar Asignación"}
           </Button>

@@ -95,9 +95,27 @@ const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
-const ROOT: UsuarioAuth = { id: 1, esRoot: "S", username: "dmedaglia" };
-const CON_ROL_ROOT: UsuarioAuth = { id: 2, esRoot: "N", username: "con-rol-root" };
-const COMUN: UsuarioAuth = { id: 3, esRoot: "N", username: "usuario-comun" };
+// Root = rol "Root" de la aplicación 1 (SecuritySuite), ya resuelto por
+// `resolveUsuario`. La columna `usuarios.es_root` ya no entra en `UsuarioAuth`.
+const ROOT: UsuarioAuth = {
+  id: 1,
+  username: "dmedaglia",
+  esRootDeSecapi: true,
+  aplicacionesRoot: [1],
+};
+// No es root: entra por la funcionalidad `docs` otorgada a alguno de sus roles.
+const CON_ROL_ROOT: UsuarioAuth = {
+  id: 2,
+  username: "con-rol-root",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [],
+};
+const COMUN: UsuarioAuth = {
+  id: 3,
+  username: "usuario-comun",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [],
+};
 
 const SEGUNDOS_7_DIAS = 7 * 24 * 60 * 60;
 
@@ -220,7 +238,7 @@ async function main(): Promise<void> {
 
   // ── Verificación del token: firma, vencimiento y secreto ──────────────────
 
-  await test("token válido y firmado pasa (root por es_root='S')", async () => {
+  await test("token válido y firmado pasa (root por el rol Root de secapi)", async () => {
     const e = espiar({ usuarios: { dmedaglia: ROOT } });
     const { requireRoot } = crearGuardRoot(e.deps);
 

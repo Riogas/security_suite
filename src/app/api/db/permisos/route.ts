@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { EFECTOS_ALLOW, resolveAplicacionId } from "@/lib/permisos";
+import { EFECTOS_ALLOW, esRootDeAplicacion, resolveAplicacionId } from "@/lib/permisos";
 import { normPath, patternToRegex, specificity } from "@/lib/routePattern";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
 
@@ -22,8 +22,9 @@ import { requireApiAuth } from "@/lib/auth/apiGuard";
 //
 // Flujo:
 //   1. JWT -> usuario activo
-//   2. esRoot='S' -> GRANTED en todo sin mas checks
-//   3. Aplicacion por nombre
+//   2. Aplicacion por nombre / AplicacionId
+//   3. rol "Root" vigente de ESA aplicacion (o de secapi, que vale para todas)
+//      -> GRANTED en todo sin mas checks
 //   4. Objeto activo (key + tipo opcional)  -> PUBLIC_OBJECT si esPublico
 //   5. ObjetoAccion (filtra accionKey/Codigo/path)
 //   6. funcionalidad_objeto_acciones -> Funcionalidades activas/vigentes
@@ -256,8 +257,42 @@ export async function POST(request: NextRequest) {
     const usuario = guard.usuario;
     if (!usuario) return errAuth("USER_NOT_FOUND", 403);
 
-    // Root -> GRANTED en todo
-    if (usuario.esRoot === "S") {
+    // Aplicacion — acepta AplicacionId (número) o aplicacion (nombre).
+    //
+    // Se resuelve ANTES del bypass de root, y ese es el cambio de orden: el
+    // bypass mira la aplicacion, asi que hay que saber de qué app se habla para
+    // poder decidirlo. Sin aplicacion no hay root de nada: `esRootDeAplicacion`
+    // es fail-closed con `aplicacionId` nulo o 0.
+    //
+    // OJO con lo que este `resolveAplicacionId` NO hace: si la aplicacion
+    // pedida no existe (nombre con typo, id de una app dada de baja), NO
+    // devuelve null — cae al default del ambiente, que en los tres vale 1, y la
+    // pregunta termina contestandose contra SecuritySuite. O sea que
+    // `APP_NOT_FOUND` es practicamente inalcanzable. Esta documentado y logueado
+    // en `resolveAplicacionId` (src/lib/permisos.ts), y ahi se explica por que
+    // no se corta todavia: este es el endpoint mas caliente del ecosistema.
+    const appId = await resolveAplicacionId(AplicacionId, aplicacion);
+
+    if (!appId) {
+      const d: PermisoResultado = { permitido: "DENIED", razon: "APP_NOT_FOUND", objetoKey: "" };
+      return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d);
+    }
+    const app = { id: appId };
+
+    // Root -> GRANTED en todo, sin mas checks.
+    //
+    // "Root" acá es el rol "Root" de ESTA aplicacion **o** el rol "Root" de
+    // SecuritySuite, que vale para todas. Lo segundo es la decision de alcance
+    // del dueño: secapi es donde se configura quien es root de que, asi que su
+    // Root es el superusuario del ecosistema — el mismo alcance que tenia
+    // `usuarios.es_root='S'`, pero colgado de un rol vigente, con fechas y
+    // auditable, en vez de una columna suelta. El razonamiento largo esta en
+    // `esRootDeAplicacion` (src/lib/permisos.ts).
+    //
+    // Lo que si es mas estrecho que antes: el rol tiene que estar VIGENTE, el
+    // rol tiene que estar activo y la aplicacion tambien. La columna no miraba
+    // nada de eso.
+    if (esRootDeAplicacion(usuario, app.id)) {
       const rootResult = (i: PermisoInput): PermisoResultado => ({
         permitido:    "GRANTED",
         razon:        "ROOT",
@@ -269,15 +304,6 @@ export async function POST(request: NextRequest) {
         permisosArray ? { resultados: permisosArray.map(rootResult) } : rootResult(singleItem)
       );
     }
-
-    // Aplicacion — acepta AplicacionId (número) o aplicacion (nombre)
-    const appId = await resolveAplicacionId(AplicacionId, aplicacion);
-
-    if (!appId) {
-      const d: PermisoResultado = { permitido: "DENIED", razon: "APP_NOT_FOUND", objetoKey: "" };
-      return NextResponse.json(permisosArray ? { resultados: permisosArray.map(() => d) } : d);
-    }
-    const app = { id: appId };
 
     // Roles activos (calculado una vez, reutilizado en batch)
     const now = new Date();

@@ -109,10 +109,9 @@ async function crearUsuario(
         );
       }
       // Para LDAP/GSIST NO se asignan roles acá. `applyAdmsecGroupRoles` mapea
-      // grupos de ADMSEC a roles de RiogasTracking (aplicación 5) y puede
-      // setear `esRoot='S'` (flag global del usuario, no de una aplicación
-      // puntual): usarlo en el import invadía otra aplicación y otorgaba root
-      // a cualquiera del grupo 1 de ADMSEC. Los grupos de ADMSEC se van a
+      // grupos de ADMSEC a roles de RiogasTracking (aplicación 5), incluido el
+      // rol Root: usarlo en el import invade otra aplicación y le da root de
+      // TrackMovil a cualquiera del grupo 1 de ADMSEC. Los grupos se van a
       // reflejar como roles de la aplicación "Gestión de Sistemas" (id 2) en
       // un trabajo aparte; hasta entonces el import no otorga roles para
       // estos orígenes. El login (`resolveCredentials.ts`) sigue usando
@@ -136,14 +135,15 @@ async function crearUsuario(
 export async function POST(req: NextRequest) {
   // Guard de /api/db, nivel ROOT (src/lib/auth/apiGuard.ts): firma HS256
   // verificada, vencimiento, secreto real (no el default del código),
-  // usuario activo en PG y `es_root='S'`. Fail-closed: sin secreto configurado
-  // deniega con 503 en vez de dejar pasar.
+  // usuario activo en PG y el ROL "Root" de la aplicación SecuritySuite,
+  // vigente y con el rol activo. Fail-closed: sin secreto configurado deniega
+  // con 503 en vez de dejar pasar.
   //
   // Antes acá se llamaba a `requireRoot` (el gate de /docs) y encima se
-  // rechequeaba `esRoot !== 'S'`, porque requireRoot también deja pasar a quien
-  // tenga la funcionalidad `docs` — que sirve para VER el portal de
+  // rechequeaba la columna `es_root`, porque requireRoot también deja pasar a
+  // quien tenga la funcionalidad `docs` — que sirve para VER el portal de
   // documentación y nada tiene que ver con crear usuarios. El nivel ROOT del
-  // guard es exactamente `es_root='S'`, así que ese doble chequeo sobra.
+  // guard es exactamente "rol Root de secapi", así que ese doble chequeo sobra.
   const guard = await requireApiAuth(req);
   if (!guard.ok) return guard.respuesta;
 

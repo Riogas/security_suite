@@ -7,17 +7,20 @@ import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/page-header";
 import Usuarios from "@/components/dashboard/usuarios/Usuarios";
-import { useUser } from "@/hooks/useUser";
+import { useEsRoot } from "@/hooks/useEsRoot";
 
 export default function UsuariosPage() {
   const router = useRouter();
-  const { user } = useUser();
-  // El endpoint de importar exige esRoot='S' y devuelve 403 si no. Sin esto,
+  // El endpoint de importar es de nivel ROOT y devuelve 403 si no. Sin esto,
   // un operador sin permisos llegaba hasta confirmar el wizard (tres
-  // enumeraciones completas del AS400 de por medio) para recién ahí
-  // enterarse. `user` es null hasta que useUser() lee localStorage: por
-  // defecto se trata como no-root (fail-closed en la UI).
-  const esRoot = user?.isRoot === "S";
+  // enumeraciones completas del AS400 de por medio) para recién ahí enterarse.
+  //
+  // Se le pregunta a secapi (`GET /api/db/usuarios/yo`) y no a
+  // `localStorage.user.isRoot`: ese valor lo pone el login de GeneXus y en
+  // producción está invertido respecto de esta base, así que el botón decidía
+  // distinto que el endpoint. Mientras carga: no root (fail-closed en la UI,
+  // igual que antes).
+  const { esRoot } = useEsRoot();
 
   return (
     <div className="p-6">

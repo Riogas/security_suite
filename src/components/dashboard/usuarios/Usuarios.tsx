@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useUser } from "@/hooks/useUser";
+import { useEsRoot } from "@/hooks/useEsRoot";
 
 // Unified row type: filas locales vienen con _source="db", filas de
 // orígenes externos (SGM/LDAP/GSIST) con _source="externo".
@@ -60,12 +60,13 @@ export default function UsuariosTable() {
   const [deleting, setDeleting] = useState(false);
   const [importConfirm, setImportConfirm] = useState<UsuarioRow | null>(null);
   const router = useRouter();
-  // Nombrado distinto de las filas de la tabla (que también usan "user" en
-  // varios lugares) para no pisarse.
-  const { user: usuarioActual } = useUser();
-  // Antes de que useUser() termine de leer localStorage, `usuarioActual` es
-  // null: por defecto NO root (fail-closed en la UI), igual que el backend.
-  const esRoot = usuarioActual?.isRoot === "S";
+  // Root se le pregunta a secapi (`GET /api/db/usuarios/yo`), no a
+  // `localStorage.user.isRoot`: ese lo escribe el login de GeneXus con
+  // USEREXTENDED.USEREXTENDEDESROOT, que en producción está INVERTIDO respecto
+  // de esta base. Mientras la respuesta no llega, `esRoot` es false: NO root
+  // por defecto (fail-closed en la UI), igual que hacía la versión anterior y
+  // que el guard del backend.
+  const { esRoot } = useEsRoot();
 
   // debounce
   useEffect(() => {

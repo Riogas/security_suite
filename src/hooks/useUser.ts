@@ -5,6 +5,13 @@ export interface UserGlobal {
   email: string;
   username: string;
   id: string;
+  /**
+   * NO usar para decidir si alguien es root. Lo escribe el login del panel, que
+   * va por el passthrough a GeneXus y devuelve
+   * SERVICIOS.USEREXTENDED.USEREXTENDEDESROOT: otra tabla, otra base, y en
+   * producción con los valores INVERTIDOS respecto de secapi. Para eso está
+   * `useEsRoot()`, que le pregunta a `GET /api/db/usuarios/yo`.
+   */
   isRoot: string;
 }
 

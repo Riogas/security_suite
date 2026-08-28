@@ -120,8 +120,32 @@ async function sinRuido(fn: () => Promise<void>): Promise<void> {
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
-const ROOT: UsuarioAuth = { id: 1, esRoot: "S", username: "dmedaglia" };
-const COMUN: UsuarioAuth = { id: 3, esRoot: "N", username: "jperez" };
+// Root = rol "Root" de la aplicación 1 (SecuritySuite), ya resuelto por
+// `resolveUsuario`. La columna `usuarios.es_root` ya no entra en `UsuarioAuth`.
+const ROOT: UsuarioAuth = {
+  id: 1,
+  username: "dmedaglia",
+  esRootDeSecapi: true,
+  aplicacionesRoot: [1, 3, 5, 6],
+};
+const COMUN: UsuarioAuth = {
+  id: 3,
+  username: "jperez",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [],
+};
+/**
+ * Root de OTRA aplicación (GOYA, 3) pero no de SecuritySuite. El nivel ROOT del
+ * guard tiene que rechazarlo: administrar GOYA no habilita a importar usuarios
+ * en masa ni a reescribir preferencias de toda la base. Con el flag global
+ * `es_root='S'` esta distinción no existía.
+ */
+const ROOT_DE_OTRA_APP: UsuarioAuth = {
+  id: 4,
+  username: "root-de-goya",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [3],
+};
 
 const SEGUNDOS_7_DIAS = 7 * 24 * 60 * 60;
 
@@ -489,6 +513,19 @@ async function main(): Promise<void> {
     );
   });
 
+  await test("nivel ROOT: root de OTRA aplicación recibe 403 NO_ROOT", async () => {
+    const e = espiar({ usuario: ROOT_DE_OTRA_APP });
+    await sinRuido(async () => {
+      esperarDenegado(
+        await e.guard.requireApiAuth(
+          pedido("POST", "/api/db/usuarios/importar", conToken(jwtDe("root-de-goya"))),
+        ),
+        403,
+        "NO_ROOT",
+      );
+    });
+  });
+
   await test("nivel ROOT: el root pasa", async () => {
     const e = espiar({ usuario: ROOT });
     const r = await e.guard.requireApiAuth(
@@ -496,6 +533,146 @@ async function main(): Promise<void> {
     );
     esperar(r.ok, "el root tendría que pasar");
     if (r.ok) esperarIgual(r.nivel, "ROOT", "nivel");
+  });
+
+  // ── Nivel ROOT: los endpoints que otorgan permisos ────────────────────────
+  //
+  // Este bloque es LA red que impide que vuelva la escalada a root. Desde que
+  // root es el rol "Root" y no la columna `usuarios.es_root`, el privilegio
+  // vive en `usuario_roles`; mientras estos endpoints estuvieron en nivel
+  // AUTENTICADA, cualquiera de los 854 usuarios se hacía root de todo con un
+  // request (`PUT /usuarios/<yo>/roles {"roles":[{"rolId":57}]}`), o fabricaba
+  // el rol (`POST /roles {"aplicacionId":1,"nombre":"root"}`) porque el rol se
+  // identifica por NOMBRE.
+
+  /** Las escrituras que pueden alterar quién tiene qué. Todas nivel ROOT. */
+  const ESCRITURAS_QUE_OTORGAN: Array<[string, string]> = [
+    ["PUT", "/api/db/usuarios/845/roles"],
+    ["PUT", "/api/db/usuarios/845/accesos"],
+    ["DELETE", "/api/db/usuarios/845"],
+    ["POST", "/api/db/accesos"],
+    ["DELETE", "/api/db/accesos?usuarioId=845&funcionalidadId=1"],
+    ["POST", "/api/db/roles"],
+    ["PUT", "/api/db/roles/57"],
+    ["DELETE", "/api/db/roles/57"],
+    ["POST", "/api/db/roles/57/clonar"],
+    ["POST", "/api/db/funcionalidades"],
+    ["PUT", "/api/db/funcionalidades/9"],
+    ["DELETE", "/api/db/funcionalidades/9"],
+    ["PUT", "/api/db/funcionalidades/9/acciones"],
+    ["POST", "/api/db/objetos"],
+    ["PUT", "/api/db/objetos/9"],
+    ["DELETE", "/api/db/objetos/9"],
+    ["POST", "/api/db/aplicaciones"],
+    ["PUT", "/api/db/aplicaciones/1"],
+    ["DELETE", "/api/db/aplicaciones/1"],
+    ["PUT", "/api/db/menu/builder"],
+  ];
+
+  await test("un AUTENTICADO sin rol Root recibe 403 en todo lo que otorga permisos", async () => {
+    const e = espiar({ usuario: COMUN });
+    for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+      esperarDenegado(await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez")))), 403, "NO_ROOT");
+    }
+  });
+
+  await test("root de OTRA aplicación tampoco puede otorgar permisos en secapi", async () => {
+    // El Root de GOYA administra GOYA. Repartir roles del ecosistema es del
+    // Root de SecuritySuite, que es donde se configura quién es root de qué.
+    const e = espiar({ usuario: ROOT_DE_OTRA_APP });
+    await sinRuido(async () => {
+      for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+        esperarDenegado(
+          await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("root-de-goya")))),
+          403,
+          "NO_ROOT",
+        );
+      }
+    });
+  });
+
+  await test("el root sí puede otorgar permisos", async () => {
+    const e = espiar({ usuario: ROOT });
+    for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+      const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("dmedaglia"))));
+      esperar(r.ok, `${metodo} ${ruta} tendría que pasar para el root`);
+      if (r.ok) esperarIgual(r.nivel, "ROOT", `nivel de ${metodo} ${ruta}`);
+    }
+  });
+
+  await test("la escalada de un request ya no existe", async () => {
+    // El request textual del informe de revisión, contra el guard real.
+    const e = espiar({ usuario: COMUN });
+    esperarDenegado(
+      await e.guard.requireApiAuth(pedido("PUT", "/api/db/usuarios/3/roles", conToken(jwtDe("jperez")))),
+      403,
+      "NO_ROOT",
+    );
+    // Y la segunda puerta: fabricar un rol llamado "Root" para asignárselo.
+    esperarDenegado(
+      await e.guard.requireApiAuth(pedido("POST", "/api/db/roles", conToken(jwtDe("jperez")))),
+      403,
+      "NO_ROOT",
+    );
+    esperarIgual(e.llamadas, 2, "las dos veces se resolvió el usuario antes de denegar");
+  });
+
+  await test("las LECTURAS del panel siguen abiertas al autenticado común", async () => {
+    // El corte es escritura/lectura: si esto se rompe, subimos de más y el
+    // panel deja de funcionar para todos menos dos personas.
+    const e = espiar({ usuario: COMUN });
+    const lecturas: Array<[string, string]> = [
+      ["GET", "/api/db/usuarios/845/roles"],
+      ["GET", "/api/db/usuarios/845/accesos"],
+      ["GET", "/api/db/usuarios/845"],
+      ["GET", "/api/db/accesos"],
+      ["GET", "/api/db/roles/57"],
+      ["GET", "/api/db/funcionalidades"],
+      ["GET", "/api/db/objetos"],
+      ["GET", "/api/db/aplicaciones"],
+      ["GET", "/api/db/menu/builder"],
+      ["GET", "/api/db/menu"],
+      ["GET", "/api/db/usuarios/yo"],
+      ["POST", "/api/db/permisos"],
+      ["POST", "/api/db/solicitudes"],
+    ];
+    for (const [metodo, ruta] of lecturas) {
+      const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez"))));
+      esperar(r.ok, `${metodo} ${ruta} tendría que seguir abierto al autenticado común`);
+    }
+  });
+
+  await test("el GET de /roles sigue siendo SERVICIO: no se rompe el edge de Granel", async () => {
+    // El POST subió a ROOT y el GET del MISMO path tiene que quedar en
+    // SERVICIO. Si al subir el POST alguien toca el GET, el login de Granel se
+    // cae con "secapi roles HTTP 401".
+    esperarIgual(nivelDeRuta("/api/db/roles", "GET"), "SERVICIO", "GET /roles");
+    esperarIgual(nivelDeRuta("/api/db/roles", "POST"), "ROOT", "POST /roles");
+    esperarIgual(nivelDeRuta("/api/db/roles/12/atributos", "GET"), "SERVICIO", "GET atributos");
+    esperarIgual(nivelDeRuta("/api/db/roles/12/atributos", "PUT"), "SERVICIO", "PUT atributos");
+
+    await conClaveServicio(CLAVE_SERVICIO, async () => {
+      const e = espiar({ usuario: null });
+      const r = await e.guard.requireApiAuth(
+        pedido("GET", "/api/db/roles?aplicacionId=6&pageSize=200", { "x-api-key": CLAVE_SERVICIO }),
+      );
+      esperar(r.ok, "el edge de Granel tiene que seguir leyendo los roles");
+    });
+  });
+
+  await test("la api-key de servicio NO alcanza las escrituras que otorgan permisos", async () => {
+    await conClaveServicio(CLAVE_SERVICIO, () =>
+      sinRuido(async () => {
+        const e = espiar({ usuario: ROOT });
+        for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+          esperarDenegado(
+            await e.guard.requireApiAuth(pedido(metodo, ruta, { "x-api-key": CLAVE_SERVICIO })),
+            403,
+            "SERVICIO_FUERA_DE_ALCANCE",
+          );
+        }
+      }),
+    );
   });
 
   await test("import-sgm-preferences ya no entra con una cookie inventada", async () => {

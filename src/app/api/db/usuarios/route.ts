@@ -110,15 +110,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Otorgar root es la única escritura de esta ruta que no puede depender de
-    // "tener sesión": `esRoot='S'` es el bypass global del motor de permisos.
-    // Sin esto, cualquiera con una sesión válida se creaba un usuario root y
-    // entraba a todo — cerrar el endpoint al anónimo no alcanzaba.
-    const pideRoot = String(body.esRoot ?? "N").toUpperCase() === "S";
-    if (pideRoot && guard.usuario?.esRoot !== "S") {
+    // `esRoot` ya no otorga nada: root se resuelve por el ROL "Root" de cada
+    // aplicación (src/lib/permisos.ts). Antes acá se exigía ser root para poder
+    // mandar `esRoot='S'`, porque esa columna ERA el bypass del motor. Ahora el
+    // chequeo no tendría sentido: aunque el campo se guardara, el usuario creado
+    // no sería root de nada.
+    //
+    // Se RECHAZA en vez de ignorarlo en silencio. Aceptarlo y guardar la 'S'
+    // dejaría al administrador convencido de que otorgó privilegios que no
+    // otorgó — que es exactamente el problema que se viene a sacar del formulario.
+    // Mandar 'N' (o no mandar nada) sigue siendo válido: así no se rompe ningún
+    // cliente que hoy manda el campo con su valor por defecto.
+    if (String(body.esRoot ?? "N").toUpperCase() === "S") {
       return NextResponse.json(
-        { success: false, error: "Solo un usuario root puede crear otro usuario root" },
-        { status: 403 },
+        {
+          success: false,
+          error:
+            "El campo `esRoot` ya no otorga privilegios. Para hacer root a un usuario, " +
+            "asignale el rol \"Root\" de la aplicación que corresponda (PUT /api/db/usuarios/:id/roles).",
+        },
+        { status: 400 },
       );
     }
 
@@ -146,7 +157,9 @@ export async function POST(req: NextRequest) {
         tipoUsuario: body.tipoUsuario || "L",
         esExterno: body.esExterno || "N",
         usuarioExterno: body.usuarioExterno || null,
-        esRoot: body.esRoot || "N",
+        // La columna se queda en el schema pero no autoriza: los usuarios nuevos
+        // nacen en 'N' y root se otorga asignando el rol.
+        esRoot: "N",
         desdeSistema: body.desdeSistema || "N",
         modificaPermisos: body.modificaPermisos || "N",
         cambioPassword: body.cambioPassword || "N",

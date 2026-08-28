@@ -37,7 +37,6 @@ type UsuarioFormFields = {
   tipoUsuario: string;
   esExterno: string;
   usuarioExterno: string;
-  esRoot: string;
   desdeSistema: string;
   modificaPermisos: string;
   cambioPassword: string;
@@ -60,7 +59,6 @@ const initialFormFields: UsuarioFormFields = {
   tipoUsuario: "L",
   esExterno: "N",
   usuarioExterno: "",
-  esRoot: "N",
   desdeSistema: "N",
   modificaPermisos: "N",
   cambioPassword: "N",
@@ -103,7 +101,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               tipoUsuario: u.tipoUsuario || "L",
               esExterno: u.esExterno || "N",
               usuarioExterno: u.usuarioExterno || "",
-              esRoot: u.esRoot || "N",
               desdeSistema: u.desdeSistema || "N",
               modificaPermisos: u.modificaPermisos || "N",
               cambioPassword: u.cambioPassword || "N",
@@ -169,7 +166,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           tipoUsuario: data.tipoUsuario,
           esExterno: data.esExterno,
           usuarioExterno: data.usuarioExterno || undefined,
-          esRoot: data.esRoot,
           desdeSistema: data.desdeSistema,
         });
         toast.success("Usuario creado exitosamente");
@@ -183,7 +179,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           tipoUsuario: data.tipoUsuario,
           esExterno: data.esExterno,
           usuarioExterno: data.usuarioExterno || null,
-          esRoot: data.esRoot,
           desdeSistema: data.desdeSistema,
           modificaPermisos: data.modificaPermisos,
           cambioPassword: data.cambioPassword,
@@ -498,20 +493,23 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               </Select>
             </div>
 
+            {/*
+              Acá vivía el switch "Usuario Root", que escribía `usuarios.es_root`.
+              Se sacó, no se deshabilitó: desde que root se resuelve por el ROL
+              "Root" de cada aplicación, ese switch le mentía al administrador —
+              lo prendía, guardaba, y el usuario no era root de nada. Un control
+              que aparenta dar privilegios que no da es peor que no tener control.
+              El lugar donde root SÍ se otorga es "Asignar roles", y para allá
+              apunta la nota.
+            */}
             <div className="space-y-3">
               <Label>Usuario Root</Label>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={data.esRoot === "S"}
-                  onCheckedChange={(checked) =>
-                    setField("esRoot", checked ? "S" : "N")
-                  }
-                  aria-label="Usuario root"
-                />
-                <span className="text-sm text-muted-foreground">
-                  {data.esRoot === "S" ? "Sí" : "No"}
-                </span>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Root se otorga asignándole al usuario el rol <strong>Root</strong> de la
+                aplicación correspondiente, desde <strong>Asignar roles</strong> en la
+                lista de usuarios. Es por aplicación: el Root de SecuritySuite no
+                da acceso a GOYA, TrackMovil ni Granel.
+              </p>
             </div>
 
             <div className="space-y-3">

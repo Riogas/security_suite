@@ -1406,6 +1406,29 @@ export const apiUsuariosDB = async (
   });
 };
 
+// ✅ ¿Quién soy y de qué soy root? (GET /api/db/usuarios/yo)
+//
+// Es la fuente de verdad de "soy root" para el panel. NO se usa `user.isRoot`
+// de localStorage: ese valor viene del login de GeneXus
+// (SERVICIOS.USEREXTENDED.USEREXTENDEDESROOT) y en producción está invertido
+// respecto de secapi, así que el botón y el endpoint decidían distinto.
+export type YoDB = {
+  id: number;
+  username: string;
+  esRootDeSecapi: boolean;
+  aplicacionesRoot: number[];
+  isRoot: string;
+};
+
+export const apiYoDB = async (opts?: {
+  signal?: AbortSignal;
+}): Promise<{ success: boolean; usuario: YoDB }> => {
+  return dbFetch("/api/db/usuarios/yo", {
+    signal: opts?.signal,
+    headers: { "Content-Type": "application/json" },
+  });
+};
+
 // ✅ Obtener un usuario por ID desde PostgreSQL
 export const apiUsuarioDBById = async (
   id: number,
@@ -1430,7 +1453,9 @@ export const apiCrearUsuarioDB = async (
     tipoUsuario?: string;
     esExterno?: string;
     usuarioExterno?: string;
-    esRoot?: string;
+    // `esRoot` salió de esta firma: el endpoint lo rechaza con 400 si viene en
+    // 'S'. Root se otorga con `apiSetRolesUsuarioDB` (el rol "Root" de la
+    // aplicación), no con un campo del alta.
     desdeSistema?: string;
     creadoPor?: string;
   },
@@ -1559,7 +1584,16 @@ async function dbFetch(url: string, options?: RequestInit) {
     throw e;
   }
 
-  if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+  if (!res.ok) {
+    const e = new Error(json.error || `Error ${res.status}`);
+    // El status y el `codigo` del body viajan en el error para que quien llama
+    // pueda distinguir un caso puntual sin tener que parsear el texto del
+    // mensaje. Lo usa hoy AsignarRolesModal para reconocer el 409
+    // `AutoQuitarseRootError` y ofrecer la confirmación explícita.
+    (e as any).status = res.status;
+    if (json?.codigo) (e as any).codigo = json.codigo;
+    throw e;
+  }
   return json;
 }
 
@@ -1761,14 +1795,27 @@ export const apiClonarRolDB = async (id: number, nombre: string) =>
 export const apiRolesUsuarioDB = async (usuarioId: number) =>
   dbFetch(`/api/db/usuarios/${usuarioId}/roles`);
 
+/**
+ * Reemplaza la asignación completa de roles de un usuario.
+ *
+ * `confirmarQuitarmeRoot` es la confirmación explícita de "sí, sé que me estoy
+ * quitando a MÍ el rol Root de SecuritySuite y voy a perder el acceso de
+ * administración". Sin ese flag el endpoint contesta 409: el guardar de este
+ * modal reemplaza TODOS los roles de una, y sin la confirmación un admin se
+ * dejaba afuera sin enterarse. Ver PUT /api/db/usuarios/[id]/roles.
+ */
 export const apiAsignarRolesDB = async (
   usuarioId: number,
-  roles: { rolId: number; fechaDesde?: string; fechaHasta?: string }[]
+  roles: { rolId: number; fechaDesde?: string; fechaHasta?: string }[],
+  opts?: { confirmarQuitarmeRoot?: boolean }
 ) =>
   dbFetch(`/api/db/usuarios/${usuarioId}/roles`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ roles }),
+    body: JSON.stringify({
+      roles,
+      ...(opts?.confirmarQuitarmeRoot ? { confirmarQuitarmeRoot: true } : {}),
+    }),
   });
 
 // =====================================================================

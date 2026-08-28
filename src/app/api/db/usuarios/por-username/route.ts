@@ -47,6 +47,19 @@ export async function GET(req: NextRequest) {
         telefono: true,
         creadoPor: true,
         desdeSistema: true,
+        // MUERTO: `esRoot` es la columna `usuarios.es_root`, que ya no autoriza
+        // nada y que desde este cambio tampoco la escribe nadie
+        // (`applyAdmsecGroupRoles` dejó de tocarla). Queda congelada en lo que
+        // haya hoy: en producción, 'S' para un solo usuario de 854.
+        //
+        // Se DEJA en el select a propósito y no se cambia por el root nuevo:
+        // este endpoint es de nivel SERVICIO y lo consume el edge de Granel
+        // (existeEnSecapi), que es otro repo y otro deploy. Sacar un campo del
+        // contrato o cambiarle el significado sin coordinar es como se rompen
+        // los logins. Si Granel gatea algo con esto, hay que avisarle y pasarlo
+        // al rol Root (src/lib/permisos.ts) antes de tocar acá — el campo es
+        // fail-closed mientras tanto: quedó en 'N' para todo el mundo menos uno,
+        // así que nadie GANA acceso por esta vía.
         esRoot: true,
         fechaUltimoPermiso: true,
         observacion: true,
