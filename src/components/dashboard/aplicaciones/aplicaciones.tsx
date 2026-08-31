@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import {
   Select,
   SelectContent,
@@ -102,20 +103,32 @@ export default function AplicacionesTable() {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="space-x-2">
+          {/*
+            "Editar" queda habilitado: GET /api/db/aplicaciones/:id sigue en
+            AUTENTICADA. El PUT es ROOT y el gate está en el "Guardar" de
+            AplicacionForm.
+          */}
           <Button
             variant="outline"
             size="sm"
+            aria-label={`Editar aplicación ${row.original?.nombre ?? ""}`}
             onClick={() => handleEdit(row.original)}
           >
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button
+          {/*
+            DELETE /api/db/aplicaciones/:id es ROOT: pone la aplicación en
+            estado "I", y una aplicación inactiva ya no otorga root — dar de
+            baja la aplicación 1 deja al sistema SIN NINGÚN root.
+          */}
+          <BotonRoot
             variant="destructive"
             size="sm"
+            aria-label={`Eliminar aplicación ${row.original?.nombre ?? ""}`}
             onClick={() => setDeleteConfirm(row.original)}
           >
             <Trash className="w-4 h-4" />
-          </Button>
+          </BotonRoot>
         </div>
       ),
     },
@@ -141,9 +154,11 @@ export default function AplicacionesTable() {
   );
 
   const headerActions = (
-    <Button onClick={() => router.push("/dashboard/aplicaciones/crear")}>
+    // POST /api/db/aplicaciones es ROOT (ver el botón gemelo de la PageHeader
+    // en /dashboard/aplicaciones).
+    <BotonRoot onClick={() => router.push("/dashboard/aplicaciones/crear")}>
       <Plus className="w-4 h-4 mr-1" /> Nueva Aplicación
-    </Button>
+    </BotonRoot>
   );
 
   return (

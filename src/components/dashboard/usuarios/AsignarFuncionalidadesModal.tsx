@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -284,18 +285,26 @@ export default function AsignarFuncionalidadesModal({
             <X className="w-4 h-4 mr-2" aria-hidden="true" />
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
+          {/*
+            PUT /api/db/usuarios/:id/accesos es nivel ROOT: los accesos directos
+            son la otra mitad del motor de permisos (lo que no se consigue por
+            rol se consigue acá). El GET queda abierto, así que el modal se abre
+            y se lee; lo que no se puede es guardar.
+          */}
+          <BotonRoot onClick={handleSave} disabled={saving || loading}>
             <Save className="w-4 h-4 mr-2" aria-hidden="true" />
             {saving
               ? "Guardando..."
               : totalCambios > 0
                 ? `Guardar ${totalCambios} cambio(s)`
                 : "Guardar"}
-          </Button>
+          </BotonRoot>
         </>
       }
     >
       <div className="flex flex-col gap-4 h-full">
+        <AvisoSoloRoot que="los accesos directos" className="shrink-0" />
+
         {/* Buscador */}
         <div className="space-y-2 shrink-0">
           <Label htmlFor="search-func">Buscar funcionalidad</Label>

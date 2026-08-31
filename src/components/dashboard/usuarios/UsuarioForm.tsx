@@ -226,6 +226,18 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         <div className="flex gap-2">
           {mode === "edit" && (
             <>
+              {/*
+                Los tres botones de acá abajo abren modales y NO se gatean:
+                los GET de roles, accesos y atributos siguen en nivel
+                AUTENTICADA, así que un no-root tiene que poder abrirlos y VER
+                qué tiene asignado el usuario. Lo que está cerrado es guardar, y
+                el gate vive adentro de cada modal (botón apagado + cartel de
+                sólo lectura), que es donde llega antes de que la persona
+                marque un solo checkbox.
+
+                "Actualizar Usuario" tampoco: PUT /api/db/usuarios/:id sigue en
+                AUTENTICADA — ya no puede elevar a root, por eso no subió.
+              */}
               <Button
                 type="button"
                 variant="outline"

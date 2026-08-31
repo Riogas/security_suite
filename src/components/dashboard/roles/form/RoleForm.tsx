@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Badge } from "@/components/ui/badge";
 import {
   DndContext,
@@ -448,6 +449,15 @@ export default function RoleForm({
 
   return (
     <div className="container mx-auto max-w-6xl p-4 space-y-6">
+      {/*
+        A /dashboard/roles/crear y /dashboard/roles/editar/:id se entra por URL
+        o por el botón "Editar" de la grilla, que queda habilitado porque abrir
+        la ficha es una lectura. El cartel avisa ANTES de llenar el formulario
+        y de arrastrar funcionalidades; el "Guardar" de abajo se apaga solo.
+        POST y PUT /api/db/roles son nivel ROOT.
+      */}
+      <AvisoSoloRoot que="los cambios del rol" className="mb-4" />
+
       <form onSubmit={handleSubmit}>
         {/* Hidden fields */}
         <input type="hidden" name="rolid" value={form.rolid} />
@@ -563,10 +573,10 @@ export default function RoleForm({
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
-              <Button type="submit">
+              <BotonRoot type="submit">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
-              </Button>
+              </BotonRoot>
             </div>
           </CardFooter>
         </Card>

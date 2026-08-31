@@ -21,7 +21,7 @@ import {
 import { BadgeOrigen } from "@/components/dashboard/usuarios/importar/badges";
 import VerPermisosModal from "@/components/dashboard/usuarios/VerPermisosModal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { BotonRoot } from "@/components/ui/solo-root";
 import {
   Pencil,
   Trash,
@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useEsRoot } from "@/hooks/useEsRoot";
 
 // Unified row type: filas locales vienen con _source="db", filas de
 // orígenes externos (SGM/LDAP/GSIST) con _source="externo".
@@ -60,13 +59,11 @@ export default function UsuariosTable() {
   const [deleting, setDeleting] = useState(false);
   const [importConfirm, setImportConfirm] = useState<UsuarioRow | null>(null);
   const router = useRouter();
-  // Root se le pregunta a secapi (`GET /api/db/usuarios/yo`), no a
-  // `localStorage.user.isRoot`: ese lo escribe el login de GeneXus con
-  // USEREXTENDED.USEREXTENDEDESROOT, que en producción está INVERTIDO respecto
-  // de esta base. Mientras la respuesta no llega, `esRoot` es false: NO root
-  // por defecto (fail-closed en la UI), igual que hacía la versión anterior y
-  // que el guard del backend.
-  const { esRoot } = useEsRoot();
+  // El "¿puedo?" ya no se resuelve acá: lo resuelve `BotonRoot` por dentro,
+  // contra `usePuedeAdministrar()`. Root se le sigue preguntando a secapi
+  // (`GET /api/db/usuarios/yo`) y no a `localStorage.user.isRoot`, que lo
+  // escribe el login de GeneXus con USEREXTENDED.USEREXTENDEDESROOT y en
+  // producción está INVERTIDO respecto de esta base.
 
   // debounce
   useEffect(() => {
@@ -343,42 +340,29 @@ export default function UsuariosTable() {
         return (
           <div className="space-x-2">
             {shouldShowImportButton(row.original) ? (
-              esRoot ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  // Pide confirmación antes de crear, igual que el wizard
-                  // (ConfirmDialog más abajo) — importar de a uno es la misma
-                  // operación que "Importar N usuarios" del paso 2, y ahí
-                  // hace falta confirmar.
-                  onClick={() => setImportConfirm(row.original)}
-                  disabled={importingUsers.has(username)}
-                >
-                  {importingUsers.has(username) ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="ml-1">Importando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      <span className="ml-1">Importar</span>
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button variant="secondary" size="sm" disabled>
-                        <Download className="w-4 h-4" />
-                        <span className="ml-1">Importar</span>
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>Requiere permisos de root</TooltipContent>
-                </Tooltip>
-              )
+              // POST /api/db/usuarios/importar es nivel ROOT.
+              <BotonRoot
+                variant="secondary"
+                size="sm"
+                // Pide confirmación antes de crear, igual que el wizard
+                // (ConfirmDialog más abajo) — importar de a uno es la misma
+                // operación que "Importar N usuarios" del paso 2, y ahí
+                // hace falta confirmar.
+                onClick={() => setImportConfirm(row.original)}
+                disabled={importingUsers.has(username)}
+              >
+                {importingUsers.has(username) ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="ml-1">Importando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span className="ml-1">Importar</span>
+                  </>
+                )}
+              </BotonRoot>
             ) : (
               isFromDB(row.original) && (
                 <>
@@ -395,6 +379,12 @@ export default function UsuariosTable() {
                   >
                     <ShieldCheck className="w-4 h-4" />
                   </Button>
+                  {/*
+                    "Editar" NO se gatea: PUT /api/db/usuarios/:id sigue en
+                    nivel AUTENTICADA, así que un no-root entra a la ficha y
+                    guarda igual. Lo que ahí adentro SÍ está cerrado (asignar
+                    roles y funcionalidades) se gatea en UsuarioForm.
+                  */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -402,13 +392,19 @@ export default function UsuariosTable() {
                   >
                     <Pencil className="w-4 h-4" />
                   </Button>
-                  <Button
+                  {/*
+                    La baja sí: DELETE /api/db/usuarios/:id subió a ROOT porque
+                    dar de baja a los dos roots deja la instalación sin
+                    administrador (`resolveUsuario` no autentica inactivos).
+                  */}
+                  <BotonRoot
                     variant="destructive"
                     size="sm"
+                    aria-label={`Desactivar usuario ${getUserName(row.original)}`}
                     onClick={() => setDeleteConfirm(row.original)}
                   >
                     <Trash className="w-4 h-4" />
-                  </Button>
+                  </BotonRoot>
                 </>
               )
             )}

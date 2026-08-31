@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
@@ -335,13 +336,14 @@ export default function PasoComparacion({
       />
 
       <div className="flex justify-end">
-        <Button onClick={() => setConfirmando(true)} disabled={cantidadSeleccionada === 0 || importando}>
+        {/* POST /api/db/usuarios/importar es nivel ROOT. */}
+        <BotonRoot onClick={() => setConfirmando(true)} disabled={cantidadSeleccionada === 0 || importando}>
           {importando ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importando...</>
           ) : (
             <><Upload className="w-4 h-4 mr-2" />Importar {cantidadSeleccionada} {palabraUsuarios}</>
           )}
-        </Button>
+        </BotonRoot>
       </div>
 
       <ConfirmDialog

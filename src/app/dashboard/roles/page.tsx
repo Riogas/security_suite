@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { Plus, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,10 +17,13 @@ export default function RolesPage() {
         title="Roles"
         description="Definición de roles y sus permisos asociados."
         actions={
-          <Button onClick={() => router.push("/dashboard/roles/crear")}>
+          // POST /api/db/roles es nivel ROOT: crear un rol llamado "Root" en
+          // la aplicación 1 ES crear el privilegio, porque el rol se
+          // identifica por nombre.
+          <BotonRoot onClick={() => router.push("/dashboard/roles/crear")}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo rol
-          </Button>
+          </BotonRoot>
         }
       />
       <Roles />

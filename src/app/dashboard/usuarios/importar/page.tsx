@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Download, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { AvisoSoloRoot } from "@/components/ui/solo-root";
 import { cn } from "@/lib/utils";
 import PasoOrigen, { type OpcionesImport } from "@/components/dashboard/usuarios/importar/PasoOrigen";
 import PasoComparacion from "@/components/dashboard/usuarios/importar/PasoComparacion";
@@ -45,6 +46,14 @@ function ImportarUsuariosContent() {
         title="Importar usuarios"
         description="Traé usuarios desde SGM, LDAP o GSIST comparando primero contra lo que ya está migrado."
       />
+
+      {/*
+        El botón "Importación masiva" de /dashboard/usuarios ya está gateado,
+        pero a esta ruta se entra por URL o por un favorito. Sin el cartel, la
+        persona hace las tres enumeraciones del AS400 del paso 1, elige los
+        usuarios en el paso 2 y se entera en el 403 del final.
+      */}
+      <AvisoSoloRoot que="la importación" className="mb-6" />
 
       {/* Indicador de paso */}
       <div className="mb-6 flex items-center gap-2">

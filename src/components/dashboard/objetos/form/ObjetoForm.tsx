@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -222,6 +223,14 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="container mx-auto max-w-screen-lg p-4 space-y-6">
+      {/*
+        A /dashboard/objetos/crear y /editar/:id se entra por URL o por el
+        "Editar" de la grilla, que queda habilitado porque abrir la ficha es una
+        lectura. El cartel avisa antes de cargar los datos y la tabla de
+        acciones; el "Confirmar" de abajo se apaga solo.
+      */}
+      <AvisoSoloRoot que="el objeto" />
+
       <Card>
         <CardHeader>
           <CardTitle>{form.objetoid ? "Editar objeto" : "Crear objeto"}</CardTitle>
@@ -445,9 +454,14 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
           <Button type="button" variant="outline" onClick={() => router.push("/dashboard/objetos")}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={submitting}>
+          {/*
+            POST y PUT /api/db/objetos son ROOT: además de `es_publico`, el PUT
+            reescribe los `objeto_acciones` (key, codigo y `path`), que es
+            contra lo que matchea el motor de permisos.
+          */}
+          <BotonRoot type="submit" disabled={submitting}>
             {submitting ? "Guardando..." : "Confirmar"}
-          </Button>
+          </BotonRoot>
         </CardFooter>
       </Card>
     </form>

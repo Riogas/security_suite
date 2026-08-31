@@ -31,6 +31,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
+import { usePuedeAdministrar } from "@/hooks/usePuedeAdministrar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,6 +100,10 @@ export default function FuncionalidadForm({
   onSave,
   onCancel,
 }: FuncionalidadFormProps) {
+  // El mismo criterio que usa <BotonRoot>, pero en crudo: hace falta para
+  // cortar la submisión implícita con Enter (ver handleSubmit).
+  const { puede: puedeAdministrar } = usePuedeAdministrar();
+
   // Estados del formulario
   const [formData, setFormData] = useState({
     aplicacion: initialData?.aplicacion || "1", // Usar aplicación de datos iniciales o Security Suite por defecto
@@ -221,6 +227,16 @@ export default function FuncionalidadForm({
   // Handlers
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // El <BotonRoot> de "Guardar" vive FUERA del <form> (está en el encabezado),
+    // así que acá el gate visual no alcanza: este formulario tiene un solo campo
+    // de texto y ningún botón de submit adentro, que es exactamente el caso en
+    // que el navegador hace submisión implícita con Enter. Sin esta guarda, un
+    // no-root escribe el nombre, aprieta Enter y dispara las tres escrituras de
+    // nivel ROOT (alta/edición + PUT de acciones) para comerse el 403 al final.
+    // Los otros formularios del panel no lo necesitan porque su submit está
+    // adentro del <form> y deshabilitado, y un botón deshabilitado no submitea.
+    if (!puedeAdministrar) return;
 
     try {
       setSaving(true);
@@ -533,7 +549,14 @@ export default function FuncionalidadForm({
               <ArrowLeft className="h-4 w-4 mr-2" />
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
+            {/*
+              POST y PUT /api/db/funcionalidades son ROOT, y el
+              PUT /funcionalidades/:id/acciones que este mismo submit dispara
+              también (reescribe `funcionalidad_objeto_acciones`, LA tabla que
+              el motor consulta para saber qué funcionalidad protege qué
+              pantalla).
+            */}
+            <BotonRoot onClick={handleSubmit} disabled={saving}>
               {saving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -545,11 +568,19 @@ export default function FuncionalidadForm({
                   Guardar
                 </>
               )}
-            </Button>
+            </BotonRoot>
           </div>
         </div>
 
         <div className="border-b border-border" />
+
+        {/*
+          A /dashboard/funcionalidades/crear y /editar/:id se entra por URL o
+          por el "Editar" de la grilla, que queda habilitado porque abrir la
+          ficha es una lectura. Este formulario es largo (datos + selección de
+          objetos y acciones): el aviso tiene que llegar antes de armarlo todo.
+        */}
+        <AvisoSoloRoot que="la funcionalidad" />
 
         {/* Error de guardado */}
         {saveError && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { usePageTransition } from "@/hooks/usePageTransition";
 
 import { PageHeader } from "@/components/ui/page-header";
@@ -17,7 +17,10 @@ export default function Page() {
         title="Funcionalidades"
         description="Gestión de funcionalidades disponibles en el sistema."
         actions={
-          <Button
+          // POST /api/db/funcionalidades es nivel ROOT: una funcionalidad con
+          // `es_publico='S'` hace que el motor conteste GRANTED a todo el mundo
+          // para los objetos que tenga colgados.
+          <BotonRoot
             onClick={() =>
               navigateWithLoading("/dashboard/funcionalidades/crear", {
                 loadingText: "Preparando formulario...",
@@ -25,7 +28,7 @@ export default function Page() {
             }
           >
             Nueva funcionalidad
-          </Button>
+          </BotonRoot>
         }
       />
       <FuncionalidadesTable />

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { DataTable } from "@/components/ui/data-table";
 import { BadgeEstado } from "@/components/ui/badge-estado";
 import {
@@ -134,14 +134,20 @@ export default function PermisosTable() {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="space-x-2">
-          <Button
+          {/*
+            DELETE /api/db/accesos es nivel ROOT: quitar un acceso directo es
+            tocar quién tiene qué, igual que otorgarlo. El GET de la grilla
+            sigue abierto, así que la pantalla se lee entera.
+          */}
+          <BotonRoot
             variant="destructive"
             size="sm"
+            aria-label={`Eliminar acceso de ${row.original?.usuario?.username ?? ""}`}
             disabled={loading}
             onClick={() => handleDelete(row.original)}
           >
             <Trash className="w-4 h-4" />
-          </Button>
+          </BotonRoot>
         </div>
       ),
     },

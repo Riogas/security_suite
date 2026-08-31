@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -271,17 +272,26 @@ export default function AsignarRolesModal({
             <X className="w-4 h-4 mr-2" aria-hidden="true" />
             Cancelar
           </Button>
-          {/* Sin argumentos: el click de un botón pasa el evento, y `handleSave`
-              interpretaría cualquier cosa truthy como la confirmación de
-              quitarse el propio Root. */}
-          <Button onClick={() => void handleSave()} disabled={saving}>
+          {/*
+            PUT /api/db/usuarios/:id/roles es nivel ROOT: es LA puerta de la
+            escalada (asignarse el rol Root es hacerse root de todo). El GET
+            sigue abierto, por eso el modal se abre igual y se pueden mirar los
+            roles del usuario — lo único que se apaga es guardarlos.
+
+            Sin argumentos: el click de un botón pasa el evento, y `handleSave`
+            interpretaría cualquier cosa truthy como la confirmación de
+            quitarse el propio Root.
+          */}
+          <BotonRoot onClick={() => void handleSave()} disabled={saving}>
             <Save className="w-4 h-4 mr-2" aria-hidden="true" />
             {saving ? "Guardando..." : "Guardar Asignación"}
-          </Button>
+          </BotonRoot>
         </>
       }
     >
       <div className="flex flex-col space-y-4 h-full">
+        <AvisoSoloRoot que="la asignación de roles" className="shrink-0" />
+
         {/* Buscador + filtro por aplicación */}
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1 space-y-2">

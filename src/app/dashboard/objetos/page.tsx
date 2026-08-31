@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { Plus, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,16 +18,26 @@ export default function ObjetosPage() {
         description="Administración de objetos y estructura del menú del sistema."
         actions={
           <>
+            {/*
+              "Administrar Menú" NO se gatea: el builder se puede MIRAR
+              (GET /api/db/menu/builder es AUTENTICADA). Lo que está cerrado ahí
+              es el "Guardar", y se gatea adentro.
+            */}
             <Button
               variant="outline"
               onClick={() => router.push("/dashboard/menu")}
             >
               Administrar Menú
             </Button>
-            <Button onClick={() => router.push("/dashboard/objetos/crear")}>
+            {/*
+              POST /api/db/objetos es nivel ROOT: un objeto con
+              `es_publico='S'` da GRANTED a todo el mundo antes de mirar
+              funcionalidades, roles o accesos.
+            */}
+            <BotonRoot onClick={() => router.push("/dashboard/objetos/crear")}>
               <Plus className="w-4 h-4 mr-2" />
               Nuevo objeto
-            </Button>
+            </BotonRoot>
           </>
         }
       />

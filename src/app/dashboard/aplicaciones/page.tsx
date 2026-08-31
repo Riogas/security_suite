@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { Plus, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,10 +17,12 @@ export default function AplicacionesPage() {
         title="Aplicaciones"
         description="Administración de aplicaciones integradas al sistema."
         actions={
-          <Button onClick={() => router.push("/dashboard/aplicaciones/crear")}>
+          // POST /api/db/aplicaciones es nivel ROOT: una aplicación es el
+          // contenedor de roles, funcionalidades y objetos.
+          <BotonRoot onClick={() => router.push("/dashboard/aplicaciones/crear")}>
             <Plus className="w-4 h-4 mr-2" />
             Nueva aplicación
-          </Button>
+          </BotonRoot>
         }
       />
       <Aplicaciones />

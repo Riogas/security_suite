@@ -41,34 +41,50 @@ import { apiYoDB } from "@/services/api";
  * componente le rompería la respuesta a los otros. El resultado se descarta con
  * el flag `vivo`, que es lo que hacía falta de verdad.
  */
-let promesaEsRoot: Promise<boolean> | null = null;
+let promesaEsRoot: Promise<Resultado> | null = null;
 
-function pedirEsRoot(): Promise<boolean> {
+/**
+ * `fallo` distingue "el servidor dijo que NO sos root" de "no pudimos
+ * preguntar". Los dos dejan `esRoot` en `false` —el gate sigue siendo
+ * fail-closed— pero no se le dicen igual a la persona: a un root que se quedó
+ * sin red hay que decirle que recargue, no que no tiene permisos. Sin esta
+ * distinción, un 500 o un corte de red le apagaba a un root las quince
+ * pantallas del panel con un cartel que además le mentía.
+ */
+interface Resultado {
+  esRoot: boolean;
+  fallo: boolean;
+}
+
+function pedirEsRoot(): Promise<Resultado> {
   if (!promesaEsRoot) {
     promesaEsRoot = apiYoDB()
-      .then((r) => Boolean(r?.usuario?.esRootDeSecapi))
+      .then((r) => ({ esRoot: Boolean(r?.usuario?.esRootDeSecapi), fallo: false }))
       .catch(() => {
         // El 401 ya lo maneja dbFetch (limpia la sesión y manda al login).
         // Cualquier otro error: se queda en no-root, y se olvida la promesa
         // para que un remonte posterior pueda reintentar en vez de quedar
         // pegado a un error de red viejo.
         promesaEsRoot = null;
-        return false;
+        return { esRoot: false, fallo: true };
       });
   }
   return promesaEsRoot;
 }
 
-export function useEsRoot(): { esRoot: boolean; cargando: boolean } {
+export function useEsRoot(): { esRoot: boolean; cargando: boolean; fallo: boolean } {
   const [esRoot, setEsRoot] = useState(false);
+  const [fallo, setFallo] = useState(false);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     let vivo = true;
 
     pedirEsRoot()
-      .then((valor) => {
-        if (vivo) setEsRoot(valor);
+      .then((r) => {
+        if (!vivo) return;
+        setEsRoot(r.esRoot);
+        setFallo(r.fallo);
       })
       .finally(() => {
         if (vivo) setCargando(false);
@@ -79,5 +95,5 @@ export function useEsRoot(): { esRoot: boolean; cargando: boolean } {
     };
   }, []);
 
-  return { esRoot, cargando };
+  return { esRoot, cargando, fallo };
 }
