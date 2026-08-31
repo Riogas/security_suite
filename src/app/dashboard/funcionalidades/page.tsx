@@ -21,6 +21,7 @@ export default function Page() {
           // `es_publico='S'` hace que el motor conteste GRANTED a todo el mundo
           // para los objetos que tenga colgados.
           <BotonRoot
+            alcance="ROOT"
             onClick={() =>
               navigateWithLoading("/dashboard/funcionalidades/crear", {
                 loadingText: "Preparando formulario...",

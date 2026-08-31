@@ -53,7 +53,7 @@ function ImportarUsuariosContent() {
         persona hace las tres enumeraciones del AS400 del paso 1, elige los
         usuarios en el paso 2 y se entera en el 403 del final.
       */}
-      <AvisoSoloRoot que="la importación" className="mb-6" />
+      <AvisoSoloRoot alcance="usuarios" que="la importación" className="mb-6" />
 
       {/* Indicador de paso */}
       <div className="mb-6 flex items-center gap-2">

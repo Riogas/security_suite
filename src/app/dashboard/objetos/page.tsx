@@ -34,7 +34,7 @@ export default function ObjetosPage() {
               `es_publico='S'` da GRANTED a todo el mundo antes de mirar
               funcionalidades, roles o accesos.
             */}
-            <BotonRoot onClick={() => router.push("/dashboard/objetos/crear")}>
+            <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/objetos/crear")}>
               <Plus className="w-4 h-4 mr-2" />
               Nuevo objeto
             </BotonRoot>

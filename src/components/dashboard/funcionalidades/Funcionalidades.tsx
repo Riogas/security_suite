@@ -147,6 +147,7 @@ export default function FuncionalidadesTable() {
             acceso de todos los que la tenían.
           */}
           <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar funcionalidad ${row.original?.nombre ?? ""}`}
@@ -215,7 +216,7 @@ export default function FuncionalidadesTable() {
   const headerActions = (
     // POST /api/db/funcionalidades es ROOT (ver el botón gemelo de la
     // PageHeader en /dashboard/funcionalidades).
-    <BotonRoot onClick={() => router.push("/dashboard/funcionalidades/crear")}>
+    <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/funcionalidades/crear")}>
       <Plus className="w-4 h-4 mr-1" />
       Nueva Funcionalidad
     </BotonRoot>

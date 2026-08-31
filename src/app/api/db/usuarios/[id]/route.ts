@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
-import { respuestaSiDejaSinRoot, verificarQueQuedaRoot } from "@/lib/permisos";
+import {
+  buscarColisionesDeIdentidad,
+  mensajeDeColisionDeIdentidad,
+  respuestaSiDejaSinRoot,
+  verificarQueQuedaRoot,
+} from "@/lib/permisos";
 
 // =============================================
 // GET /api/db/usuarios/[id] - Obtener un usuario por ID
@@ -174,6 +179,30 @@ export async function PUT(
       if (body.modificaPermisos !== existing.modificaPermisos && !esRootQuienLlama)
         return prohibido("el permiso de administrar accesos");
       updateData.modificaPermisos = body.modificaPermisos;
+    }
+
+    /*
+     * Colisión de identidad. Este PUT no cambia el `username` (no está en
+     * `updateData`), pero sí el EMAIL, y con eso alcanza: `resolveUsuario`
+     * busca el sujeto del token con `OR: [username ci, email ci]`, así que
+     * ponerle a alguien como email el USERNAME de un root hace que el token
+     * de ese root matchee dos filas y deje de identificar a una persona.
+     *
+     * Se chequea solo cuando el email realmente cambia, para no pagar una
+     * consulta en cada edición de ficha ni rechazar un round-trip que devuelve
+     * el mismo valor. Ver `buscarColisionesDeIdentidad` en src/lib/permisos.ts.
+     */
+    if (updateData.email !== undefined && updateData.email !== existing.email) {
+      const colisiones = await buscarColisionesDeIdentidad(prisma, {
+        email: updateData.email,
+        excluirUsuarioId: userId,
+      });
+      if (colisiones.length > 0) {
+        return NextResponse.json(
+          { success: false, error: mensajeDeColisionDeIdentidad(colisiones) },
+          { status: 400 },
+        );
+      }
     }
 
     // Transacción + red de contención SOLO si se toca `estado`: dar de baja a

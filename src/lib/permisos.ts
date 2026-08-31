@@ -18,9 +18,20 @@ export const EFECTOS_DENY = ["deny", "DENY"];
 export const EFECTO_GRANT = "grant";
 export const EFECTO_DENY = "deny";
 
-// Objeto + acción que designan a un usuario como aprobador de solicitudes.
-export const APROBADOR_OBJETO_KEY = "solicitudes";
-export const APROBADOR_ACCION_KEY = "approve";
+// Las keys viven en un módulo SIN dependencias (`permisosKeys.ts`) y se
+// reexportan acá para no cambiarle el import a nadie: este archivo arrastra
+// Prisma y `next/server`, y los hooks "use client" del panel necesitan las
+// mismas constantes sin llevarse el cliente de Prisma al navegador.
+export {
+  ACCION_VIEW,
+  APROBADOR_ACCION_KEY,
+  APROBADOR_OBJETO_KEY,
+} from "@/lib/permisosKeys";
+import {
+  ACCION_VIEW as _ACCION_VIEW,
+  APROBADOR_ACCION_KEY as _APROBADOR_ACCION_KEY,
+  APROBADOR_OBJETO_KEY as _APROBADOR_OBJETO_KEY,
+} from "@/lib/permisosKeys";
 
 // Acá vivía `decodeJwt`, que hacía `JSON.parse(atob(partes[1]))`: leía el
 // payload sin mirar la firma ni `exp`. Con eso, "Bearer <lo-que-sea>.<base64 de
@@ -112,7 +123,11 @@ export const NOMBRE_ROL_ROOT = "root";
 
 /** ¿Este nombre de rol es el rol Root? Case-insensitive y tolerante a espacios. */
 export function esRolRoot(nombre: string | null | undefined): boolean {
-  return String(nombre ?? "").trim().toLowerCase() === NOMBRE_ROL_ROOT;
+  return (
+    String(nombre ?? "")
+      .trim()
+      .toLowerCase() === NOMBRE_ROL_ROOT
+  );
 }
 
 /**
@@ -132,7 +147,9 @@ export function esRolRoot(nombre: string | null | undefined): boolean {
  * ambiente se toma en caliente: no es cierto en la app desplegada.
  */
 export function aplicacionIdDeSecapi(): number {
-  const n = Number(process.env.NEXT_PUBLIC_APLICACION_ID ?? process.env.APLICACION_ID ?? 1);
+  const n = Number(
+    process.env.NEXT_PUBLIC_APLICACION_ID ?? process.env.APLICACION_ID ?? 1,
+  );
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
@@ -182,8 +199,10 @@ export function asignacionVigente(
   ahora: Date,
 ): boolean {
   const t = ahora.getTime();
-  if (asignacion.fechaDesde && asignacion.fechaDesde.getTime() > t) return false;
-  if (asignacion.fechaHasta && asignacion.fechaHasta.getTime() < t) return false;
+  if (asignacion.fechaDesde && asignacion.fechaDesde.getTime() > t)
+    return false;
+  if (asignacion.fechaHasta && asignacion.fechaHasta.getTime() < t)
+    return false;
   return true;
 }
 
@@ -210,8 +229,18 @@ export function aplicacionesRootDe(
   const ids = new Set<number>();
   for (const a of asignaciones) {
     if (!esRolRoot(a.rol?.nombre)) continue;
-    if (String(a.rol?.estado ?? "").trim().toUpperCase() !== "A") continue;
-    if (String(a.rol?.aplicacion?.estado ?? "").trim().toUpperCase() !== "A") continue;
+    if (
+      String(a.rol?.estado ?? "")
+        .trim()
+        .toUpperCase() !== "A"
+    )
+      continue;
+    if (
+      String(a.rol?.aplicacion?.estado ?? "")
+        .trim()
+        .toUpperCase() !== "A"
+    )
+      continue;
     if (!asignacionVigente(a, ahora)) continue;
     ids.add(a.rol.aplicacionId);
   }
@@ -240,7 +269,9 @@ export const SELECT_ASIGNACIONES_ROL = {
 } as const;
 
 /** Ídem `aplicacionesRootDe`, pero yendo a buscar las asignaciones a la base. */
-export async function aplicacionesRootDeUsuario(usuarioId: number): Promise<number[]> {
+export async function aplicacionesRootDeUsuario(
+  usuarioId: number,
+): Promise<number[]> {
   const asignaciones = await prisma.usuarioRol.findMany({
     where: { usuarioId },
     select: SELECT_ASIGNACIONES_ROL,
@@ -292,7 +323,11 @@ export async function usuariosRootDeSecapi(
   ahora: Date = new Date(),
 ): Promise<number[]> {
   const roles = await cliente.rol.findMany({
-    where: { aplicacionId: aplicacionIdDeSecapi(), estado: "A", aplicacion: { estado: "A" } },
+    where: {
+      aplicacionId: aplicacionIdDeSecapi(),
+      estado: "A",
+      aplicacion: { estado: "A" },
+    },
     select: { id: true, nombre: true },
   });
   const rolIds = roles.filter((r) => esRolRoot(r.nombre)).map((r) => r.id);
@@ -303,7 +338,9 @@ export async function usuariosRootDeSecapi(
       rolId: { in: rolIds },
       usuario: { estado: "A" },
       OR: [{ fechaDesde: null }, { fechaDesde: { lte: ahora } }] as object[],
-      AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: ahora } }] }] as object[],
+      AND: [
+        { OR: [{ fechaHasta: null }, { fechaHasta: { gte: ahora } }] },
+      ] as object[],
     },
     select: { usuarioId: true },
     distinct: ["usuarioId"],
@@ -359,7 +396,11 @@ export async function verificarQueQuedaRoot(
 ): Promise<void> {
   const roots = await usuariosRootDeSecapi(cliente);
   if (roots.length === 0) throw new SistemaSinRootError();
-  if (quienLlama.esRootDeSecapi && !roots.includes(quienLlama.id) && !confirmoQuitarseRoot) {
+  if (
+    quienLlama.esRootDeSecapi &&
+    !roots.includes(quienLlama.id) &&
+    !confirmoQuitarseRoot
+  ) {
     throw new AutoQuitarseRootError();
   }
 }
@@ -376,7 +417,10 @@ export async function verificarQueQuedaRoot(
  * parsear el texto.
  */
 export function respuestaSiDejaSinRoot(error: unknown): NextResponse | null {
-  if (error instanceof SistemaSinRootError || error instanceof AutoQuitarseRootError) {
+  if (
+    error instanceof SistemaSinRootError ||
+    error instanceof AutoQuitarseRootError
+  ) {
     return NextResponse.json(
       { success: false, error: error.message, codigo: error.name },
       { status: 409 },
@@ -449,6 +493,194 @@ export function esRootDeAplicacion(
   return usuario.aplicacionesRoot.includes(aplicacionId);
 }
 
+// =====================================================================
+// Identidad no ambigua
+// =====================================================================
+//
+// El token trae UN string (`username`, o `sub`, o `email`…) y hay que
+// convertirlo en UNA fila de `usuarios`. La búsqueda es
+// `OR: [username ci, email ci]`, y ahí está el problema: los unique de
+// `username` y de `email` son INDEPENDIENTES, así que nada impide que el
+// username de una fila sea igual al email de otra. Con el `findFirst` sin
+// `orderBy` que había acá, esa búsqueda matcheaba DOS filas y Postgres devolvía
+// la que se le antojara (el plan puede cambiar con un ANALYZE o con el tamaño
+// de la tabla). El ataque concreto: doy de alta un usuario cuyo `username` sea
+// el EMAIL de dmedaglia, y a partir de ahí el token de dmedaglia resuelve a
+// veces a mi fila y a veces a la suya.
+//
+// Y no hace falta el cruce username↔email: el unique de `username` es
+// case-SENSITIVE en Postgres, pero la búsqueda es `mode: "insensitive"`. O sea
+// que 'Juan' y 'juan' son dos filas legales que la misma búsqueda matchea.
+//
+// La decisión, en dos reglas y en este orden:
+//
+//   1. Si UNA sola de las filas matchea por `username`, esa es la identidad.
+//      El username es la identidad primaria (es lo que el login pide y lo que
+//      el token dice); que además coincida con el email de otro no la vuelve
+//      dudosa. Esto deja el camino feliz —el 100% de los usuarios de hoy—
+//      exactamente igual que antes.
+//   2. En cualquier otro caso con más de un candidato: RECHAZAR. Una identidad
+//      ambigua no es una identidad, y "elegir alguna" es elegir mal la mitad de
+//      las veces. Se loguea con nivel de ERROR porque si esto pasa es un ataque
+//      o una corrupción de datos, no un caso de uso.
+//
+// Medido contra la base productiva en agosto de 2026: CERO colisiones (ningún
+// username igual al email de otra fila, ningún par de usernames que difiera
+// solo en mayúsculas). O sea que hoy esto es un no-op y no puede sacar del
+// sistema a nadie. La otra mitad del arreglo —que la colisión no se pueda
+// CREAR— está en `buscarColisionesDeIdentidad`, más abajo.
+
+/** Lo mínimo para decidir una identidad. Lo cumplen las filas de `usuarios`. */
+export interface FilaIdentidad {
+  id: number;
+  username: string;
+  email: string | null;
+}
+
+/** Comparación de identidades: sin espacios en los bordes y sin mayúsculas. */
+export function normalizarIdentidad(valor: string | null | undefined): string {
+  return String(valor ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+export type ResolucionIdentidad<T> =
+  | { ok: true; usuario: T }
+  | {
+      ok: false;
+      motivo: "SIN_COINCIDENCIA" | "IDENTIDAD_AMBIGUA";
+      candidatos: number[];
+    };
+
+/**
+ * Elige UNA fila entre las que matchearon, o rechaza. Función pura: es el
+ * corazón del arreglo y por eso se testea sola, sin base de por medio
+ * (`scripts/test-identidad.ts`).
+ */
+export function elegirIdentidad<T extends FilaIdentidad>(
+  candidatos: readonly T[],
+  sujeto: string,
+): ResolucionIdentidad<T> {
+  if (candidatos.length === 0)
+    return { ok: false, motivo: "SIN_COINCIDENCIA", candidatos: [] };
+
+  const buscado = normalizarIdentidad(sujeto);
+  const porUsername = candidatos.filter(
+    (c) => normalizarIdentidad(c.username) === buscado,
+  );
+
+  // Regla 1: el username manda, si es uno solo.
+  if (porUsername.length === 1) return { ok: true, usuario: porUsername[0] };
+  // Dos usernames que difieren solo en mayúsculas: no hay forma de elegir.
+  if (porUsername.length > 1) {
+    return {
+      ok: false,
+      motivo: "IDENTIDAD_AMBIGUA",
+      candidatos: porUsername.map((c) => c.id),
+    };
+  }
+
+  // Regla 2: sin match por username, solo vale si hay exactamente un candidato.
+  if (candidatos.length === 1) return { ok: true, usuario: candidatos[0] };
+  return {
+    ok: false,
+    motivo: "IDENTIDAD_AMBIGUA",
+    candidatos: candidatos.map((c) => c.id),
+  };
+}
+
+/**
+ * ¿Alguna de estas filas choca con los valores que se quieren guardar?
+ *
+ * "Chocar" es que el `username` o el `email` nuevos sean iguales —comparando
+ * sin mayúsculas y sin espacios en los bordes— al `username` o al `email` de
+ * otra fila. Los dos sentidos cuentan, y el cruce también: un username que es
+ * el email de otro es exactamente la colisión que rompe `elegirIdentidad`.
+ *
+ * Pura, para poder testearla sin base. El que la llama ya sacó de la lista la
+ * fila que está editando.
+ */
+export function colisionesDeIdentidad<T extends FilaIdentidad>(
+  filas: readonly T[],
+  valores: { username?: string | null; email?: string | null },
+): T[] {
+  const nuevos = [valores.username, valores.email]
+    .map(normalizarIdentidad)
+    .filter((v) => v.length > 0);
+  if (nuevos.length === 0) return [];
+
+  return filas.filter((f) => {
+    const suyos = [
+      normalizarIdentidad(f.username),
+      normalizarIdentidad(f.email),
+    ].filter(Boolean);
+    return suyos.some((s) => nuevos.includes(s));
+  });
+}
+
+/** Cliente de Prisma (o de transacción) con lo justo para consultar `usuarios`. */
+type ClientePrismaUsuarios = Pick<typeof prisma, "usuario">;
+
+/**
+ * Ídem `colisionesDeIdentidad` pero yendo a buscar los candidatos a la base.
+ * La usan el alta y la edición de usuarios: sin esto, el arreglo de
+ * `resolveUsuario` solo tapa las colisiones que YA existen (ninguna) y deja
+ * crear las próximas.
+ *
+ * Limitación conocida: el `equals … insensitive` compara contra el valor tal
+ * cual está guardado, así que un `username` almacenado con espacios en los
+ * bordes no se detecta. Trimear del lado del servidor pediría SQL crudo, y un
+ * valor así ya es un dato corrupto por su cuenta.
+ */
+export async function buscarColisionesDeIdentidad(
+  cliente: ClientePrismaUsuarios,
+  datos: {
+    username?: string | null;
+    email?: string | null;
+    excluirUsuarioId?: number | null;
+  },
+): Promise<FilaIdentidad[]> {
+  const valores = [datos.username, datos.email]
+    .map((v) => String(v ?? "").trim())
+    .filter((v) => v.length > 0);
+  if (valores.length === 0) return [];
+
+  const condiciones = valores.flatMap((v) => [
+    { username: { equals: v, mode: "insensitive" as const } },
+    { email: { equals: v, mode: "insensitive" as const } },
+  ]);
+
+  const filas = await cliente.usuario.findMany({
+    where: {
+      OR: condiciones,
+      ...(datos.excluirUsuarioId
+        ? { NOT: { id: datos.excluirUsuarioId } }
+        : {}),
+    },
+    select: { id: true, username: true, email: true },
+    orderBy: { id: "asc" },
+    take: 20,
+  });
+
+  // Se vuelve a filtrar con el criterio puro: uno solo manda, y es el que se
+  // testea. El `where` es nada más el prefiltro que evita traer la tabla.
+  return colisionesDeIdentidad(filas, datos);
+}
+
+/** Mensaje único para el 400 del alta y el de la edición. */
+export function mensajeDeColisionDeIdentidad(
+  colisiones: readonly FilaIdentidad[],
+): string {
+  const quienes = colisiones.map((c) => `#${c.id} ${c.username}`).join(", ");
+  return (
+    "El usuario o el email ya están usados por otro usuario (" +
+    quienes +
+    "). El username y el email tienen que ser únicos ENTRE SÍ y sin distinguir " +
+    "mayúsculas: si el username de uno es el email de otro, el token deja de " +
+    "identificar a una sola persona."
+  );
+}
+
 /**
  * Resuelve el usuario autenticado a partir del JWT (header o cookie).
  * Devuelve null si no hay token válido o el usuario no existe / inactivo.
@@ -457,6 +689,10 @@ export function esRootDeAplicacion(
  * vigente, con un secreto real (no el default del código). Fail-closed: si
  * JWT_SECRET no está bien configurada, esto devuelve null y NADIE se autentica
  * — preferible a que cualquiera se autentique como cualquiera.
+ *
+ * Y fail-closed también con la IDENTIDAD: si el sujeto del token matchea más de
+ * una fila y no hay forma de elegir, devuelve null. Ver el bloque "Identidad no
+ * ambigua" de más arriba.
  */
 export async function resolveUsuario(
   req: NextRequest,
@@ -476,17 +712,25 @@ export async function resolveUsuario(
 
   if (!rawUsername) return null;
 
-  const usuario = await prisma.usuario.findFirst({
+  const sujeto = String(rawUsername).trim();
+
+  // `findMany` y no `findFirst`: hay que VER si matchea más de una fila para
+  // poder rechazar. `take` acota el peor caso (un email repetido en N filas no
+  // puede pasar por el unique, pero el prefiltro no lo sabe).
+  const candidatos = await prisma.usuario.findMany({
     where: {
       OR: [
-        { username: { equals: String(rawUsername).trim(), mode: "insensitive" } },
-        { email: { equals: String(rawUsername).trim(), mode: "insensitive" } },
+        { username: { equals: sujeto, mode: "insensitive" } },
+        { email: { equals: sujeto, mode: "insensitive" } },
       ],
       estado: "A",
     },
+    orderBy: { id: "asc" },
+    take: 5,
     select: {
       id: true,
       username: true,
+      email: true,
       // Las asignaciones de rol viajan con el usuario para que root se calcule
       // ACÁ, en el único cuello de botella que ya consumen el guard de /api/db,
       // el de /docs, el motor de permisos, el menú y los handlers de usuarios.
@@ -496,8 +740,22 @@ export async function resolveUsuario(
     },
   });
 
-  if (!usuario) return null;
+  const resolucion = elegirIdentidad(candidatos, sujeto);
+  if (!resolucion.ok) {
+    if (resolucion.motivo === "IDENTIDAD_AMBIGUA") {
+      // Nivel ERROR y no warn: esto no pasa en una instalación sana. O alguien
+      // dio de alta una colisión a propósito (`buscarColisionesDeIdentidad` es
+      // lo que tendría que haberlo impedido), o los datos se corrompieron.
+      console.error(
+        `[permisos] el sujeto del token ("${sujeto}") matchea ${resolucion.candidatos.length} ` +
+          `usuarios activos (ids ${resolucion.candidatos.join(", ")}). Se rechaza la ` +
+          "autenticación: una identidad ambigua no es una identidad.",
+      );
+    }
+    return null;
+  }
 
+  const usuario = resolucion.usuario;
   const aplicacionesRoot = aplicacionesRootDe(usuario.roles);
 
   return {
@@ -543,7 +801,10 @@ export async function resolveAplicacionId(
   if (aplicacionNombre) {
     const app = await prisma.aplicacion.findFirst({
       where: {
-        nombre: { equals: String(aplicacionNombre).trim(), mode: "insensitive" },
+        nombre: {
+          equals: String(aplicacionNombre).trim(),
+          mode: "insensitive",
+        },
         estado: "A",
       },
       select: { id: true },
@@ -571,11 +832,279 @@ export async function resolveAplicacionId(
   return resuelto;
 }
 
+// =====================================================================
+// El motor de permisos aplicado a SECAPI MISMA
+// =====================================================================
+//
+// El pedido del dueño, textual: "hacer que secapi consulte su propio motor de
+// permisos para autorizarse a sí mismo". Hasta acá el motor existía y lo
+// consumían Goya y TrackMovil por `POST /api/db/permisos`, pero secapi no lo
+// usaba para sus propios endpoints: estaban en AUTENTICADA (alcanza con tener
+// sesión de cualquiera de las cuatro aplicaciones) o en ROOT (binario).
+//
+// Lo que sigue NO es un motor nuevo. Es la GENERALIZACIÓN de lo que
+// `usuarioPuedeAprobar` ya hacía desde el día uno para una sola pregunta
+// ("¿podés aprobar solicitudes?"), convertida en "¿tenés otorgado (objeto,
+// acción)?" para cualquier par. `usuarioPuedeAprobar` pasó a ser una línea
+// sobre esto, así que no hay dos criterios que se puedan desincronizar.
+//
+// ── Por qué un puerto y no el cliente de Prisma pelado ──────────────────────
+//
+// Las dos preguntas de abajo (`funcionalidadesQueProtegen` y
+// `funcionalidadesDelUsuario`) son la superficie entera del motor. Aislarlas en
+// una interfaz deja la DECISIÓN —que es la parte con la que uno se equivoca—
+// en una función pura de tres líneas que se testea sin base, y a la vez deja la
+// implementación real en un solo lugar. Es el mismo recurso que ya usa
+// `crearGuardApi` con `resolveUsuario`.
+//
+// ── Dos diferencias deliberadas con `POST /api/db/permisos` ─────────────────
+//
+//   1. NO se honra `es_publico` (ni el del objeto ni el de la funcionalidad).
+//      En el motor de pantallas, `es_publico='S'` significa "esta pantalla la
+//      ve todo el mundo", y está bien para una pantalla. Acá abre endpoints que
+//      administran quién tiene qué —`DELETE /usuarios/:id`,
+//      `POST /usuarios/importar`—, y un objeto marcado público por cualquier
+//      motivo no puede reabrirlos en silencio. Administrar se OTORGA; no se
+//      hereda de un flag pensado para otra cosa.
+//   2. La acción tiene que EXISTIR. El `usuarioPuedeAprobar` viejo, si no
+//      encontraba la `objeto_accion`, dejaba de filtrar por acción y aceptaba
+//      cualquier funcionalidad colgada del objeto. Eso es fail-open y acá se
+//      corta: sin la acción, no hay permiso.
+//
+// Lo que sí se copia igual: `solo_root='S'` no lo otorga nadie que no sea root,
+// y la vigencia de la funcionalidad y de la asignación de rol se miran con el
+// mismo criterio `desde <= ahora <= hasta` que usa el resto del repo.
+
+/** Las dos únicas preguntas que el motor le hace a la base. */
+export interface MotorDeFuncionalidades {
+  /**
+   * Ids de las funcionalidades ACTIVAS, VIGENTES y no-`solo_root` que protegen
+   * (objetoKey, accionKey) dentro de la aplicación SecuritySuite. Vacío
+   * significa "nadie que no sea root puede": el objeto no existe, la acción no
+   * existe, o no hay ninguna funcionalidad colgada.
+   */
+  funcionalidadesQueProtegen(
+    objetoKey: string,
+    accionKey: string,
+  ): Promise<number[]>;
+  /**
+   * Ids de las funcionalidades que el usuario tiene otorgadas AHORA, sea por
+   * acceso directo (`accesos` con efecto grant y vigente) o por rol activo y
+   * vigente. Son las dos vías del modelo y las dos cuentan igual.
+   */
+  funcionalidadesDelUsuario(usuarioId: number): Promise<number[]>;
+  /**
+   * Qué (objeto, acción) de SecuritySuite abren estas funcionalidades. Es la
+   * pregunta inversa de `funcionalidadesQueProtegen` y la usa `/usuarios/yo`
+   * para decirle a la UI qué botones puede prender.
+   */
+  objetosDeFuncionalidades(
+    funcionalidadIds: readonly number[],
+  ): Promise<Array<{ objetoKey: string; accionKey: string }>>;
+}
+
+/** Filtro de vigencia `desde <= ahora <= hasta`, con las dos fechas nullable. */
+function whereVigente(ahora: Date) {
+  return {
+    OR: [{ fechaDesde: null }, { fechaDesde: { lte: ahora } }] as object[],
+    AND: [
+      { OR: [{ fechaHasta: null }, { fechaHasta: { gte: ahora } }] },
+    ] as object[],
+  };
+}
+
+/**
+ * Cliente de Prisma con lo justo para el motor. Se tipa estructuralmente, igual
+ * que `ClientePrismaRoles`, para que `scripts/test-motor-secapi.ts` pueda pasar
+ * una base en memoria y ejercitar las dos vías de otorgamiento (rol y acceso
+ * directo) sin Postgres de por medio.
+ */
+export type ClientePrismaMotor = Pick<
+  typeof prisma,
+  | "objeto"
+  | "objetoAccion"
+  | "funcionalidadObjetoAccion"
+  | "acceso"
+  | "usuarioRol"
+  | "rolFuncionalidad"
+>;
+
+/** El motor real, contra Postgres (o contra lo que se le pase). */
+export function crearMotorPrisma(
+  cliente: ClientePrismaMotor,
+): MotorDeFuncionalidades {
+  return {
+    async funcionalidadesQueProtegen(objetoKey, accionKey) {
+      const appId = aplicacionIdDeSecapi();
+      const ahora = new Date();
+
+      // `orderBy` explícito en los dos `findFirst`: sin él, dos filas con la
+      // misma key devuelven cualquiera de las dos, que es el mismo defecto que se
+      // acaba de arreglar en `resolveUsuario`.
+      const objeto = await cliente.objeto.findFirst({
+        where: { aplicacionId: appId, key: objetoKey, estado: "A" },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
+      if (!objeto) return [];
+
+      const accion = await cliente.objetoAccion.findFirst({
+        where: {
+          objetoId: objeto.id,
+          key: { equals: accionKey, mode: "insensitive" },
+        },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
+      if (!accion) return [];
+
+      // `objetoAccionId` exacto, sin aceptar los vínculos con `objetoAccionId`
+      // null. Un vínculo null es "el objeto entero" y es más ancho que lo que se
+      // está preguntando; el andamiaje sembrado usa siempre el vínculo exacto.
+      const links = await cliente.funcionalidadObjetoAccion.findMany({
+        where: {
+          objetoId: objeto.id,
+          objetoAccionId: accion.id,
+          funcionalidad: {
+            aplicacionId: appId,
+            estado: "A",
+            ...whereVigente(ahora),
+          },
+        },
+        select: {
+          funcionalidadId: true,
+          funcionalidad: { select: { soloRoot: true } },
+        },
+      });
+
+      // `solo_root` se filtra en JS y no en el `where` por lo mismo que el nombre
+      // del rol Root: la columna es Char(1) y hay que compararla con trim y sin
+      // mayúsculas, cosa que Postgres no va a hacer solo.
+      return [
+        ...new Set(
+          links
+            .filter(
+              (l) =>
+                String(l.funcionalidad.soloRoot ?? "")
+                  .trim()
+                  .toUpperCase() !== "S",
+            )
+            .map((l) => l.funcionalidadId),
+        ),
+      ];
+    },
+
+    async funcionalidadesDelUsuario(usuarioId) {
+      const ahora = new Date();
+
+      const [accesos, asignaciones] = await Promise.all([
+        cliente.acceso.findMany({
+          where: {
+            usuarioId,
+            efecto: { in: EFECTOS_ALLOW },
+            ...whereVigente(ahora),
+          },
+          select: { funcionalidadId: true },
+        }),
+        cliente.usuarioRol.findMany({
+          where: { usuarioId, rol: { estado: "A" }, ...whereVigente(ahora) },
+          select: { rolId: true },
+        }),
+      ]);
+
+      const rolIds = [...new Set(asignaciones.map((a) => a.rolId))];
+      const porRol = rolIds.length
+        ? await cliente.rolFuncionalidad.findMany({
+            where: { rolId: { in: rolIds } },
+            select: { funcionalidadId: true },
+          })
+        : [];
+
+      return [
+        ...new Set([
+          ...accesos.map((a) => a.funcionalidadId),
+          ...porRol.map((r) => r.funcionalidadId),
+        ]),
+      ];
+    },
+
+    async objetosDeFuncionalidades(funcionalidadIds) {
+      if (funcionalidadIds.length === 0) return [];
+      const appId = aplicacionIdDeSecapi();
+      const ahora = new Date();
+
+      const links = await cliente.funcionalidadObjetoAccion.findMany({
+        where: {
+          funcionalidadId: { in: [...funcionalidadIds] },
+          objeto: { aplicacionId: appId, estado: "A" },
+          funcionalidad: { aplicacionId: appId, estado: "A", ...whereVigente(ahora) },
+        },
+        select: {
+          objeto: { select: { key: true } },
+          objetoAccion: { select: { key: true } },
+          funcionalidad: { select: { soloRoot: true } },
+        },
+      });
+
+      return links
+        .filter((l) => String(l.funcionalidad.soloRoot ?? "").trim().toUpperCase() !== "S")
+        // Sin acción no hay nada que informar: el guard exige la acción exacta.
+        .filter((l) => Boolean(l.objetoAccion?.key) && Boolean(l.objeto?.key))
+        .map((l) => ({
+          objetoKey: String(l.objeto.key).trim(),
+          accionKey: String(l.objetoAccion!.key).trim().toLowerCase(),
+        }))
+        .filter((l) => l.objetoKey.length > 0 && l.accionKey.length > 0);
+    },
+  };
+}
+
+/** La instancia que usa la aplicación. */
+export const motorPrisma: MotorDeFuncionalidades = crearMotorPrisma(prisma);
+
+/**
+ * ¿El usuario tiene otorgado (objetoKey, accionKey) en SecuritySuite?
+ *
+ * Root pasa siempre y sin tocar la base: es el corte del dueño ("root accede a
+ * todo secapi"), y además es lo que evita que una instalación recién levantada
+ * —sin funcionalidades sembradas— se quede sin nadie que la pueda administrar.
+ *
+ * Todo lo demás es fail-closed: sin objeto, sin acción, sin funcionalidad
+ * activa o sin otorgamiento, es `false`. Los errores de base NO se atrapan acá
+ * a propósito: los atrapa el que llama (el guard los convierte en 503), porque
+ * "no pude preguntar" y "preguntamos y no tenés" son dos cosas distintas y solo
+ * una de las dos merece que la persona vuelva a intentar.
+ */
+export async function usuarioTieneFuncionalidad(
+  usuario: Pick<UsuarioAuth, "id" | "esRootDeSecapi">,
+  objetoKey: string,
+  accionKey: string,
+  motor: MotorDeFuncionalidades = motorPrisma,
+): Promise<boolean> {
+  if (usuario.esRootDeSecapi) return true;
+  if (!objetoKey?.trim() || !accionKey?.trim()) return false;
+
+  const protegen = await motor.funcionalidadesQueProtegen(
+    objetoKey.trim(),
+    accionKey.trim(),
+  );
+  if (protegen.length === 0) return false;
+
+  const tiene = await motor.funcionalidadesDelUsuario(usuario.id);
+  if (tiene.length === 0) return false;
+
+  const otorgadas = new Set(tiene);
+  return protegen.some((f) => otorgadas.has(f));
+}
+
 /**
  * ¿El usuario puede aprobar/rechazar solicitudes?
- * Root siempre; en otro caso debe tener acceso (directo grant vigente o vía
- * rol) a alguna funcionalidad vinculada al objeto `solicitudes` + acción
- * `approve`.
+ *
+ * Root siempre; en otro caso tiene que tener otorgada (por rol o por acceso
+ * directo) alguna funcionalidad vinculada al objeto `solicitudes` + acción
+ * `approve`. Es exactamente la misma pregunta que hace el nivel ADMIN del
+ * guard para cualquier otra pantalla, y por eso ahora es una línea: si el
+ * criterio cambia, cambia para las dos.
  *
  * "Root" acá es el de SecuritySuite y no el de la aplicación que se está
  * solicitando: aprobar accesos es una operación de administración de la
@@ -584,63 +1113,105 @@ export async function resolveAplicacionId(
  */
 export async function usuarioPuedeAprobar(
   usuario: Pick<UsuarioAuth, "id" | "esRootDeSecapi">,
+  motor: MotorDeFuncionalidades = motorPrisma,
 ): Promise<boolean> {
-  if (usuario.esRootDeSecapi) return true;
+  return usuarioTieneFuncionalidad(
+    usuario,
+    _APROBADOR_OBJETO_KEY,
+    _APROBADOR_ACCION_KEY,
+    motor,
+  );
+}
 
-  const objeto = await prisma.objeto.findFirst({
-    where: { key: APROBADOR_OBJETO_KEY, estado: "A" },
-    select: { id: true },
-  });
-  if (!objeto) return false;
+/**
+ * Qué objetos de SecuritySuite tiene habilitados el usuario, y con qué
+ * acciones: `{ usuarios: ["view"], roles: ["view"] }`.
+ *
+ * Lo consume `GET /api/db/usuarios/yo` para que la UI pueda apagar los botones
+ * que el servidor va a rechazar. Es información sobre UNO MISMO, pero igual va
+ * acotada: solo la aplicación SecuritySuite, solo las keys, y nada de ids,
+ * nombres de funcionalidades ni de roles. Para un root devuelve `{}` — root no
+ * necesita la lista, pasa por otro lado, y volcarle el modelo entero al
+ * navegador no le sirve a nadie.
+ */
+export async function objetosAdministrablesDe(
+  usuario: Pick<UsuarioAuth, "id" | "esRootDeSecapi">,
+  motor: MotorDeFuncionalidades = motorPrisma,
+): Promise<Record<string, string[]>> {
+  if (usuario.esRootDeSecapi) return {};
 
-  const accion = await prisma.objetoAccion.findFirst({
-    where: {
-      objetoId: objeto.id,
-      key: { equals: APROBADOR_ACCION_KEY, mode: "insensitive" },
+  const funcIds = await motor.funcionalidadesDelUsuario(usuario.id);
+  if (funcIds.length === 0) return {};
+
+  const mapa: Record<string, Set<string>> = {};
+  for (const { objetoKey, accionKey } of await motor.objetosDeFuncionalidades(funcIds)) {
+    (mapa[objetoKey] ??= new Set()).add(accionKey);
+  }
+
+  return Object.fromEntries(
+    Object.entries(mapa)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => [k, [...v].sort()]),
+  );
+}
+
+// =====================================================================
+// Qué NO se puede otorgar aprobando una solicitud
+// =====================================================================
+//
+// `POST /solicitudes/:id/aprobar` escribe en `accesos`, que es una de las tres
+// puertas a las concesiones directas de funcionalidad. Las otras dos
+// (`PUT /usuarios/:id/accesos` y `POST|DELETE /accesos`) son de nivel ROOT; esta
+// no puede serlo, porque el flujo de aprobación existe justamente para que un
+// aprobador que NO es root apruebe.
+//
+// Entonces se acota QUÉ se puede otorgar por esta vía. La regla se define por
+// objeto/funcionalidad y no por ids mágicos, para que siga valiendo en otra
+// base y para que no haya que acordarse de actualizarla:
+//
+//   - `solo_root='S'`: la funcionalidad ya dice de quién es.
+//   - La funcionalidad es DE SecuritySuite, o está colgada de un objeto de
+//     SecuritySuite. Toda funcionalidad de secapi es administrativa: es la
+//     herramienta donde se configura quién tiene qué. Los dos casos que el
+//     dueño nombró caen acá por construcción — la funcionalidad `Solicitudes`
+//     (aprobarme a mí mismo la de aprobar fabrica más aprobadores, en cadena) y
+//     la de `docs` (el catálogo entero de las APIs del ecosistema)— y también
+//     las nueve pantallas del panel que el nivel ADMIN gatea.
+//
+// Lo que esto NO toca: las solicitudes de Goya, TrackMovil y Granel, que son el
+// 100% del uso real del flujo. Sus funcionalidades son de las aplicaciones 3, 5
+// y 6 y se siguen aprobando igual.
+
+/**
+ * ¿Otorgar esta funcionalidad es otorgar administración de secapi?
+ *
+ * Fail-closed: si la funcionalidad no se puede leer, contesta `true`. "No sé
+ * qué es esto" no puede ser una razón para otorgarlo.
+ */
+export async function funcionalidadConfierePrivilegio(
+  funcionalidadId: number,
+): Promise<boolean> {
+  const appId = aplicacionIdDeSecapi();
+  const funcionalidad = await prisma.funcionalidad.findUnique({
+    where: { id: funcionalidadId },
+    select: {
+      aplicacionId: true,
+      soloRoot: true,
+      objetoAcciones: {
+        select: { objeto: { select: { aplicacionId: true } } },
+      },
     },
-    select: { id: true },
   });
+  if (!funcionalidad) return true;
 
-  const funcLinks = await prisma.funcionalidadObjetoAccion.findMany({
-    where: {
-      objetoId: objeto.id,
-      ...(accion ? { objetoAccionId: accion.id } : {}),
-      funcionalidad: { estado: "A" },
-    },
-    select: { funcionalidadId: true },
-  });
-  const funcIds = [...new Set(funcLinks.map((f) => f.funcionalidadId))];
-  if (funcIds.length === 0) return false;
-
-  const now = new Date();
-
-  const accesoDirecto = await prisma.acceso.findFirst({
-    where: {
-      usuarioId: usuario.id,
-      funcionalidadId: { in: funcIds },
-      efecto: { in: EFECTOS_ALLOW },
-      OR: [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
-      AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
-    },
-    select: { funcionalidadId: true },
-  });
-  if (accesoDirecto) return true;
-
-  const rolesActivos = await prisma.usuarioRol.findMany({
-    where: {
-      usuarioId: usuario.id,
-      OR: [{ fechaDesde: null }, { fechaDesde: { lte: now } }] as object[],
-      AND: [{ OR: [{ fechaHasta: null }, { fechaHasta: { gte: now } }] }] as object[],
-      rol: { estado: "A" },
-    },
-    select: { rolId: true },
-  });
-  const rolIds = rolesActivos.map((r) => r.rolId);
-  if (rolIds.length === 0) return false;
-
-  const rolFunc = await prisma.rolFuncionalidad.findFirst({
-    where: { rolId: { in: rolIds }, funcionalidadId: { in: funcIds } },
-    select: { funcionalidadId: true },
-  });
-  return Boolean(rolFunc);
+  if (
+    String(funcionalidad.soloRoot ?? "")
+      .trim()
+      .toUpperCase() === "S"
+  )
+    return true;
+  if (funcionalidad.aplicacionId === appId) return true;
+  return funcionalidad.objetoAcciones.some(
+    (l) => l.objeto?.aplicacionId === appId,
+  );
 }

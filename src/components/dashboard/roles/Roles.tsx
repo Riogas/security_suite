@@ -166,6 +166,7 @@ export default function RolesTable() {
             "Root" fabrica el privilegio.
           */}
           <BotonRoot
+            alcance="ROOT"
             variant="outline"
             size="sm"
             aria-label={`Clonar rol ${row.original?.nombre}`}
@@ -180,6 +181,7 @@ export default function RolesTable() {
             Root inactivo deja al sistema sin administrador.
           */}
           <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar rol ${row.original?.nombre}`}
@@ -237,7 +239,7 @@ export default function RolesTable() {
   const headerActions = (
     // POST /api/db/roles es ROOT (ver el botón gemelo en la PageHeader de
     // /dashboard/roles).
-    <BotonRoot onClick={() => router.push("/dashboard/roles/crear")}>
+    <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/roles/crear")}>
       <Plus className="w-4 h-4 mr-1" aria-hidden="true" /> Nuevo Rol
     </BotonRoot>
   );

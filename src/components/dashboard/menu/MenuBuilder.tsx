@@ -178,7 +178,7 @@ export default function MenuBuilder() {
   // mandar UN `PUT /api/db/menu/builder`, que es el que está en nivel ROOT. Si
   // sólo se apagara el "Guardar", la persona reordenaría treinta nodos para
   // perderlo todo al final. Con esto el árbol queda de sólo lectura entero.
-  const { puede: puedeEditarMenu } = usePuedeAdministrar();
+  const { puede: puedeEditarMenu } = usePuedeAdministrar("ROOT");
   const soloLectura = !puedeEditarMenu;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -326,7 +326,7 @@ export default function MenuBuilder() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <BotonRoot variant="outline" size="sm" onClick={() => openCreate("GROUP", null)}>
+          <BotonRoot alcance="ROOT" variant="outline" size="sm" onClick={() => openCreate("GROUP", null)}>
             <Plus className="w-4 h-4 mr-1" /> Grupo
           </BotonRoot>
           {/* "Recargar" es una lectura (GET /menu/builder es AUTENTICADA). */}
@@ -338,7 +338,7 @@ export default function MenuBuilder() {
             `objeto_acciones` de la aplicación, incluidos el `path` y el
             `codigo` contra los que matchea el motor de permisos.
           */}
-          <BotonRoot size="sm" onClick={save} disabled={saving || !dirty}>
+          <BotonRoot alcance="ROOT" size="sm" onClick={save} disabled={saving || !dirty}>
             <Save className="w-4 h-4 mr-1" />
             {saving ? "Guardando…" : "Guardar"}
             {dirty && !saving && <span className="ml-2 size-2 rounded-full bg-amber-400" />}
@@ -346,7 +346,7 @@ export default function MenuBuilder() {
         </div>
       </div>
 
-      <AvisoSoloRoot que="el árbol de menú" />
+      <AvisoSoloRoot alcance="ROOT" que="el árbol de menú" />
 
       {/* Árbol */}
       <div className="rounded-xl border p-3 min-h-[300px]">
@@ -363,7 +363,7 @@ export default function MenuBuilder() {
             <p className="text-sm text-muted-foreground mb-4">
               Empezá creando un grupo de nivel superior.
             </p>
-            <BotonRoot onClick={() => openCreate("GROUP", null)}>
+            <BotonRoot alcance="ROOT" onClick={() => openCreate("GROUP", null)}>
               <Plus className="w-4 h-4 mr-1" /> Crear grupo
             </BotonRoot>
           </div>
@@ -517,6 +517,7 @@ function NodeRow({
           {isContainer && (
             <>
               <BotonRoot
+                alcance="ROOT"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -526,6 +527,7 @@ function NodeRow({
                 <FolderPlus className="w-4 h-4" />
               </BotonRoot>
               <BotonRoot
+                alcance="ROOT"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -536,10 +538,11 @@ function NodeRow({
               </BotonRoot>
             </>
           )}
-          <BotonRoot variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => onEdit(node)}>
+          <BotonRoot alcance="ROOT" variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => onEdit(node)}>
             <Pencil className="w-4 h-4" />
           </BotonRoot>
           <BotonRoot
+            alcance="ROOT"
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-destructive"

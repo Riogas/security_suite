@@ -282,7 +282,7 @@ export default function AsignarRolesModal({
             interpretaría cualquier cosa truthy como la confirmación de
             quitarse el propio Root.
           */}
-          <BotonRoot onClick={() => void handleSave()} disabled={saving}>
+          <BotonRoot alcance="ROOT" onClick={() => void handleSave()} disabled={saving}>
             <Save className="w-4 h-4 mr-2" aria-hidden="true" />
             {saving ? "Guardando..." : "Guardar Asignación"}
           </BotonRoot>
@@ -290,7 +290,7 @@ export default function AsignarRolesModal({
       }
     >
       <div className="flex flex-col space-y-4 h-full">
-        <AvisoSoloRoot que="la asignación de roles" className="shrink-0" />
+        <AvisoSoloRoot alcance="ROOT" que="la asignación de roles" className="shrink-0" />
 
         {/* Buscador + filtro por aplicación */}
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">

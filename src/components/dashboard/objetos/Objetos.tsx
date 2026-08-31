@@ -163,6 +163,7 @@ export default function ObjetosTable() {
           </Button>
           {/* DELETE /api/db/objetos/:id es nivel ROOT. */}
           <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar objeto ${row.original?.key ?? row.original?.id ?? ""}`}

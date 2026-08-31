@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Key, RotateCcw, Users, Settings, Shield } from "lucide-react";
 import { apiUsuarioDBById, apiCrearUsuarioDB, apiActualizarUsuarioDB } from "@/services/api";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import AsignarRolesModal from "./AsignarRolesModal";
 import AtributosModal from "./AtributosModal";
 import AsignarFuncionalidadesModal from "./AsignarFuncionalidadesModal";
@@ -235,8 +236,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
                 sólo lectura), que es donde llega antes de que la persona
                 marque un solo checkbox.
 
-                "Actualizar Usuario" tampoco: PUT /api/db/usuarios/:id sigue en
-                AUTENTICADA — ya no puede elevar a root, por eso no subió.
+                "Actualizar Usuario" SÍ se gatea ahora: POST /api/db/usuarios y
+                PUT /api/db/usuarios/:id pasaron a nivel ADMIN sobre el objeto
+                `usuarios`. Siguen sin poder elevar a root —para eso está
+                /usuarios/:id/roles, que es ROOT— pero administrar personas dejó
+                de ser algo que pueda hacer cualquiera con una sesión de
+                TrackMovil. El alcance es "usuarios" y no "ROOT": un root puede
+                otorgar esa funcionalidad, y si acá pidiéramos root el botón le
+                quedaría gris a quien SÍ la tiene.
               */}
               <Button
                 type="button"
@@ -285,7 +292,8 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           >
             Cancelar
           </Button>
-          <Button
+          <BotonRoot
+            alcance="usuarios"
             onClick={handleSubmit}
             disabled={submitting}
             className="flex items-center gap-2"
@@ -296,9 +304,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               : mode === "edit"
                 ? "Actualizar Usuario"
                 : "Crear Usuario"}
-          </Button>
+          </BotonRoot>
         </div>
       </div>
+
+      {/* A esta pantalla se entra por URL y por el botón "Editar" de la grilla,
+          que sigue habilitado porque abrir la ficha es una lectura. Sin el
+          cartel, la persona se entera al final. */}
+      <AvisoSoloRoot que="la ficha del usuario" alcance="usuarios" />
 
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         {/* Información Básica */}

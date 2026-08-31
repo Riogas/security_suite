@@ -6,12 +6,23 @@
  *   pnpm test                 (junto con el resto)
  *   pnpm test:ui-gates-root
  *
- * Qué problema cuida. El guard de /api/db (src/lib/auth/apiGuard.ts) subió a
- * nivel ROOT las ~20 operaciones que pueden alterar quién tiene qué. El panel,
- * en cambio, seguía mostrándole los botones de crear, guardar y borrar a todo
- * el mundo: la persona llenaba el formulario entero y comía el 403 al final. El
- * arreglo fue gatear los controles con `BotonRoot` / `AvisoSoloRoot`
- * (src/components/ui/solo-root.tsx), que preguntan por `usePuedeAdministrar()`.
+ * Qué problema cuida. El guard de /api/db (src/lib/auth/apiGuard.ts) cerró el
+ * panel en dos niveles: ROOT para lo que altera quién tiene qué, y ADMIN para
+ * el resto (root O la funcionalidad que un root otorgue). El panel, en cambio,
+ * seguía mostrándole los botones de crear, guardar y borrar a todo el mundo: la
+ * persona llenaba el formulario entero y comía el 403 al final. El arreglo fue
+ * gatear los controles con `BotonRoot` / `AvisoSoloRoot`
+ * (src/components/ui/solo-root.tsx), que preguntan por
+ * `usePuedeAdministrar(alcance)`.
+ *
+ * Desde que existe ADMIN, el gate puede mentir en las DOS direcciones, y las
+ * dos importan:
+ *
+ *   - Ofrecer un botón que el servidor va a rechazar (el problema original).
+ *   - ESCONDERLE un botón a alguien que sí lo tiene habilitado. Eso pasa si una
+ *     pantalla de nivel ADMIN sigue preguntando por `"ROOT"`, y es lo que este
+ *     test agrega: no alcanza con que la pantalla conozca el gate, tiene que
+ *     preguntar por el alcance CORRECTO.
  *
  * El riesgo de ese arreglo es envejecer: mañana alguien agrega una pantalla que
  * llama a `apiCrearRolDB` y se olvida del gate, y el panel vuelve a ofrecer una
@@ -40,7 +51,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { nivelDeRuta } from "../src/lib/auth/apiGuard";
+import { alcanceAdminDeRuta, nivelDeRuta, OBJETO_KEYS_ADMIN } from "../src/lib/auth/apiGuard";
 
 // ─── Mini framework de aserciones ───────────────────────────────────────────
 // Mismo formato que scripts/test-api-guard.ts: el repo no tiene runner.
@@ -159,8 +170,42 @@ const llamadas = extraerLlamadasDb(fuenteApi);
 
 /** Funciones exportadas de api.ts que pegan a AL MENOS un endpoint ROOT. */
 const FUNCIONES_ROOT = new Set<string>();
+/** Ídem para ADMIN, con el conjunto de `objetoKey` que cada una toca. */
+const FUNCIONES_ADMIN = new Map<string, Set<string>>();
 for (const l of llamadas) {
-  if (nivelDeRuta(l.path, l.metodo) === "ROOT") FUNCIONES_ROOT.add(l.funcion);
+  // Solo las ESCRITURAS. Una lectura cerrada tampoco la puede hacer todo el
+  // mundo, pero su síntoma es otro: la pantalla no carga y se ve el error. El
+  // daño que este test cuida es el del formulario llenado a cambio de un 403,
+  // y ese lo hacen los POST/PUT/PATCH/DELETE. (Los endpoints ROOT son TODOS
+  // escrituras, así que para ese nivel esto no cambia nada.)
+  if (l.metodo.toUpperCase() === "GET") continue;
+  const nivel = nivelDeRuta(l.path, l.metodo);
+  if (nivel === "ROOT") FUNCIONES_ROOT.add(l.funcion);
+  if (nivel === "ADMIN") {
+    const alcance = alcanceAdminDeRuta(l.path, l.metodo);
+    if (alcance) {
+      let objetos = FUNCIONES_ADMIN.get(l.funcion);
+      if (!objetos) {
+        objetos = new Set<string>();
+        FUNCIONES_ADMIN.set(l.funcion, objetos);
+      }
+      objetos.add(alcance.objetoKey);
+    }
+  }
+}
+
+/** Todas las funciones cerradas, de cualquiera de los dos niveles. */
+const FUNCIONES_CERRADAS = new Set<string>([...FUNCIONES_ROOT, ...FUNCIONES_ADMIN.keys()]);
+
+/**
+ * `alcance="..."` declarados en un archivo. Es lo que el gate le pasa al hook, y
+ * lo que hay que comparar contra el nivel real del endpoint.
+ */
+function alcancesDeclarados(fuente: string): Set<string> {
+  const encontrados = new Set<string>();
+  const re = /(?:alcance=|usePuedeAdministrar\()\s*"([^"]+)"/g;
+  for (let m = re.exec(fuente); m; m = re.exec(fuente)) encontrados.add(m[1]);
+  return encontrados;
 }
 
 // ─── Paso 2: quién las usa, y si conoce el gate ─────────────────────────────
@@ -187,7 +232,7 @@ function rel(p: string): string {
 
 console.log("\nGate visual de root (src/components/ui/solo-root.tsx)\n");
 
-test("api.ts declara funciones contra endpoints ROOT (el extractor sigue sirviendo)", () => {
+test("api.ts declara funciones contra endpoints cerrados (el extractor sigue sirviendo)", () => {
   // Si esto se rompe, lo más probable no es que se hayan borrado los endpoints
   // sino que api.ts cambió de molde y el extractor dejó de ver los dbFetch.
   esperar(
@@ -199,16 +244,24 @@ test("api.ts declara funciones contra endpoints ROOT (el extractor sigue sirvien
     `esperaba al menos 15 funciones contra endpoints ROOT, encontré ${FUNCIONES_ROOT.size}: ` +
       `[${[...FUNCIONES_ROOT].sort().join(", ")}]`,
   );
+  esperar(
+    FUNCIONES_ADMIN.size >= 4,
+    `esperaba al menos 4 funciones de ESCRITURA contra endpoints ADMIN, encontré ${FUNCIONES_ADMIN.size}: ` +
+      `[${[...FUNCIONES_ADMIN.keys()].sort().join(", ")}]`,
+  );
 });
 
-test("toda pantalla que escribe contra un endpoint ROOT conoce el gate", () => {
+test("toda pantalla que ESCRIBE contra un endpoint ROOT o ADMIN conoce el gate", () => {
+  // Antes esto solo miraba ROOT, y con el nivel ADMIN se habría quedado
+  // mirando la mitad del problema: verde prestado sobre las ~15 pantallas que
+  // el guard acababa de cerrar.
   const sinGate: string[] = [];
 
   for (const archivo of ARCHIVOS_UI) {
     const fuente = fs.readFileSync(archivo, "utf8");
     if (!fuente.includes('from "@/services/api"')) continue;
 
-    const usadas = [...FUNCIONES_ROOT].filter((fn) =>
+    const usadas = [...FUNCIONES_CERRADAS].filter((fn) =>
       new RegExp(`\\b${fn}\\b`).test(fuente),
     );
     if (usadas.length === 0) continue;
@@ -219,9 +272,75 @@ test("toda pantalla que escribe contra un endpoint ROOT conoce el gate", () => {
 
   esperar(
     sinGate.length === 0,
-    "estos archivos escriben contra endpoints de nivel ROOT sin importar el gate " +
+    "estos archivos escriben contra endpoints de nivel ROOT o ADMIN sin importar el gate " +
       "(BotonRoot / AvisoSoloRoot / usePuedeAdministrar):\n      " +
       sinGate.join("\n      "),
+  );
+});
+
+test("el `alcance` declarado existe: o es ROOT, o es una objetoKey de la tabla", () => {
+  // Un typo (`alcance="usuario"` en vez de `"usuarios"`) no rompe nada visible:
+  // el hook contesta `false` y el botón queda gris para siempre, incluso para
+  // quien lo tiene otorgado. Es el bug silencioso de este diseño.
+  const validos = new Set<string>(["ROOT", ...OBJETO_KEYS_ADMIN]);
+  const invalidos: string[] = [];
+
+  for (const archivo of ARCHIVOS_UI) {
+    const fuente = fs.readFileSync(archivo, "utf8");
+    for (const alcance of alcancesDeclarados(fuente)) {
+      if (!validos.has(alcance)) invalidos.push(`${rel(archivo)}: "${alcance}"`);
+    }
+  }
+
+  esperar(
+    invalidos.length === 0,
+    `alcances que no corresponden a ninguna política (válidos: ${[...validos].sort().join(", ")}):\n      ` +
+      invalidos.join("\n      "),
+  );
+});
+
+test("una pantalla que SOLO escribe contra endpoints ADMIN no pide root de más", () => {
+  /*
+   * El gate visual miente en dos direcciones. La que este caso cuida es la
+   * nueva: si una pantalla que el servidor cerró a nivel ADMIN sigue
+   * preguntando `alcance="ROOT"`, entonces a la persona que un root habilitó
+   * le queda el botón gris con un cartel que además le miente ("Requiere
+   * permisos de root"), y el permiso que le otorgaron no sirve para nada.
+   *
+   * Solo se exige sobre los archivos que NO tocan ningún endpoint ROOT: los que
+   * tocan los dos niveles necesitan "ROOT" para sus escrituras, y ahí el gate
+   * más restrictivo es el correcto.
+   */
+  const desalineadas: string[] = [];
+
+  for (const archivo of ARCHIVOS_UI) {
+    const fuente = fs.readFileSync(archivo, "utf8");
+    if (!fuente.includes('from "@/services/api"')) continue;
+
+    const usaRoot = [...FUNCIONES_ROOT].some((fn) => new RegExp(`\\b${fn}\\b`).test(fuente));
+    if (usaRoot) continue;
+
+    const objetosQueToca = new Set<string>();
+    for (const [fn, objetos] of FUNCIONES_ADMIN) {
+      if (new RegExp(`\\b${fn}\\b`).test(fuente)) for (const o of objetos) objetosQueToca.add(o);
+    }
+    if (objetosQueToca.size === 0) continue;
+
+    const declarados = alcancesDeclarados(fuente);
+    if (declarados.size === 0) continue; // el caso anterior ya lo cubre
+
+    if (declarados.has("ROOT")) {
+      desalineadas.push(
+        `${rel(archivo)} declara alcance="ROOT" pero solo toca endpoints ADMIN de ` +
+          `[${[...objetosQueToca].sort().join(", ")}]`,
+      );
+    }
+  }
+
+  esperar(
+    desalineadas.length === 0,
+    "estas pantallas le esconden el botón a quien SÍ tiene el permiso otorgado:\n      " +
+      desalineadas.join("\n      "),
   );
 });
 

@@ -342,6 +342,7 @@ export default function UsuariosTable() {
             {shouldShowImportButton(row.original) ? (
               // POST /api/db/usuarios/importar es nivel ROOT.
               <BotonRoot
+                alcance="usuarios"
                 variant="secondary"
                 size="sm"
                 // Pide confirmación antes de crear, igual que el wizard
@@ -398,6 +399,7 @@ export default function UsuariosTable() {
                     administrador (`resolveUsuario` no autentica inactivos).
                   */}
                   <BotonRoot
+                    alcance="usuarios"
                     variant="destructive"
                     size="sm"
                     aria-label={`Desactivar usuario ${getUserName(row.original)}`}

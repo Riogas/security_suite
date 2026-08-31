@@ -1418,6 +1418,15 @@ export type YoDB = {
   esRootDeSecapi: boolean;
   aplicacionesRoot: number[];
   isRoot: string;
+  /**
+   * Qué objetos del panel tiene otorgados el usuario y con qué acciones:
+   * `{ usuarios: ["view"] }`. Es lo que hace que el gate visual pueda seguir al
+   * nivel ADMIN del guard, que tiene una respuesta POR PANTALLA y no una sola.
+   * Viene vacío para root (pasa por `esRootDeSecapi`) y opcional para tolerar un
+   * servidor viejo que todavía no lo mande — en ese caso el gate queda cerrado,
+   * que es el lado seguro del error.
+   */
+  administra?: Record<string, string[]>;
 };
 
 export const apiYoDB = async (opts?: {

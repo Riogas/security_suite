@@ -456,7 +456,7 @@ export default function RoleForm({
         y de arrastrar funcionalidades; el "Guardar" de abajo se apaga solo.
         POST y PUT /api/db/roles son nivel ROOT.
       */}
-      <AvisoSoloRoot que="los cambios del rol" className="mb-4" />
+      <AvisoSoloRoot alcance="ROOT" que="los cambios del rol" className="mb-4" />
 
       <form onSubmit={handleSubmit}>
         {/* Hidden fields */}
@@ -573,7 +573,7 @@ export default function RoleForm({
               <Button type="button" variant="outline" onClick={handleCancel}>
                 Cancelar
               </Button>
-              <BotonRoot type="submit">
+              <BotonRoot alcance="ROOT" type="submit">
                 <Save className="h-4 w-4 mr-2" />
                 Guardar
               </BotonRoot>

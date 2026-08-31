@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { resolveUsuario, usuarioPuedeAprobar } from "@/lib/permisos";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // POST /api/db/solicitudes/[id]/rechazar
@@ -10,18 +9,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Guard de /api/db (src/lib/auth/apiGuard.ts): exige sesión válida. Quién
-  // puede rechazar lo sigue decidiendo `usuarioPuedeAprobar`, más abajo.
+  // Guard de /api/db (src/lib/auth/apiGuard.ts): nivel ADMIN sobre el objeto
+  // `solicitudes` + acción `approve`. Root, o quien tenga otorgada la
+  // funcionalidad de aprobación. Antes el nivel era AUTENTICADA y el chequeo lo
+  // hacía el handler llamando a `usuarioPuedeAprobar`; ahora lo hace el guard
+  // con el mismo motor, y acá no queda una segunda resolución que se pueda
+  // desincronizar de la primera.
   const guard = await requireApiAuth(request);
   if (!guard.ok) return guard.respuesta;
 
   try {
-    const usuario = await resolveUsuario(request);
+    const usuario = guard.usuario;
     if (!usuario) {
       return NextResponse.json({ success: false, error: "NO_AUTORIZADO" }, { status: 401 });
-    }
-    if (!(await usuarioPuedeAprobar(usuario))) {
-      return NextResponse.json({ success: false, error: "SIN_PERMISO_APROBAR" }, { status: 403 });
     }
 
     const { id } = await params;

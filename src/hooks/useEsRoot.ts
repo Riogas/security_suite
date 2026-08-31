@@ -54,27 +54,48 @@ let promesaEsRoot: Promise<Resultado> | null = null;
 interface Resultado {
   esRoot: boolean;
   fallo: boolean;
+  /**
+   * Qué objetos del panel tiene otorgados el usuario, y con qué acciones:
+   * `{ usuarios: ["view"] }`. Lo devuelve `GET /usuarios/yo` y es lo que
+   * permite que el gate visual siga al nivel ADMIN del guard, que ya no es una
+   * respuesta sola ("¿soy root?") sino una por pantalla. Para un root viene
+   * vacío: root pasa por `esRoot` y no necesita la lista.
+   */
+  administra: Record<string, string[]>;
 }
 
 function pedirEsRoot(): Promise<Resultado> {
   if (!promesaEsRoot) {
     promesaEsRoot = apiYoDB()
-      .then((r) => ({ esRoot: Boolean(r?.usuario?.esRootDeSecapi), fallo: false }))
+      .then((r) => ({
+        esRoot: Boolean(r?.usuario?.esRootDeSecapi),
+        fallo: false,
+        // `?? {}` y no un cast: si el servidor es una versión vieja que todavía
+        // no manda el campo, el gate queda cerrado para todo lo que no sea root
+        // — que es el lado seguro del error.
+        administra: (r?.usuario?.administra ?? {}) as Record<string, string[]>,
+      }))
       .catch(() => {
         // El 401 ya lo maneja dbFetch (limpia la sesión y manda al login).
         // Cualquier otro error: se queda en no-root, y se olvida la promesa
         // para que un remonte posterior pueda reintentar en vez de quedar
         // pegado a un error de red viejo.
         promesaEsRoot = null;
-        return { esRoot: false, fallo: true };
+        return { esRoot: false, fallo: true, administra: {} };
       });
   }
   return promesaEsRoot;
 }
 
-export function useEsRoot(): { esRoot: boolean; cargando: boolean; fallo: boolean } {
+export function useEsRoot(): {
+  esRoot: boolean;
+  cargando: boolean;
+  fallo: boolean;
+  administra: Record<string, string[]>;
+} {
   const [esRoot, setEsRoot] = useState(false);
   const [fallo, setFallo] = useState(false);
+  const [administra, setAdministra] = useState<Record<string, string[]>>({});
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
@@ -85,6 +106,7 @@ export function useEsRoot(): { esRoot: boolean; cargando: boolean; fallo: boolea
         if (!vivo) return;
         setEsRoot(r.esRoot);
         setFallo(r.fallo);
+        setAdministra(r.administra);
       })
       .finally(() => {
         if (vivo) setCargando(false);
@@ -95,5 +117,5 @@ export function useEsRoot(): { esRoot: boolean; cargando: boolean; fallo: boolea
     };
   }, []);
 
-  return { esRoot, cargando, fallo };
+  return { esRoot, cargando, fallo, administra };
 }

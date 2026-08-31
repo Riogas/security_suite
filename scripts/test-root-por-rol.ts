@@ -595,11 +595,18 @@ async function main(): Promise<void> {
      * baja a AUTENTICADA, cualquiera de los 854 usuarios se hace root con un
      * request. Se lee la tabla de POLITICAS a través de `nivelDeRuta`, que es
      * la misma función que usa el guard — no una copia de la lista.
+     *
+     * `DELETE /usuarios/845` salió de esta lista cuando apareció el nivel ADMIN:
+     * la baja de un usuario es administración de PERSONAS, no de privilegios, y
+     * pasó a ser delegable con la funcionalidad `Usuarios`. Lo que impedía que
+     * dejara al sistema sin administrador nunca fue el nivel del guard sino
+     * `verificarQueQuedaRoot`, que corre adentro de la transacción y sigue igual
+     * (lo cubre el bloque "no podés borrar el último administrador" de más
+     * arriba). Asignar roles y accesos —lo que de verdad otorga— sigue acá.
      */
     const deberianSerRoot: Array<[string, string]> = [
       ["PUT", "/api/db/usuarios/845/roles"],
       ["PUT", "/api/db/usuarios/845/accesos"],
-      ["DELETE", "/api/db/usuarios/845"],
       ["POST", "/api/db/accesos"],
       ["DELETE", "/api/db/accesos"],
       ["POST", "/api/db/roles"],

@@ -28,6 +28,7 @@ export default function UsuariosPage() {
               escrituras que subieron a ROOT.
             */}
             <BotonRoot
+              alcance="usuarios"
               variant="outline"
               onClick={() => router.push("/dashboard/usuarios/importar")}
             >

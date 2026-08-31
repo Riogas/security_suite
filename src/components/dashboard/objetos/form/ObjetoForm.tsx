@@ -229,7 +229,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
         lectura. El cartel avisa antes de cargar los datos y la tabla de
         acciones; el "Confirmar" de abajo se apaga solo.
       */}
-      <AvisoSoloRoot que="el objeto" />
+      <AvisoSoloRoot alcance="ROOT" que="el objeto" />
 
       <Card>
         <CardHeader>
@@ -459,7 +459,7 @@ export default function ObjetoForm({ initialData }: ObjetoFormProps) {
             reescribe los `objeto_acciones` (key, codigo y `path`), que es
             contra lo que matchea el motor de permisos.
           */}
-          <BotonRoot type="submit" disabled={submitting}>
+          <BotonRoot alcance="ROOT" type="submit" disabled={submitting}>
             {submitting ? "Guardando..." : "Confirmar"}
           </BotonRoot>
         </CardFooter>

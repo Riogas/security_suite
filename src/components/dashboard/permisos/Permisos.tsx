@@ -140,6 +140,7 @@ export default function PermisosTable() {
             sigue abierto, así que la pantalla se lee entera.
           */}
           <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar acceso de ${row.original?.usuario?.username ?? ""}`}

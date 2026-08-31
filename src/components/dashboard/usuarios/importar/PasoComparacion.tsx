@@ -337,7 +337,7 @@ export default function PasoComparacion({
 
       <div className="flex justify-end">
         {/* POST /api/db/usuarios/importar es nivel ROOT. */}
-        <BotonRoot onClick={() => setConfirmando(true)} disabled={cantidadSeleccionada === 0 || importando}>
+        <BotonRoot alcance="usuarios" onClick={() => setConfirmando(true)} disabled={cantidadSeleccionada === 0 || importando}>
           {importando ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importando...</>
           ) : (

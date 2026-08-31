@@ -18,7 +18,7 @@ export default function PermisosPage() {
         actions={
           // POST /api/db/accesos es nivel ROOT: es la concesión directa de una
           // funcionalidad a un usuario, la otra mitad del motor de permisos.
-          <BotonRoot onClick={() => router.push("/dashboard/permisos/crear")}>
+          <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/permisos/crear")}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo permiso
           </BotonRoot>

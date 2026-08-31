@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
+import {
+  buscarColisionesDeIdentidad,
+  mensajeDeColisionDeIdentidad,
+} from "@/lib/permisos";
 
 // =============================================
 // GET /api/db/usuarios - Listar usuarios locales (PostgreSQL)
@@ -133,7 +137,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar si ya existe
+    // Verificar si ya existe (mismo username exacto). Sigue siendo 409: es el
+    // "ya existe" de toda la vida y hay clientes que lo distinguen.
     const existing = await prisma.usuario.findUnique({
       where: { username: body.username },
     });
@@ -142,6 +147,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "El usuario ya existe" },
         { status: 409 },
+      );
+    }
+
+    /*
+     * Colisión de IDENTIDAD, que es más ancha que "ya existe el username".
+     *
+     * `resolveUsuario` busca el sujeto del token con
+     * `OR: [username ci, email ci]`, y los unique de `username` y de `email`
+     * son independientes: nada impide que el username de una fila sea el email
+     * de otra. Dar de alta un usuario cuyo username sea el email de un root
+     * hace que el token del root matchee DOS filas, y ahí no hay identidad.
+     * Lo mismo con dos usernames que difieren solo en mayúsculas: el unique de
+     * Postgres es case-sensitive y la búsqueda es case-insensitive.
+     *
+     * Contra los datos de hoy (agosto 2026) esto no rechaza a nadie: se midió y
+     * no hay ni una colisión. Lo que impide es que se cree la primera.
+     * 400 y no 409: el 409 de arriba es "ya existe ESTE usuario"; esto es
+     * "estos datos son inválidos porque chocan con otro".
+     */
+    const colisiones = await buscarColisionesDeIdentidad(prisma, {
+      username: body.username,
+      email: body.email,
+    });
+    if (colisiones.length > 0) {
+      return NextResponse.json(
+        { success: false, error: mensajeDeColisionDeIdentidad(colisiones) },
+        { status: 400 },
       );
     }
 

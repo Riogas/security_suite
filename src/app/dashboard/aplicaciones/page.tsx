@@ -19,7 +19,7 @@ export default function AplicacionesPage() {
         actions={
           // POST /api/db/aplicaciones es nivel ROOT: una aplicación es el
           // contenedor de roles, funcionalidades y objetos.
-          <BotonRoot onClick={() => router.push("/dashboard/aplicaciones/crear")}>
+          <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/aplicaciones/crear")}>
             <Plus className="w-4 h-4 mr-2" />
             Nueva aplicación
           </BotonRoot>

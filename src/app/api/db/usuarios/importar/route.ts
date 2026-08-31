@@ -4,6 +4,7 @@ import { requireApiAuth } from "@/lib/auth/apiGuard";
 import { assignDespachoOnNewUser } from "@/lib/auth/assignDespachoIfEligible";
 import { persistEmpFleteraPreference } from "@/lib/auth/persistEmpFleteraPreference";
 import { persistEscenarioPreference } from "@/lib/auth/persistEscenarioPreference";
+import { buscarColisionesDeIdentidad } from "@/lib/permisos";
 import { normalizarUsername } from "@/lib/usuarios/comparar";
 import { obtenerFuente } from "@/lib/usuarios/sources";
 import type { ExternalUser, OrigenExterno } from "@/lib/usuarios/tipos";
@@ -60,6 +61,24 @@ async function crearUsuario(
           motivo: `El email ya lo tiene "${conEseMail.username}"`,
         };
       }
+    }
+
+    // Colisión CRUZADA username↔email, que los dos chequeos de arriba no ven:
+    // ellos comparan username contra username y email contra email. El que
+    // rompe la autenticación es el cruce — `resolveUsuario` busca el sujeto del
+    // token con `OR: [username ci, email ci]`, así que importar a alguien cuyo
+    // username sea el EMAIL de otro usuario deja ese token matcheando dos filas.
+    // Ver el bloque "Identidad no ambigua" en src/lib/permisos.ts.
+    const colisiones = await buscarColisionesDeIdentidad(prisma, {
+      username,
+      email: ext.email,
+    });
+    if (colisiones.length > 0) {
+      return {
+        username: usernameOriginal,
+        estado: "omitido",
+        motivo: `Choca con la identidad de "${colisiones[0].username}" (el usuario de uno es el mail del otro)`,
+      };
     }
 
     if (opts.dryRun) return { username: usernameOriginal, estado: "creado", motivo: "dry-run" };
@@ -133,17 +152,24 @@ async function crearUsuario(
 // Solo CREA. Lo que ya existe se omite con su motivo.
 // =============================================
 export async function POST(req: NextRequest) {
-  // Guard de /api/db, nivel ROOT (src/lib/auth/apiGuard.ts): firma HS256
-  // verificada, vencimiento, secreto real (no el default del código),
-  // usuario activo en PG y el ROL "Root" de la aplicación SecuritySuite,
-  // vigente y con el rol activo. Fail-closed: sin secreto configurado deniega
-  // con 503 en vez de dejar pasar.
+  // Guard de /api/db, nivel ADMIN sobre el objeto `usuarios`
+  // (src/lib/auth/apiGuard.ts): firma HS256 verificada, vencimiento, secreto
+  // real (no el default del código), usuario activo en PG, y root de secapi O
+  // la funcionalidad de administrar usuarios otorgada por un root. Fail-closed:
+  // sin secreto configurado deniega con 503 en vez de dejar pasar.
+  //
+  // Bajó de ROOT a ADMIN junto con el resto de la administración de usuarios:
+  // dar de alta gente no otorga privilegios, y los usuarios importados nacen
+  // sin roles. La única excepción está más abajo (`conRoles` →
+  // `assignDespachoOnNewUser`) y el rol que asigna es UNO fijo, tomado de
+  // `DESPACHO_ROL_ID`, sobre un usuario recién creado y sin roles: no lo elige
+  // el que llama, así que no sirve para escalar.
   //
   // Antes acá se llamaba a `requireRoot` (el gate de /docs) y encima se
   // rechequeaba la columna `es_root`, porque requireRoot también deja pasar a
   // quien tenga la funcionalidad `docs` — que sirve para VER el portal de
-  // documentación y nada tiene que ver con crear usuarios. El nivel ROOT del
-  // guard es exactamente "rol Root de secapi", así que ese doble chequeo sobra.
+  // documentación y nada tiene que ver con crear usuarios. El nivel del guard
+  // ya dice lo que hay que decir, así que ese doble chequeo sobra.
   const guard = await requireApiAuth(req);
   if (!guard.ok) return guard.respuesta;
 

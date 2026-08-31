@@ -122,6 +122,7 @@ export default function AplicacionesTable() {
             baja la aplicación 1 deja al sistema SIN NINGÚN root.
           */}
           <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar aplicación ${row.original?.nombre ?? ""}`}
@@ -156,7 +157,7 @@ export default function AplicacionesTable() {
   const headerActions = (
     // POST /api/db/aplicaciones es ROOT (ver el botón gemelo de la PageHeader
     // en /dashboard/aplicaciones).
-    <BotonRoot onClick={() => router.push("/dashboard/aplicaciones/crear")}>
+    <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/aplicaciones/crear")}>
       <Plus className="w-4 h-4 mr-1" /> Nueva Aplicación
     </BotonRoot>
   );

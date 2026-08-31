@@ -102,7 +102,7 @@ export default function FuncionalidadForm({
 }: FuncionalidadFormProps) {
   // El mismo criterio que usa <BotonRoot>, pero en crudo: hace falta para
   // cortar la submisión implícita con Enter (ver handleSubmit).
-  const { puede: puedeAdministrar } = usePuedeAdministrar();
+  const { puede: puedeAdministrar } = usePuedeAdministrar("ROOT");
 
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -556,7 +556,7 @@ export default function FuncionalidadForm({
               el motor consulta para saber qué funcionalidad protege qué
               pantalla).
             */}
-            <BotonRoot onClick={handleSubmit} disabled={saving}>
+            <BotonRoot alcance="ROOT" onClick={handleSubmit} disabled={saving}>
               {saving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -580,7 +580,7 @@ export default function FuncionalidadForm({
           ficha es una lectura. Este formulario es largo (datos + selección de
           objetos y acciones): el aviso tiene que llegar antes de armarlo todo.
         */}
-        <AvisoSoloRoot que="la funcionalidad" />
+        <AvisoSoloRoot alcance="ROOT" que="la funcionalidad" />
 
         {/* Error de guardado */}
         {saveError && (

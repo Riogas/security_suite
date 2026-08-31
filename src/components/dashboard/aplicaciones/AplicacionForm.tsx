@@ -122,7 +122,7 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
         grilla, así que el aviso tiene que estar en el formulario y no sólo en
         el botón que lo abre.
       */}
-      <AvisoSoloRoot que="la aplicación" />
+      <AvisoSoloRoot alcance="ROOT" que="la aplicación" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -193,7 +193,7 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
           Volver
         </Button>
         {/* POST y PUT /api/db/aplicaciones son nivel ROOT. */}
-        <BotonRoot type="submit" disabled={loading}>
+        <BotonRoot alcance="ROOT" type="submit" disabled={loading}>
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : (

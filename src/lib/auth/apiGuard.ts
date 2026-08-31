@@ -1,6 +1,13 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import { extractToken, resolveUsuario, type UsuarioAuth } from "@/lib/permisos";
+import {
+  ACCION_VIEW,
+  APROBADOR_ACCION_KEY,
+  extractToken,
+  resolveUsuario,
+  usuarioTieneFuncionalidad,
+  type UsuarioAuth,
+} from "@/lib/permisos";
 import { leerSecretoJwt, verificarJwt } from "@/lib/auth/verificarJwt";
 import { patternToRegex, specificity } from "@/lib/routePattern";
 
@@ -46,6 +53,16 @@ export type NivelAcceso =
   /** JWT verificado + usuario activo en Postgres. */
   | "AUTENTICADA"
   /**
+   * Root de secapi, **o** lo que un root le haya OTORGADO al usuario: la
+   * funcionalidad que corresponde al (objeto, acción) declarados en la política,
+   * sea por rol o por acceso directo. Es secapi consultando su propio motor de
+   * permisos para autorizarse a sí misma, que es el pedido del dueño.
+   *
+   * El corte respecto de ROOT es "¿delegarlo es delegar root con otro nombre?".
+   * Ver el bloque "ADMIN vs ROOT" más abajo.
+   */
+  | "ADMIN"
+  /**
    * Lo anterior + el ROL "Root" de la aplicación SecuritySuite, vigente y
    * activo (`UsuarioAuth.esRootDeSecapi`). Antes era `usuarios.es_root='S'`:
    * un flag global que en producción tenía UN solo usuario de 854, mientras
@@ -53,19 +70,101 @@ export type NivelAcceso =
    * bloque "Root por ROL" en src/lib/permisos.ts.
    *
    * En producción (agosto 2026) son DOS personas: dmedaglia y jgomez. Poner una
-   * ruta en este nivel significa literalmente "esto lo pueden hacer ellos dos".
+   * ruta en este nivel significa literalmente "esto lo pueden hacer ellos dos",
+   * y —a diferencia de ADMIN— significa que no se puede delegar.
    */
   | "ROOT";
 
 type Metodo = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-interface Politica {
+interface PoliticaBase {
   /** Patrón relativo a `/api/db`, con `:param` por segmento dinámico. */
   patron: string;
   metodos: Metodo[];
-  nivel: NivelAcceso;
   /** Por qué está en ese nivel. Lo lee el que venga a cambiarlo. */
   motivo: string;
+}
+
+/**
+ * Política de nivel ADMIN: además del nivel declara CONTRA QUÉ se pregunta.
+ *
+ * `objetoKey` es obligatorio por el tipo, no por convención: una ruta ADMIN sin
+ * objeto declarado no se puede evaluar, y lo único peor que no poder evaluarla
+ * sería dejarla pasar. Si igual llegara una (JavaScript sin tipos, un refactor
+ * a medio hacer), el guard la deniega con 403 y lo loguea.
+ */
+interface PoliticaAdmin extends PoliticaBase {
+  nivel: "ADMIN";
+  /** `key` del objeto de la aplicación SecuritySuite que protege esta ruta. */
+  objetoKey: string;
+  /**
+   * Acción a chequear. Si no se declara, se deriva del método HTTP con
+   * `accionPorMetodo` (GET→view, POST→create, PUT/PATCH→update, DELETE→delete).
+   *
+   * Hoy TODAS las políticas ADMIN la declaran, y casi todas declaran `view`.
+   * No es pereza: es lo que hay en la base. Ver "Qué acción se chequea".
+   */
+  accion?: string;
+}
+
+interface PoliticaSimple extends PoliticaBase {
+  nivel: Exclude<NivelAcceso, "ADMIN">;
+}
+
+type Politica = PoliticaSimple | PoliticaAdmin;
+
+// ─── Qué acción se chequea ──────────────────────────────────────────────────
+//
+// La tentación es mapear el método HTTP a la acción y listo: GET→view,
+// POST→create, PUT→update, DELETE→delete. El mapeo está implementado
+// (`accionPorMetodo`) y es el default. Lo que pasa es que HOY no describe la
+// base.
+//
+// El andamiaje que hay sembrado (agosto 2026, `scripts/seed-menu-secapi.ts`) es
+// un objeto PAGE por pantalla con UNA sola `objeto_accion`, `view`, y UNA
+// funcionalidad colgada de esa acción, uno a uno:
+//
+//   objeto 20 'usuarios' ↔ funcionalidad 51 'Usuarios'    (vía la acción view)
+//   objeto 21 'roles'    ↔ funcionalidad 52 'Roles'
+//   … y así las once
+//
+// No existen filas `create`, `update` ni `delete`. Como el motor es fail-closed
+// con la acción inexistente, dejar que el método mande convertiría cada
+// escritura ADMIN en algo que NADIE puede tener otorgado —ni siquiera pidiéndolo—
+// y root volvería a ser el único que administra. O sea: el modelo del dueño
+// ("los demás acceden a lo que un root les otorgue") no arrancaría nunca.
+//
+// Por eso cada política ADMIN declara `accion: "view"` explícitamente: la
+// unidad de otorgamiento que existe en la base es LA PANTALLA, no la operación.
+// Otorgar "Usuarios" es otorgar administrar usuarios. Sigue siendo mucho más
+// estrecho que hoy (AUTENTICADA = los 854), y lo que de verdad escala privilegio
+// no está acá: está en ROOT.
+//
+// El día que se siembren las acciones finas, el cambio es sacar el `accion` de
+// la política que corresponda, una por una, y el default del método toma el
+// lugar. Nada más.
+
+/** Acción por defecto para un método HTTP. Devuelve "" si el método no mapea. */
+export function accionPorMetodo(metodo: string): string {
+  switch (metodo.toUpperCase()) {
+    case "GET":
+      return ACCION_VIEW;
+    case "POST":
+      return "create";
+    case "PUT":
+    case "PATCH":
+      return "update";
+    case "DELETE":
+      return "delete";
+    default:
+      // Sin acción no se puede preguntar, y no poder preguntar es denegar.
+      return "";
+  }
+}
+
+/** Acción efectiva de una política ADMIN para un método concreto. */
+export function accionDePolitica(politica: PoliticaAdmin, metodo: string): string {
+  return (politica.accion ?? accionPorMetodo(metodo)).trim();
 }
 
 /** Prefijo que cubre este guard. Todo lo de acá abajo necesita una política. */
@@ -114,49 +213,54 @@ export const POLITICAS: readonly Politica[] = [
       "Lectura y escritura del atributo GranelTiposDoc por rol (atributosDeRol / guardarTiposDeRol, este último desde configRouter.js:269). Es la ÚNICA escritura que la api-key habilita, y por eso el POST del mismo path queda en AUTENTICADA: ese lo usa el front de secapi, no Granel.",
   },
 
-  // ── Root ──────────────────────────────────────────────────────────────────
+  // ── ADMIN vs ROOT: dónde está el corte ────────────────────────────────────
   //
-  // Dos familias distintas conviven acá:
+  // El dueño describió el modelo así: root accede a todo secapi; los demás
+  // acceden a lo que un root les OTORGUE asignándoles funcionalidades. Eso deja
+  // dos niveles, y la pregunta que los separa es una sola:
   //
-  //   a) Operaciones masivas sobre la base (las dos de siempre).
-  //   b) TODO lo que puede alterar QUIÉN TIENE QUÉ. Esto es nuevo y es la
-  //      contrapartida obligatoria de que root haya pasado a ser un ROL: el
-  //      privilegio ahora vive en `usuario_roles`, o sea en una tabla de datos
-  //      que estos endpoints escriben. Mientras estuvieron en AUTENTICADA, un
-  //      solo request de cualquiera de los 854 usuarios se otorgaba root de
-  //      todo:
+  //     ¿delegar esta operación es delegar root con otro nombre?
   //
-  //        PUT  /api/db/usuarios/<yo>/roles  { "roles":[{"rolId":57}] }
-  //        POST /api/db/roles  { "aplicacionId":1, "nombre":"root" }   (+ el PUT de arriba)
+  // Si la respuesta es sí, la operación NO es delegable y se queda en ROOT.
+  // Los dos ejemplos que lo dejan claro:
   //
-  //      El segundo funciona porque el rol se identifica por NOMBRE: fabricar
-  //      un rol llamado "Root" es fabricar el privilegio. Por eso no alcanza
-  //      con cerrar la asignación: hay que cerrar también todo lo que puede
-  //      crear, renombrar, clonar o recablear un rol.
+  //   - Otorgar "editar roles" permite editarse el rol Root a uno mismo y
+  //     asignárselo. El rol se identifica por NOMBRE, así que hasta crear uno
+  //     llamado 'root' alcanza.
+  //   - Otorgar "editar funcionalidades" permite poner una en `es_publico='S'`
+  //     y abrírsela de una a los 854 usuarios.
+  //
+  // El principio de fondo: que alguien sea root tiene que quedar escrito como
+  // ROL, en `usuario_roles`, donde se ve y se audita — no escondido adentro de
+  // una funcionalidad que alguien otorgó una tarde.
+  //
+  // Lo que SÍ es delegable son las pantallas del panel: la grilla de usuarios,
+  // la ficha de un rol, el catálogo de acciones, el árbol de menú en modo
+  // lectura, aprobar solicitudes. Eso pasa a ADMIN, que es "root O la
+  // funcionalidad que un root me otorgó".
   //
   // NO se puede gatear con `usuarios.modifica_permisos`: en producción está en
   // 'N' para los 854 usuarios, así que gatear con eso deja a TODO EL MUNDO
   // afuera, root incluido.
+
+  // ── Root ──────────────────────────────────────────────────────────────────
   //
-  // Consecuencia asumida y explícita: administrar permisos en el panel de
-  // secapi (asignar roles, ABM de roles, funcionalidades, objetos, accesos
-  // directos, aplicaciones y el builder de menú) pasa a ser exclusivo de los
-  // usuarios con el rol Root de secapi — hoy dmedaglia y jgomez. Antes lo podía
-  // hacer cualquier usuario logueado, que es precisamente el problema.
-  {
-    patron: "/usuarios/importar",
-    metodos: ["POST"],
-    nivel: "ROOT",
-    motivo:
-      "Crea usuarios en masa desde SGM/LDAP/GSIST. Ya exigía requireRoot por su cuenta; queda declarado acá para que la tabla no mienta.",
-  },
-  {
-    patron: "/admin/import-sgm-preferences",
-    metodos: ["POST"],
-    nivel: "ROOT",
-    motivo:
-      "Barrido masivo que reescribe preferencias y asigna el rol Distribuidor sobre TODA la base. Antes solo exigía que la cookie `token` EXISTIERA (ni firma ni vencimiento): alcanzaba con mandar `Cookie: token=x`.",
-  },
+  // TODO lo que puede alterar QUIÉN TIENE QUÉ. Es la contrapartida obligatoria
+  // de que root sea un ROL: el privilegio vive en `usuario_roles`, o sea en una
+  // tabla de datos que estos endpoints escriben. Mientras estuvieron en
+  // AUTENTICADA, un solo request de cualquiera de los 854 usuarios se otorgaba
+  // root de todo:
+  //
+  //   PUT  /api/db/usuarios/<yo>/roles  { "roles":[{"rolId":57}] }
+  //   POST /api/db/roles  { "aplicacionId":1, "nombre":"root" }   (+ el PUT de arriba)
+  //
+  // El segundo funciona porque el rol se identifica por NOMBRE: fabricar un rol
+  // llamado "Root" es fabricar el privilegio. Por eso no alcanza con cerrar la
+  // asignación: hay que cerrar también todo lo que puede crear, renombrar,
+  // clonar o recablear un rol.
+  //
+  // Este bloque NO baja a ADMIN. Ninguna de estas se otorga con una
+  // funcionalidad, ni siquiera "una chiquita": son las llaves del modelo.
   {
     patron: "/usuarios/:id/roles",
     metodos: ["PUT"],
@@ -255,21 +359,250 @@ export const POLITICAS: readonly Politica[] = [
     motivo:
       "Reescribe el árbol entero: crea y ACTUALIZA `objetos` y `objeto_acciones` de la aplicación, incluidos el `path` y el `codigo` contra los que matchea el motor de permisos. Repuntar una acción ya otorgada a otra pantalla es otorgar esa pantalla. El GET queda en AUTENTICADA.",
   },
+
+  // ── ADMIN: root, o lo que un root otorgue ─────────────────────────────────
+  //
+  // Acá es donde secapi consulta su propio motor. Cada entrada declara el
+  // `objetoKey` de la pantalla y la acción; el guard pregunta
+  // `usuarioTieneFuncionalidad(usuario, objetoKey, accion)`, que resuelve
+  // objeto → objeto_accion → funcionalidades activas y vigentes → ¿el usuario
+  // tiene alguna, por rol o por acceso directo?
+  //
+  // Antes de esto, TODO este bloque estaba en AUTENTICADA: alcanzaba con tener
+  // sesión de CUALQUIERA de las cuatro aplicaciones para leer y escribir el
+  // panel de seguridad entero. Un chofer de TrackMovil con su sesión normal
+  // listaba los 854 usuarios con sus mails y cédulas.
+  //
+  // Ninguna de estas rutas la consume otra aplicación: se verificó barriendo los
+  // tres repos (goya, trackmovil, granel-app). Lo que ellos llaman es
+  // /permisos, /login, /menu, /solicitudes, /usuarios/yo,
+  // /usuarios/por-empresa-fletera, /usuarios/:id/permite-login,
+  // /usuarios/por-username, GET /roles y GET|PUT /roles/:id/atributos — todo eso
+  // quedó en AUTENTICADA/SERVICIO/PÚBLICA a propósito y NO se toca. Cerrar el
+  // panel no los roza.
+  //
+  // Tres de estas BAJARON de ROOT, y es deliberado: son administración de
+  // usuarios, no de privilegios. Delegar "Usuarios" no permite asignar roles ni
+  // accesos (siguen en ROOT), así que un admin de usuarios no se puede hacer
+  // root. Las tres son `DELETE /usuarios/:id`, `POST /usuarios/importar` y
+  // `POST /admin/import-sgm-preferences`; las dos primeras conservan además la
+  // red de `verificarQueQuedaRoot`, que impide dejar el sistema sin
+  // administrador.
+  {
+    patron: "/usuarios",
+    metodos: ["GET", "POST"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Grilla y alta de usuarios del panel. La grilla devuelve nombre, mail, teléfono y sistema de origen de los 854: es el listado de personal de la empresa, no una pantalla neutra. El alta no otorga root (`esRoot` dejó de autorizar y el handler rechaza crearlo en 'S').",
+  },
   {
     patron: "/usuarios/:id",
-    metodos: ["DELETE"],
-    nivel: "ROOT",
+    metodos: ["GET", "PUT", "DELETE"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
     motivo:
-      "Baja lógica (estado='I'). No otorga root, pero lo QUITA: `resolveUsuario` no autentica usuarios inactivos, así que dar de baja a los dos roots deja la instalación sin administrador y sin vuelta por la aplicación. Estaba en AUTENTICADA y el handler no chequeaba nada — el PUT del mismo path sí exigía root para cambiar `estado`, con lo cual el control se saltaba usando DELETE. No lo reportó ninguno de los dos revisores.",
+      "Ficha de usuario: ver, editar y dar de baja. El PUT no puede elevar a root (`esRoot` dejó de autorizar) y sus campos sensibles —estado, clave ajena, modifica_permisos— los sigue exigiendo el handler a nivel root. El DELETE bajó de ROOT: es baja lógica de una persona, no un privilegio; `verificarQueQuedaRoot` sigue impidiendo que deje al sistema sin administrador.",
+  },
+  {
+    patron: "/usuarios/:id/roles",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Lectura de los roles asignados a un usuario (ficha y modal del panel). Solo GET: el PUT del mismo path se queda en ROOT porque asignarse el rol Root ES hacerse root.",
+  },
+  {
+    patron: "/usuarios/:id/accesos",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Lectura de los accesos directos de un usuario. Solo GET: el PUT del mismo path se queda en ROOT (otorga funcionalidades sin pasar por roles).",
+  },
+  {
+    patron: "/usuarios/externos",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Enumera los usuarios de SGM/LDAP/GSIST: nombres, mails y CÉDULAS de toda la empresa, incluida gente que no usa secapi. Es el endpoint más sensible del bloque y estaba abierto a cualquier sesión de cualquiera de las cuatro aplicaciones.",
+  },
+  {
+    patron: "/usuarios/importar",
+    metodos: ["POST"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Crea usuarios en masa desde SGM/LDAP/GSIST. Bajó de ROOT: dar de alta gente es administrar usuarios, y el alta no otorga privilegios (los usuarios importados nacen sin roles). Ojo: el handler tenía su propio `requireRoot`; si vuelve a aparecer, este nivel deja de significar nada.",
+  },
+  {
+    patron: "/admin/import-sgm-preferences",
+    metodos: ["POST"],
+    nivel: "ADMIN",
+    objetoKey: "usuarios",
+    accion: ACCION_VIEW,
+    motivo:
+      "Barrido masivo que reescribe preferencias sobre toda la base. Bajó de ROOT junto con el resto de la administración de usuarios. Antes de todo esto solo exigía que la cookie `token` EXISTIERA — ni firma ni vencimiento — así que alcanzaba con mandar `Cookie: token=x`.",
+  },
+  {
+    patron: "/roles/:id",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "roles",
+    accion: ACCION_VIEW,
+    motivo:
+      "Ficha de un rol. Solo lectura: el PUT y el DELETE del mismo path se quedan en ROOT (renombrar un rol a 'Root' es otorgarse root).",
+  },
+  {
+    patron: "/roles/:id/atributos",
+    metodos: ["POST"],
+    nivel: "ADMIN",
+    objetoKey: "roles",
+    accion: ACCION_VIEW,
+    motivo:
+      "Alta de un atributo suelto de rol, solo desde el front de secapi (api.ts:1907). El GET y el PUT del MISMO path siguen en SERVICIO porque los llama el edge de Granel: por eso el POST se declara aparte y NO entra en el alcance de la api-key.",
+  },
+  {
+    patron: "/aplicaciones",
+    metodos: ["GET"],
+    nivel: "AUTENTICADA",
+    motivo:
+      "CATÁLOGO, no administración: son seis nombres de aplicación que llenan un combo. Lo piden OCHO pantallas del panel al montar (roles, objetos, funcionalidades, permisos, el builder de menú y los tres formularios), así que dejarlo en ADMIN `aplicaciones:view` obligaba a otorgar DOS funcionalidades para que una sola pantalla funcione: quien recibía 'Roles' abría la pantalla y le fallaba la carga. Y no esconde nada: los mismos nombres ya le llegan a cualquier sesión por GET /menu. La ficha, el alta, la edición y la baja SÍ quedan cerradas: administrar aplicaciones es otra cosa que leer cómo se llaman.",
+  },
+  {
+    patron: "/aplicaciones/:id",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "aplicaciones",
+    accion: ACCION_VIEW,
+    motivo:
+      "Ficha de una aplicación. Solo lectura: el PUT y el DELETE se quedan en ROOT (dar de baja la aplicación 1 deja al sistema sin root).",
+  },
+  {
+    patron: "/aplicaciones/:id/roles",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "aplicaciones",
+    accion: ACCION_VIEW,
+    motivo: "Roles de una aplicación, para los selectores del panel.",
+  },
+  {
+    patron: "/funcionalidades",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "funcionalidades",
+    accion: ACCION_VIEW,
+    motivo: "Grilla de funcionalidades del panel. Solo lectura: el alta se queda en ROOT.",
+  },
+  {
+    patron: "/funcionalidades/:id",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "funcionalidades",
+    accion: ACCION_VIEW,
+    motivo:
+      "Ficha de una funcionalidad. Solo lectura: el PUT y el DELETE se quedan en ROOT (`es_publico='S'` otorga la pantalla a todo el mundo).",
+  },
+  {
+    patron: "/funcionalidades/:id/acciones",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "funcionalidades",
+    accion: ACCION_VIEW,
+    motivo:
+      "Lectura del vínculo funcionalidad ↔ objeto/acción. Solo GET: el PUT se queda en ROOT porque reescribe la tabla que el motor consulta para saber qué protege qué.",
+  },
+  {
+    patron: "/acciones",
+    metodos: ["GET", "POST"],
+    nivel: "ADMIN",
+    objetoKey: "acciones",
+    accion: ACCION_VIEW,
+    motivo:
+      "ABM del catálogo `acciones`. Es el único ABM completo que NO está en ROOT, y por una razón concreta: esta tabla (y su vínculo `funcionalidad_acciones`) no la lee el motor de permisos — el motor trabaja contra `objeto_acciones` y `funcionalidad_objeto_acciones`, que son otras. Tocar esto no otorga ni quita acceso a nada.",
+  },
+  {
+    patron: "/acciones/:id",
+    metodos: ["GET", "PUT", "DELETE"],
+    nivel: "ADMIN",
+    objetoKey: "acciones",
+    accion: ACCION_VIEW,
+    motivo: "Ídem: catálogo descriptivo que el motor no consulta. Ver el motivo de /acciones.",
+  },
+  {
+    patron: "/objetos",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "objetos",
+    accion: ACCION_VIEW,
+    motivo: "Grilla de objetos (pantallas y puntos de menú). Solo lectura: el alta se queda en ROOT.",
+  },
+  {
+    patron: "/objetos/:id",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "objetos",
+    accion: ACCION_VIEW,
+    motivo:
+      "Ficha de un objeto. Solo lectura: el PUT y el DELETE se quedan en ROOT (`es_publico='S'` y el recableado de `objeto_acciones` otorgan acceso).",
+  },
+  {
+    patron: "/menu/builder",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "menu",
+    accion: ACCION_VIEW,
+    motivo:
+      "Lectura del árbol para el editor. Solo GET: el PUT se queda en ROOT (reescribe `objetos` y `objeto_acciones`, incluido el `path` contra el que matchea el motor). OJO: `GET /menu` —el menú del usuario, que llama Goya— es OTRA ruta y sigue en AUTENTICADA.",
+  },
+  {
+    patron: "/accesos",
+    metodos: ["GET"],
+    nivel: "ADMIN",
+    objetoKey: "permisos",
+    accion: ACCION_VIEW,
+    motivo:
+      "Listado de accesos directos: quién tiene otorgada cada funcionalidad en todo el ecosistema. Es la pantalla /dashboard/permisos, y de ahí sale su objetoKey. Solo GET: el POST y el DELETE se quedan en ROOT.",
+  },
+  {
+    patron: "/solicitudes/:id/aprobar",
+    metodos: ["POST"],
+    nivel: "ADMIN",
+    objetoKey: "solicitudes",
+    accion: APROBADOR_ACCION_KEY,
+    motivo:
+      "Aprobar una solicitud otorga un acceso: es la única escritura sobre `accesos` que NO es de root, y tiene que serlo — el flujo existe justamente para que un aprobador que no es root apruebe. La única política ADMIN con acción propia (`approve`, la que ya usaba `usuarioPuedeAprobar`) porque es la única que existe sembrada además de `view`. Lo que se puede otorgar por esta vía está acotado en el handler; ver `funcionalidadConfierePrivilegio`.",
+  },
+  {
+    patron: "/solicitudes/:id/rechazar",
+    metodos: ["POST"],
+    nivel: "ADMIN",
+    objetoKey: "solicitudes",
+    accion: APROBADOR_ACCION_KEY,
+    motivo:
+      "Ídem aprobar. Rechazar no otorga nada, pero decide sobre la solicitud de otro: es la misma pantalla y el mismo permiso.",
   },
 
-  // ── Autenticadas: el resto del RBAC ───────────────────────────────────────
+  // ── Autenticadas: lo que NO se puede cerrar ───────────────────────────────
   //
-  // Nivel deliberado: "usuario con sesión válida", no "usuario con permiso sobre
-  // este objeto". Subir a permiso fino exigiría pasar cada pantalla del panel de
-  // secapi por el motor de permisos y romper a todo admin que hoy no es root.
-  // Eso es otro trabajo; lo que se cierra acá es el acceso ANÓNIMO, que era el
-  // agujero.
+  // Este bloque es la línea roja del cambio, y conviene decir por qué existe
+  // en vez de tratarlo como "lo que sobró".
+  //
+  // La distinción que lo ordena: poder preguntar QUÉ TENGO PERMITIDO no es un
+  // privilegio; poder cambiar QUÉ TIENE PERMITIDO OTRO, sí. Todo lo de acá
+  // abajo es de la primera clase —o es el servicio compartido que consumen Goya,
+  // TrackMovil y el edge de Granel— y por eso se queda en "usuario con sesión
+  // válida".
+  //
+  // Si alguna de estas sube de nivel, se rompe Goya o TrackMovil. No es una
+  // hipótesis: son las rutas que aparecen en el barrido de los tres repos.
   {
     patron: "/permisos",
     metodos: ["POST"],
@@ -285,13 +618,6 @@ export const POLITICAS: readonly Politica[] = [
       "Fallaba ABIERTO: sin token (o con token inválido) devolvía el árbol de menú COMPLETO. Goya lo llama con el Bearer solo `if (token)` (menuApp/route.ts:30), así que quien no tenga cookie pasa de ver todo el menú a ver 401. Es el cambio de comportamiento buscado, no un daño colateral.",
   },
   {
-    patron: "/menu/builder",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Lectura del árbol para el editor. Solo GET: el PUT subió a ROOT (reescribe `objetos` y `objeto_acciones`, incluido el `path` contra el que matchea el motor).",
-  },
-  {
     patron: "/usuarios/yo",
     metodos: ["GET"],
     nivel: "AUTENTICADA",
@@ -299,38 +625,10 @@ export const POLITICAS: readonly Politica[] = [
       "'¿Quién soy y soy root?' resuelto del token. Nivel AUTENTICADA y NO ROOT a propósito: preguntar si sos root no puede exigir ser root — con ROOT el no-root recibiría 403 y la UI no podría distinguir 'no sos root' de 'se cayó algo'. Existe porque el panel venía leyendo `user.isRoot` de localStorage, que sale del login de GeneXus (USEREXTENDED) y en producción está INVERTIDO respecto de secapi.",
   },
   {
-    patron: "/usuarios",
-    metodos: ["GET", "POST"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Grilla y alta de usuarios del panel de secapi. El alta ya no otorga root: `esRoot` dejó de autorizar y el handler rechaza el intento de crearlo en 'S' (root se otorga asignando el rol Root).",
-  },
-  {
-    patron: "/usuarios/:id",
-    metodos: ["GET", "PUT"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ficha de usuario del panel. El PUT ya no puede elevar a root: `esRoot` dejó de autorizar y el handler rechaza cambiarlo (root se otorga en /usuarios/:id/roles, asignando el rol Root de la aplicación).",
-  },
-  {
-    patron: "/usuarios/:id/roles",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Lectura de los roles asignados a un usuario (ficha y modal del panel). Solo GET: el PUT del mismo path subió a ROOT porque asignarse el rol Root ES hacerse root.",
-  },
-  {
     patron: "/usuarios/:id/atributos",
     metodos: ["GET", "PUT", "POST"],
     nivel: "AUTENTICADA",
     motivo: "Preferencias por usuario (escenario, empresa fletera) del panel de secapi.",
-  },
-  {
-    patron: "/usuarios/:id/accesos",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Lectura de los accesos directos de un usuario. Solo GET: el PUT del mismo path subió a ROOT (otorga funcionalidades sin pasar por roles).",
   },
   {
     patron: "/usuarios/:id/permite-login",
@@ -346,127 +644,17 @@ export const POLITICAS: readonly Politica[] = [
     motivo: "Pantalla /admin/usuarios-empresa de TrackMovil; ya forwardea el Authorization.",
   },
   {
-    patron: "/usuarios/externos",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Enumera los usuarios de SGM/LDAP/GSIST (nombres, mails y cédulas de toda la empresa). Ya exigía token, pero sin verificar la firma.",
-  },
-  {
-    patron: "/roles/:id",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ficha de un rol del panel de secapi. Solo lectura: el PUT y el DELETE del mismo path subieron a ROOT (renombrar un rol a 'Root' es otorgarse root).",
-  },
-  {
-    patron: "/roles/:id/atributos",
-    metodos: ["POST"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Alta de un atributo suelto de rol, solo desde el front de secapi (api.ts:1907). Granel usa GET y PUT: por eso el POST NO entra en el alcance de la api-key.",
-  },
-  {
-    patron: "/aplicaciones",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Grilla de aplicaciones del panel. Solo lectura: el alta subió a ROOT.",
-  },
-  {
-    patron: "/aplicaciones/:id",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ficha de una aplicación. Solo lectura: el PUT y el DELETE subieron a ROOT (dar de baja la aplicación 1 deja al sistema sin root).",
-  },
-  {
-    patron: "/aplicaciones/:id/roles",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo: "Roles de una aplicación, para los selectores del panel.",
-  },
-  {
-    patron: "/funcionalidades",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Grilla de funcionalidades del panel. Solo lectura: el alta subió a ROOT.",
-  },
-  {
-    patron: "/funcionalidades/:id",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ficha de una funcionalidad. Solo lectura: el PUT y el DELETE subieron a ROOT (`es_publico='S'` otorga la pantalla a todo el mundo).",
-  },
-  {
-    patron: "/funcionalidades/:id/acciones",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Lectura del vínculo funcionalidad ↔ objeto/acción. Solo GET: el PUT subió a ROOT porque reescribe la tabla que el motor consulta para saber qué protege qué.",
-  },
-  {
-    patron: "/objetos",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Grilla de objetos (pantallas y puntos de menú). Solo lectura: el alta subió a ROOT.",
-  },
-  {
-    patron: "/objetos/:id",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ficha de un objeto. Solo lectura: el PUT y el DELETE subieron a ROOT (`es_publico='S'` y el recableado de `objeto_acciones` otorgan acceso).",
-  },
-  {
-    patron: "/acciones",
-    metodos: ["GET", "POST"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "ABM del catálogo `acciones`. QUEDA en AUTENTICADA a propósito, y es la única excepción del ABM: esta tabla (y su vínculo `funcionalidad_acciones`) NO la lee el motor de permisos — el motor trabaja contra `objeto_acciones` y `funcionalidad_objeto_acciones`, que son otras. Tocar esto no otorga ni quita acceso a nada; es un catálogo descriptivo.",
-  },
-  {
-    patron: "/acciones/:id",
-    metodos: ["GET", "PUT", "DELETE"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Ídem: catálogo descriptivo que el motor no consulta. Ver el motivo de /acciones.",
-  },
-  {
-    patron: "/accesos",
-    metodos: ["GET"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Listado de accesos directos. Solo GET: el POST y el DELETE subieron a ROOT — son la misma operación que /usuarios/:id/accesos PUT, de a uno.",
-  },
-  {
     patron: "/solicitudes",
     metodos: ["GET", "POST"],
     nivel: "AUTENTICADA",
     motivo:
-      "Solicitudes de acceso. Ya exigían token (sin verificar firma); el handler además resuelve al solicitante con resolveUsuario.",
+      "El POST es el autoservicio: lo dispara el botón de /no-autorizado de Goya y TrackMovil, así que PEDIR acceso no puede exigir tener acceso. El GET (panel de aprobación) sigue gateado por el handler con `usuarioPuedeAprobar`, que ahora resuelve por el mismo motor que el nivel ADMIN; queda en AUTENTICADA para que el no-aprobador reciba el 403 explicativo del handler y no un 403 del guard.",
   },
   {
     patron: "/solicitudes/mias",
     metodos: ["GET"],
     nivel: "AUTENTICADA",
     motivo: "Solicitudes del propio usuario.",
-  },
-  {
-    patron: "/solicitudes/:id/aprobar",
-    metodos: ["POST"],
-    nivel: "AUTENTICADA",
-    motivo:
-      "Quién puede aprobar lo sigue decidiendo el handler (usuarioPuedeAprobar): acá solo se exige que haya una sesión real detrás.",
-  },
-  {
-    patron: "/solicitudes/:id/rechazar",
-    metodos: ["POST"],
-    nivel: "AUTENTICADA",
-    motivo: "Ídem aprobar.",
   },
   {
     patron: "/usuario-preferencias/sugerencias",
@@ -498,12 +686,12 @@ export function rutaRelativa(pathname: string): string | null {
 }
 
 /**
- * Nivel declarado para (path, método), o `null` si no hay política.
+ * Política declarada para (path, método), o `null` si no hay ninguna.
  *
  * `null` NO significa "abierta": significa que nadie decidió, y el guard
  * deniega. Es la diferencia entre olvidarse y dejar entrar.
  */
-export function nivelDeRuta(pathname: string, metodo: string): NivelAcceso | null {
+export function politicaDeRuta(pathname: string, metodo: string): Politica | null {
   const relativa = rutaRelativa(pathname);
   if (relativa === null) return null;
 
@@ -511,10 +699,42 @@ export function nivelDeRuta(pathname: string, metodo: string): NivelAcceso | nul
   for (const p of POLITICAS_ORDENADAS) {
     if (!p.regex.test(relativa)) continue;
     if (!p.metodos.includes(m as Metodo)) continue;
-    return p.nivel;
+    return p;
   }
   return null;
 }
+
+/**
+ * Nivel declarado para (path, método), o `null`. Envoltorio de
+ * `politicaDeRuta` para los que solo necesitan el nivel — el guard de la UI
+ * (`scripts/test-ui-gates-root.ts`) y los tests de la tabla.
+ */
+export function nivelDeRuta(pathname: string, metodo: string): NivelAcceso | null {
+  return politicaDeRuta(pathname, metodo)?.nivel ?? null;
+}
+
+/**
+ * Objeto y acción contra los que se evalúa una ruta ADMIN, o `null` si la ruta
+ * no es ADMIN. Lo usa el test estático de la UI para saber con qué `objetoKey`
+ * tiene que estar gateada cada pantalla.
+ */
+export function alcanceAdminDeRuta(
+  pathname: string,
+  metodo: string,
+): { objetoKey: string; accion: string } | null {
+  const politica = politicaDeRuta(pathname, metodo);
+  if (!politica || politica.nivel !== "ADMIN") return null;
+  return { objetoKey: politica.objetoKey, accion: accionDePolitica(politica, metodo) };
+}
+
+/**
+ * Las `objetoKey` que usa la tabla, sin repetir. Es la lista contra la que la UI
+ * declara sus pantallas: si alguien agrega una política ADMIN con un objeto
+ * nuevo, aparece acá solo y el tipo del hook lo acepta sin tocar nada.
+ */
+export const OBJETO_KEYS_ADMIN: readonly string[] = [
+  ...new Set(POLITICAS.filter((p) => p.nivel === "ADMIN").map((p) => p.objetoKey)),
+].sort();
 
 // ─── Api-key de servicio ────────────────────────────────────────────────────
 
@@ -582,6 +802,8 @@ export type CodigoApiAuth =
   | "TOKEN_VENCIDO" // 401 — firma válida, `exp` pasado
   | "USUARIO_NO_ENCONTRADO" // 401 — el token nombra a alguien que no está activo
   | "NO_ROOT" // 403 — sesión válida sin el rol Root de SecuritySuite
+  | "NO_ADMIN" // 403 — ni root ni la funcionalidad de esa pantalla otorgada
+  | "ADMIN_SIN_OBJETO" // 403 — política ADMIN sin `objetoKey`: bug de configuración
   | "SERVICIO_FUERA_DE_ALCANCE" // 403 — api-key válida en un endpoint que no le toca
   | "SECRETO_NO_CONFIGURADO" // 503 — JWT_SECRET ausente, corta o con el default del código
   | "ERROR_GUARD"; // 503 — fail-closed: no se pudo decidir
@@ -613,7 +835,11 @@ function mensajeDe(code: CodigoApiAuth): string {
       return "Tu sesión no es válida, volvé a iniciar sesión";
     case "NO_ROOT":
       return "Esta operación requiere ser root";
+    case "NO_ADMIN":
+      // A diferencia de NO_ROOT, esto SÍ se puede resolver: hay a quién pedirle.
+      return "No tenés permiso para administrar esta parte de SecuritySuite. Pedísela a un administrador.";
     case "SIN_POLITICA":
+    case "ADMIN_SIN_OBJETO":
     case "SERVICIO_FUERA_DE_ALCANCE":
       return "No tenés acceso a este recurso";
     case "SECRETO_NO_CONFIGURADO":
@@ -635,9 +861,24 @@ function denegar(status: number, code: CodigoApiAuth): ResultadoApiAuth {
 export interface DependenciasApiGuard {
   /** Resuelve el usuario del JWT. Por defecto, el helper de @/lib/permisos. */
   resolveUsuario: (req: NextRequest) => Promise<UsuarioAuth | null>;
+  /**
+   * El motor de permisos de secapi aplicado a secapi: ¿este usuario tiene
+   * otorgada la funcionalidad de (objetoKey, accion)? Por defecto,
+   * `usuarioTieneFuncionalidad` de @/lib/permisos, que es el MISMO código que
+   * responde `POST /api/db/permisos` para Goya y TrackMovil.
+   */
+  tieneFuncionalidad: (
+    usuario: UsuarioAuth,
+    objetoKey: string,
+    accion: string,
+  ) => Promise<boolean>;
 }
 
-const dependenciasReales: DependenciasApiGuard = { resolveUsuario };
+const dependenciasReales: DependenciasApiGuard = {
+  resolveUsuario,
+  tieneFuncionalidad: (usuario, objetoKey, accion) =>
+    usuarioTieneFuncionalidad(usuario, objetoKey, accion),
+};
 
 /**
  * Construye el guard con sus dependencias. La app usa la instancia por defecto
@@ -662,9 +903,10 @@ export function crearGuardApi(deps: DependenciasApiGuard = dependenciasReales) {
    */
   async function requireApiAuth(req: NextRequest): Promise<ResultadoApiAuth> {
     const pathname = req.nextUrl.pathname;
-    const nivel = nivelDeRuta(pathname, req.method);
+    const politica = politicaDeRuta(pathname, req.method);
+    const nivel = politica?.nivel ?? null;
 
-    if (nivel === null) {
+    if (politica === null || nivel === null) {
       // Ruta nueva sin política, o método que la tabla no contempla. Se deniega
       // y se loguea fuerte: es un bug de configuración, no un ataque.
       console.error(
@@ -682,6 +924,10 @@ export function crearGuardApi(deps: DependenciasApiGuard = dependenciasReales) {
     // tiene sesión de nadie y no va a traer token nunca.
     const conClave = claveDeServicioValida(req);
     if (conClave === true) {
+      // La api-key NUNCA alcanza un endpoint ADMIN: no representa a una
+      // persona, así que no hay a quién preguntarle qué tiene otorgado. Cae en
+      // el mismo `!== "SERVICIO"` que el resto, y queda dicho para que nadie
+      // intente "arreglarlo" agregando una excepción.
       if (nivel !== "SERVICIO") {
         // La key es válida pero este endpoint no está en su alcance. Es el punto
         // de todo: que la credencial de Granel no sea una llave maestra.
@@ -737,6 +983,43 @@ export function crearGuardApi(deps: DependenciasApiGuard = dependenciasReales) {
     // Root = rol "Root" de SecuritySuite (no la columna `usuarios.es_root`).
     // El cálculo vive en `resolveUsuario`; acá solo se lee el resultado.
     if (nivel === "ROOT" && !usuario.esRootDeSecapi) return denegar(403, "NO_ROOT");
+
+    if (politica.nivel === "ADMIN" && !usuario.esRootDeSecapi) {
+      // Root no llega hasta acá: pasa por el `if` de arriba sin tocar la base.
+      // Es lo que garantiza que una instalación sin funcionalidades sembradas
+      // siga teniendo quién la administre.
+      const objetoKey = politica.objetoKey?.trim();
+      const accion = accionDePolitica(politica, req.method);
+
+      if (!objetoKey || !accion) {
+        // El tipo `PoliticaAdmin` hace esto imposible desde TypeScript; queda
+        // igual porque una política mal armada tiene que ser un 403 ruidoso y
+        // no un pase libre. `accion` vacía = método que `accionPorMetodo` no
+        // sabe mapear (HEAD, OPTIONS…).
+        console.error(
+          `[apiGuard] ${req.method} ${pathname} es de nivel ADMIN pero no declara ` +
+            `objetoKey (${String(politica.objetoKey)}) o no mapea a una acción ` +
+            `(${String(accion)}). Se deniega por fail-closed.`,
+        );
+        return denegar(403, "ADMIN_SIN_OBJETO");
+      }
+
+      let habilitado: boolean;
+      try {
+        habilitado = await deps.tieneFuncionalidad(usuario, objetoKey, accion);
+      } catch (error) {
+        // Mismo criterio que con `resolveUsuario`: si no se pudo preguntar, no
+        // se deja pasar. "La base no contesta" no es "tenés permiso".
+        console.error(
+          `[apiGuard] error evaluando el permiso ADMIN de ${req.method} ${pathname} ` +
+            `(objeto="${objetoKey}" accion="${accion}")`,
+          error,
+        );
+        return denegar(503, "ERROR_GUARD");
+      }
+
+      if (!habilitado) return denegar(403, "NO_ADMIN");
+    }
 
     return { ok: true, nivel, usuario, viaServicio: false };
   }
