@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -186,7 +187,22 @@ export default function AsignarRolesModal({
     }));
   };
 
-  const handleSave = async () => {
+  /**
+   * Guarda la asignación.
+   *
+   * `confirmarQuitarmeRoot` es la segunda pasada: el endpoint contesta 409 con
+   * `codigo: "AutoQuitarseRootError"` cuando el que está guardando se está
+   * quitando a sí mismo el rol Root de SecuritySuite, y recién con el flag lo
+   * deja. El motivo del rodeo es que este botón reemplaza TODOS los roles del
+   * usuario de una sola vez: alcanza con destildar sin mirar, o con que la
+   * lista no haya cargado un rol, para quedarse afuera del panel — y de ahí no
+   * se vuelve, porque administrar permisos ahora exige ser root.
+   *
+   * El otro 409 posible (`SistemaSinRootError`, "esto deja la instalación sin
+   * ningún root") NO se ofrece confirmar: ese no se puede hacer ni queriendo.
+   * Se muestra el mensaje del servidor, que ya dice qué hacer.
+   */
+  const handleSave = async (confirmarQuitarmeRoot = false) => {
     try {
       setSaving(true);
 
@@ -204,7 +220,9 @@ export default function AsignarRolesModal({
         };
       });
 
-      const response = await apiAsignarRolesDB(userId, rolesPayload);
+      const response = await apiAsignarRolesDB(userId, rolesPayload, {
+        confirmarQuitarmeRoot,
+      });
 
       if (response?.success !== false) {
         toast.success("Roles asignados correctamente");
@@ -213,8 +231,19 @@ export default function AsignarRolesModal({
         toast.error(response?.error || "Error al asignar roles");
       }
     } catch (error) {
+      const err = error as Error & { codigo?: string };
+      if (err?.codigo === "AutoQuitarseRootError") {
+        toast.warning(err.message, {
+          duration: 15000,
+          action: {
+            label: "Quitármelo igual",
+            onClick: () => void handleSave(true),
+          },
+        });
+        return;
+      }
       console.error("[AsignarRolesModal] Error asignando roles:", error);
-      toast.error("Error al asignar roles");
+      toast.error(err?.message || "Error al asignar roles");
     } finally {
       setSaving(false);
     }
@@ -243,14 +272,26 @@ export default function AsignarRolesModal({
             <X className="w-4 h-4 mr-2" aria-hidden="true" />
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          {/*
+            PUT /api/db/usuarios/:id/roles es nivel ROOT: es LA puerta de la
+            escalada (asignarse el rol Root es hacerse root de todo). El GET
+            sigue abierto, por eso el modal se abre igual y se pueden mirar los
+            roles del usuario — lo único que se apaga es guardarlos.
+
+            Sin argumentos: el click de un botón pasa el evento, y `handleSave`
+            interpretaría cualquier cosa truthy como la confirmación de
+            quitarse el propio Root.
+          */}
+          <BotonRoot alcance="ROOT" onClick={() => void handleSave()} disabled={saving}>
             <Save className="w-4 h-4 mr-2" aria-hidden="true" />
             {saving ? "Guardando..." : "Guardar Asignación"}
-          </Button>
+          </BotonRoot>
         </>
       }
     >
       <div className="flex flex-col space-y-4 h-full">
+        <AvisoSoloRoot alcance="ROOT" que="la asignación de roles" className="shrink-0" />
+
         {/* Buscador + filtro por aplicación */}
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1 space-y-2">

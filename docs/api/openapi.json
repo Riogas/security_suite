@@ -670,6 +670,15 @@
               "type": "string"
             },
             "description": "Segmento dinámico `[id]` de la ruta."
+          },
+          {
+            "name": "confirmarQuitarmeRoot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
           }
         ],
         "responses": {
@@ -1443,7 +1452,7 @@
           "permisos"
         ],
         "summary": "Verifica si el usuario autenticado tiene acceso para uno o varios",
-        "description": "POST /api/db/permisos\n\nVerifica si el usuario autenticado tiene acceso para uno o varios\nobjetos + acciones de una aplicacion dada (Postgres/Prisma).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nModo single:\n  Body: { aplicacion, ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }\n  Resp: { permitido: \"GRANTED\"|\"DENIED\", razon, objetoKey, accionKey?, accionCodigo?, funcionalidadId? }\n\nModo batch:\n  Body: { aplicacion, permisos: [ { ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }, ... ] }\n  Resp: { resultados: [ ...misma shape single... ] }\n\nFlujo:\n  1. JWT -> usuario activo\n  2. esRoot='S' -> GRANTED en todo sin mas checks\n  3. Aplicacion por nombre\n  4. Objeto activo (key + tipo opcional)  -> PUBLIC_OBJECT si esPublico\n  5. ObjetoAccion (filtra accionKey/Codigo/path)\n  6. funcionalidad_objeto_acciones -> Funcionalidades activas/vigentes\n     -> PUBLIC_FUNCIONALIDAD | SOLO_ROOT\n  7. accesos directo (ALLOW, vigente)\n  8. usuario_roles -> rol_funcionalidades\n  9. ACCESS_DENIED",
+        "description": "POST /api/db/permisos\n\nVerifica si el usuario autenticado tiene acceso para uno o varios\nobjetos + acciones de una aplicacion dada (Postgres/Prisma).\n\nHeaders: Authorization: Bearer <jwt>   (o cookie \"token\")\n\nModo single:\n  Body: { aplicacion, ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }\n  Resp: { permitido: \"GRANTED\"|\"DENIED\", razon, objetoKey, accionKey?, accionCodigo?, funcionalidadId? }\n\nModo batch:\n  Body: { aplicacion, permisos: [ { ObjetoKey, ObjetoTipo?, AccionKey?, AccionCodigo?, ObjetoPath? }, ... ] }\n  Resp: { resultados: [ ...misma shape single... ] }\n\nFlujo:\n  1. JWT -> usuario activo\n  2. Aplicacion por nombre / AplicacionId\n  3. rol \"Root\" vigente de ESA aplicacion (o de secapi, que vale para todas)\n     -> GRANTED en todo sin mas checks\n  4. Objeto activo (key + tipo opcional)  -> PUBLIC_OBJECT si esPublico\n  5. ObjetoAccion (filtra accionKey/Codigo/path)\n  6. funcionalidad_objeto_acciones -> Funcionalidades activas/vigentes\n     -> PUBLIC_FUNCIONALIDAD | SOLO_ROOT\n  7. accesos directo (ALLOW, vigente)\n  8. usuario_roles -> rol_funcionalidades\n  9. ACCESS_DENIED",
         "operationId": "post_api_db_permisos",
         "responses": {
           "default": {
@@ -1621,7 +1630,7 @@
           "roles"
         ],
         "summary": "PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades",
-        "description": "PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades",
+        "description": "PUT /api/db/roles/[id] — actualiza datos + reemplaza funcionalidades\n\nNivel ROOT en POLITICAS: este PUT puede RENOMBRAR cualquier rol de la\naplicación 1 a \"Root\", y como el rol root se identifica por nombre, eso es\notorgarse root. También puede hacer lo contrario —renombrar el rol Root, o\npasarlo a estado 'I'— y dejar al sistema sin administrador; por eso lo\nenvuelve una transacción con `verificarQueQuedaRoot`.",
         "operationId": "put_api_db_roles_id",
         "parameters": [
           {
@@ -1661,7 +1670,7 @@
           "roles"
         ],
         "summary": "DELETE /api/db/roles/[id] — soft delete",
-        "description": "DELETE /api/db/roles/[id] — soft delete",
+        "description": "DELETE /api/db/roles/[id] — soft delete\n\nNivel ROOT: pasar el rol a estado 'I' se lo saca de hecho a todos los que lo\ntienen (`aplicacionesRootDe` descarta el rol inactivo). Sobre el rol Root de\nsecapi, esto deja al sistema sin administrador de un solo request.",
         "operationId": "delete_api_db_roles_id",
         "parameters": [
           {
@@ -1672,6 +1681,15 @@
               "type": "string"
             },
             "description": "Segmento dinámico `[id]` de la ruta."
+          },
+          {
+            "name": "confirmarQuitarmeRoot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
           }
         ],
         "responses": {
@@ -1995,8 +2013,8 @@
         "tags": [
           "solicitudes"
         ],
-        "summary": "Body: { funcionalidadId, fechaDesde?, fechaHasta?, comentario? }",
-        "description": "POST /api/db/solicitudes/[id]/aprobar\nBody: { funcionalidadId, fechaDesde?, fechaHasta?, comentario? }\n\nTransacción:\n  1. Valida solicitud PENDIENTE + funcionalidad activa.\n  2. Asegura el vínculo FuncionalidadObjetoAccion (objeto+acción ↔ func).\n  3. Upsert Acceso grant (usuario + funcionalidad).\n  4. Marca la solicitud APROBADA con auditoría.",
+        "summary": "Body: { funcionalidadId?, fechaDesde?, fechaHasta?, comentario? }",
+        "description": "POST /api/db/solicitudes/[id]/aprobar\nBody: { funcionalidadId?, fechaDesde?, fechaHasta?, comentario? }\n\nEl agujero que esto cierra\n\nEste endpoint escribe en `accesos` —concesiones DIRECTAS de funcionalidad—\ny hasta acá tomaba el `funcionalidadId` del BODY, sin mirar qué había pedido\nla solicitud. Con eso, un aprobador que NO es root se creaba una solicitud a\nsí mismo por cualquier pantalla y la aprobaba nombrando la funcionalidad que\nse le antojara: se otorgaba la de /docs, o la de aprobar solicitudes, y desde\nahí fabricaba más aprobadores en cadena.\n\nLas otras dos puertas a `accesos` (`PUT /usuarios/:id/accesos` y\n`POST|DELETE /accesos`) subieron a nivel ROOT. Esta NO puede subir: el flujo\nde aprobación existe justamente para que un aprobador que no es root apruebe.\nAsí que en vez de cerrar la puerta se acota QUÉ se puede sacar por ella:\n\n  1. La aprobación concede exactamente lo que la solicitud PIDIÓ. El conjunto\n     de funcionalidades otorgables se calcula en el servidor a partir del\n     objeto y la acción de la solicitud (las \"candidatas\", las mismas que ya\n     muestra `GET /solicitudes`). El `funcionalidadId` del body pasó de ser\n     LA orden a ser, como mucho, un desempate cuando hay más de una candidata:\n     si no está en el conjunto, se rechaza.\n  2. Ya no se CREA el vínculo `funcionalidad_objeto_acciones`. Crear vínculos\n     es reescribir contra qué funcionalidad matchea cada pantalla, o sea la\n     tabla que el motor consulta: es una operación de root\n     (`PUT /funcionalidades/:id/acciones`), y hacerla desde acá era la forma\n     de convertir \"aprobar un pedido\" en \"recablear el modelo\". Si el objeto\n     no está vinculado a ninguna funcionalidad, la aprobación se rechaza con\n     409 y un root tiene que vincularlo primero.\n  3. No se otorga nada que confiera privilegio sobre secapi. Ver\n     `funcionalidadConfierePrivilegio` en src/lib/permisos.ts: la regla está\n     definida por objeto/funcionalidad y no por ids mágicos.\n\nTransacción:\n  1. Valida solicitud PENDIENTE + funcionalidad candidata, activa y no privilegiada.\n  2. Upsert Acceso grant (usuario + funcionalidad).\n  3. Marca la solicitud APROBADA con auditoría.",
         "operationId": "post_api_db_solicitudes_id_aprobar",
         "parameters": [
           {
@@ -2414,6 +2432,37 @@
         ]
       }
     },
+    "/api/db/usuarios/yo": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "\"¿Quién soy y de qué soy root?\", resuelto del token contra Postgres.",
+        "description": "GET /api/db/usuarios/yo\n\n\"¿Quién soy y de qué soy root?\", resuelto del token contra Postgres.\n\nPor qué existe: el panel decidía si mostrar el botón de \"Importación masiva\"\ncon `user.isRoot` de localStorage, y ese valor NO sale de esta base — sale\ndel login del panel, que va por el passthrough a GeneXus y devuelve\nSERVICIOS.USEREXTENDED.USEREXTENDEDESROOT. En producción esos dos campos\nestán INVERTIDOS: a dmedaglia (root acá) el botón le salía bloqueado, y a\nquien GeneXus marcaba root le salía habilitado aunque el endpoint lo fuera a\nrechazar con 403. Preguntándole a secapi, la UI y el guard usan el MISMO\ncriterio: el rol \"Root\" (ver src/lib/permisos.ts).\n\nNivel AUTENTICADA en POLITICAS, no ROOT: preguntar si sos root no puede\nexigir ser root. Con nivel ROOT, el no-root recibiría 403 y el front no\npodría distinguir \"no sos root\" de \"algo se rompió\".\n\nNo devuelve la ficha del usuario (para eso está GET /api/db/usuarios/:id):\nsolo identidad, root y qué puede administrar — lo único que hace falta para\ngatear la UI.\n\nPor qué también viaja `administra`\n\nDesde que existe el nivel ADMIN, \"¿puedo administrar?\" dejó de tener UNA\nrespuesta: se puede administrar usuarios y no roles. Si la UI siguiera\npreguntando solo por root, el gate visual volvería a mentir — ahora en la\ndirección contraria: le escondería a un usuario habilitado un botón que el\nservidor SÍ le iba a aceptar.\n\nEs información sobre UNO MISMO, así que no hay filtración de por medio, pero\nigual va acotada: solo la aplicación SecuritySuite, solo las keys de objeto y\nde acción, y nada de ids, nombres de funcionalidad ni de rol. Para un root\nviene vacío a propósito — root pasa por otro lado y no necesita la lista.",
+        "operationId": "get_api_db_usuarios_yo",
+        "responses": {
+          "default": {
+            "description": "Sin anotar todavía (ver docs/api/README.md)."
+          }
+        },
+        "x-auth": {
+          "modo": "jwt",
+          "verificaFirma": true,
+          "detectadoEn": "handler",
+          "detalle": "JWT en `Authorization: Bearer` o cookie `token`, con firma y vencimiento verificados por el guard central de `/api/db` (`requireApiAuth`, src/lib/auth/apiGuard.ts). El nivel exigido por esta ruta está declarado en `POLITICAS`, en ese mismo archivo."
+        },
+        "x-archivo": "src/app/api/db/usuarios/yo/route.ts",
+        "x-generado": true,
+        "security": [
+          {
+            "bearerJwt": []
+          },
+          {
+            "cookieToken": []
+          }
+        ]
+      }
+    },
     "/api/db/usuarios/{id}": {
       "get": {
         "tags": [
@@ -2500,7 +2549,7 @@
           "usuarios"
         ],
         "summary": "DELETE /api/db/usuarios/[id] - Eliminar (o desactivar) un usuario",
-        "description": "DELETE /api/db/usuarios/[id] - Eliminar (o desactivar) un usuario",
+        "description": "DELETE /api/db/usuarios/[id] - Eliminar (o desactivar) un usuario\n\nNivel ROOT en POLITICAS. Este handler no chequeaba NADA, y era la forma de\nsaltarse el control del PUT de más arriba: el PUT exige ser root para cambiar\n`estado`, pero este DELETE hacía exactamente lo mismo (estado='I') sin\npreguntar. Cualquiera de los 854 usuarios podía dar de baja a los dos roots y\ndejar la instalación sin administrador — `resolveUsuario` solo autentica\nusuarios con estado='A'. No lo reportó ninguno de los dos informes de\nrevisión; apareció recorriendo el resto de los handlers.",
         "operationId": "delete_api_db_usuarios_id",
         "parameters": [
           {
@@ -2511,6 +2560,15 @@
               "type": "string"
             },
             "description": "Segmento dinámico `[id]` de la ruta."
+          },
+          {
+            "name": "confirmarQuitarmeRoot",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Detectado estáticamente (`searchParams.get`); anotalo para describirlo."
           }
         ],
         "responses": {
@@ -2828,7 +2886,7 @@
           "usuarios"
         ],
         "summary": "PUT /api/db/usuarios/[id]/roles — reemplaza la asignación completa de roles",
-        "description": "PUT /api/db/usuarios/[id]/roles — reemplaza la asignación completa de roles\nBody: { roles: [{ rolId, fechaDesde?, fechaHasta? }] }\nAdemás de recrear UsuarioRol, hace UPSERT en accesos para todas las funcionalidades\nde los roles asignados (efecto=\"grant\").",
+        "description": "PUT /api/db/usuarios/[id]/roles — reemplaza la asignación completa de roles\n\nBody: { roles: [{ rolId, fechaDesde?, fechaHasta? }], confirmarQuitarmeRoot? }\n\nEste endpoint es LA puerta del privilegio desde que root dejó de ser\n`usuarios.es_root` y pasó a ser el rol \"Root\" (ver el bloque \"Root por ROL\"\nen src/lib/permisos.ts): asignar el rol Root de secapi es hacerse root de\ntodo el ecosistema, y quitarlo es dejar a alguien afuera. Por eso acá pasan\ntres cosas que antes no pasaban:\n\n  1. Nivel ROOT en POLITICAS. Estaba en AUTENTICADA y el handler no miraba\n     NADA más allá de tener sesión: ni quién llamaba, ni que el `:id` fuera\n     el propio, ni qué roles se estaban asignando. Un solo request y\n     cualquiera de los 854 usuarios quedaba root de todo.\n  2. deleteMany + createMany adentro de UNA transacción. Estaban sueltos: si\n     el create fallaba (un `rolId` que no existe, un timeout), el usuario\n     quedaba con CERO roles — y ahora \"cero roles\" significa \"sin root\", que\n     antes era imposible porque el flag vivía en otra tabla y sobrevivía a\n     cualquier edición de roles.\n  3. Dos redes de contención sobre el resultado, verificadas DENTRO de la\n     transacción (`verificarQueQuedaRoot`): que no quede el sistema sin\n     ningún root, y que el que llama no se saque su propio Root sin decir\n     explícitamente que quiere hacerlo.\n\nAdemás de recrear UsuarioRol, hace UPSERT en accesos para todas las\nfuncionalidades de los roles asignados (efecto=\"grant\").",
         "operationId": "put_api_db_usuarios_id_roles",
         "parameters": [
           {
@@ -3086,7 +3144,7 @@
   },
   "x-generado-por": "pnpm docs:api (scripts/generar-openapi.ts)",
   "x-aplicacion-id": 1,
-  "x-operaciones": 71,
+  "x-operaciones": 72,
   "x-colapsados": [
     {
       "patron": "\\[\\.\\.\\.proxy\\]",

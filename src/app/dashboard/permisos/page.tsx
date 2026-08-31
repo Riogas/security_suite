@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import { Plus, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -16,10 +16,12 @@ export default function PermisosPage() {
         title="Permisos"
         description="Control de permisos y accesos por rol y usuario."
         actions={
-          <Button onClick={() => router.push("/dashboard/permisos/crear")}>
+          // POST /api/db/accesos es nivel ROOT: es la concesión directa de una
+          // funcionalidad a un usuario, la otra mitad del motor de permisos.
+          <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/permisos/crear")}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo permiso
-          </Button>
+          </BotonRoot>
         }
       />
       <Permisos />

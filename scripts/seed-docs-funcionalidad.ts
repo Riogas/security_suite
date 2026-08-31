@@ -13,7 +13,8 @@
  *   - ObjetoAccion  key="view"  (la acción de ver la página)
  *   - Funcionalidad "docs"  (objetoKey=docs, accionKey=view), solo_root='N':
  *     el acceso se controla por el otorgamiento al rol Root de cada app, de modo
- *     que entra tanto es_root='S' (bypass del motor) como quien tenga el rol Root.
+ *     que entra tanto quien tiene el rol "Root" de secapi (bypass del guard)
+ *     como quien tenga otro rol con la funcionalidad `docs` otorgada.
  *   - Vínculo funcionalidad ↔ objeto+acción
  *   - rol_funcionalidades: la funcionalidad otorgada al rol Root de esa app
  *

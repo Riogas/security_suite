@@ -19,6 +19,11 @@ import * as path from "path";
 import * as fs from "fs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
+import {
+  SELECT_ASIGNACIONES_ROL,
+  aplicacionIdDeSecapi,
+  aplicacionesRootDe,
+} from "../src/lib/permisos";
 
 // ─── Cargar .env.local (mismo que usa la app en desarrollo) ──────────────────
 
@@ -68,8 +73,8 @@ VARIABLES DE ENTORNO
   JWT_SECRET             (obligatoria) Secret para firmar el JWT — misma que usa la app
   DATABASE_URL           (opcional)    URL de PostgreSQL — solo se usa si no se especifica admin
   IMPORT_BASE_URL        (opcional)    URL base del servidor (default: http://localhost:4005)
-  IMPORT_ADMIN_USERNAME  (opcional)    Username del admin para el JWT (default: lookup esRoot='S')
-  IMPORT_ADMIN_USERID    (opcional)    UserId del admin para el JWT (default: lookup esRoot='S')
+  IMPORT_ADMIN_USERNAME  (opcional)    Username del admin para el JWT (default: lookup del rol Root de secapi)
+  IMPORT_ADMIN_USERID    (opcional)    UserId del admin para el JWT (default: lookup del rol Root de secapi)
 
 EJEMPLOS
   pnpm import:sgm-prefs
@@ -108,20 +113,32 @@ interface ImportResponse {
   error?: string;
 }
 
-// ─── Lookup del admin por defecto (esRoot='S') ────────────────────────────────
+// ─── Lookup del admin por defecto (rol "Root" de secapi) ─────────────────────
+//
+// El endpoint que dispara este script es de nivel ROOT, y root dejó de ser
+// `usuarios.es_root='S'`: es tener asignado el ROL "Root" de la aplicación
+// SecuritySuite, vigente y con el rol activo. Si acá siguiera buscando por la
+// columna, el script firmaría un token para alguien que el guard ya no
+// reconoce como root, y se comería un 403 sin explicación.
+//
+// Se reusa `aplicacionesRootDe` —la misma función que usa el guard— en vez de
+// reescribir el criterio en un `where`: un solo lugar donde cambiarlo.
 
 async function lookupRootAdmin(): Promise<{ username: string; userId: number }> {
   const prisma = new PrismaClient();
   try {
-    const admin = await prisma.usuario.findFirst({
-      where: { esRoot: "S", estado: "A" },
-      select: { id: true, username: true },
+    const activos = await prisma.usuario.findMany({
+      where: { estado: "A" },
+      select: { id: true, username: true, roles: { select: SELECT_ASIGNACIONES_ROL } },
       orderBy: { id: "asc" },
     });
+    const appSecapi = aplicacionIdDeSecapi();
+    const admin = activos.find((u) => aplicacionesRootDe(u.roles).includes(appSecapi));
 
     if (!admin) {
       throw new Error(
-        "No se encontró ningún usuario con esRoot='S' en la base de datos.\n" +
+        'No se encontró ningún usuario activo con el rol "Root" de la aplicación ' +
+          `${appSecapi} (SecuritySuite) vigente.\n` +
           "Especificá IMPORT_ADMIN_USERNAME y IMPORT_ADMIN_USERID en el .env o como variables de entorno."
       );
     }
@@ -242,7 +259,7 @@ async function main(): Promise<void> {
       );
       process.exit(1);
     }
-    console.log("Admin no especificado. Buscando usuario con esRoot='S' en la base de datos...");
+    console.log("Admin no especificado. Buscando un usuario con el rol Root de secapi...");
     try {
       const admin = await lookupRootAdmin();
       adminUsername = admin.username;
@@ -306,12 +323,12 @@ async function main(): Promise<void> {
   // Desde que el endpoint es de nivel ROOT (src/lib/auth/apiGuard.ts), un token
   // valido de alguien que no es root ya no alcanza. El script firma para el
   // usuario que le pasaron por IMPORT_ADMIN_USERNAME/USERID, o para el primer
-  // es_root='S' que encuentre en la base: si vino 403, se firmo para el
+  // rol Root de secapi que encuentre en la base: si vino 403, se firmo para el
   // equivocado.
   if (res.status === 403) {
     console.error(
       "ERROR 403 - El usuario del token no es root.\n" +
-        "Este endpoint exige `usuarios.es_root = 'S'`.\n" +
+        'Este endpoint exige el rol "Root" de la aplicación SecuritySuite.\n' +
         "Revisa IMPORT_ADMIN_USERNAME / IMPORT_ADMIN_USERID, o deja que el script\n" +
         "busque solo el admin en la base (no los setees)."
     );

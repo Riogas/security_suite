@@ -29,7 +29,10 @@ import { leerSecretoJwt, verificarJwt } from "@/lib/auth/verificarJwt";
 //      abre: con un secreto conocido, verificar la firma no prueba nada.
 //
 // ── Quién es root a los efectos de /docs ────────────────────────────────────
-//   a) usuarios.es_root = 'S'                      (bypass global del motor)
+//   a) tiene el ROL "Root" de la aplicación 1 (SecuritySuite), vigente y con el
+//      rol activo — `UsuarioAuth.esRootDeSecapi`, calculado en resolveUsuario.
+//      Antes acá se leía `usuarios.es_root='S'`; ver el bloque "Root por ROL"
+//      de src/lib/permisos.ts para el porqué del cambio.
 //   b) tiene un rol vigente y activo al que se le otorgó la funcionalidad
 //      'docs' de la aplicación 1, con la funcionalidad activa, vigente y
 //      solo_root='N' (rol_funcionalidades → funcionalidades)
@@ -60,7 +63,7 @@ export type CodigoDenegacion =
   | "TOKEN_INVALIDO" // 401 — firma inválida, malformado, o sin usuario
   | "TOKEN_VENCIDO" // 401 — firma válida pero `exp` pasado
   | "USUARIO_NO_ENCONTRADO" // 403 — el token nombra a alguien que no está activo
-  | "NO_ROOT" // 403 — usuario válido sin es_root ni funcionalidad `docs`
+  | "NO_ROOT" // 403 — usuario válido sin el rol Root ni la funcionalidad `docs`
   | "SECRETO_NO_CONFIGURADO" // 503 — JWT_SECRET ausente o con el default del código
   | "ERROR_GUARD"; // 503 — fail-closed: no se pudo decidir
 
@@ -104,7 +107,7 @@ function verificarToken(token: string, secreto: string): ResultadoGuard | null {
  * - funcionalidad de esta aplicación, `estado='A'` y **vigente**
  *   (`fecha_desde` / `fecha_hasta`), igual que el `funcLinks` de permisos;
  * - `solo_root='N'`: permisos descarta las funcionalidades `solo_root='S'` para
- *   quien no es root, y el bypass de `es_root='S'` ya se resolvió antes de
+ *   quien no es root, y el bypass por el rol Root ya se resolvió antes de
  *   llegar acá (la columna es char(1) con dominio {'S','N'}, así que el `='N'`
  *   de acá y el `!== 'S'` de permisos coinciden);
  * - rol activo y asignación al usuario vigente.
@@ -205,7 +208,9 @@ export function crearGuardRoot(deps: DependenciasGuard = dependenciasReales) {
     const usuario = await deps.resolveUsuario(req);
     if (!usuario) return { ok: false, status: 403, code: "USUARIO_NO_ENCONTRADO" };
 
-    if (usuario.esRoot === "S") return { ok: true, usuario };
+    // Root por ROL: `esRootDeSecapi` = rol "Root" de la aplicación 1, vigente y
+    // activo. Lo calcula `resolveUsuario`; acá solo se lee.
+    if (usuario.esRootDeSecapi) return { ok: true, usuario };
 
     const otorgada = await deps.tieneFuncionalidadDocs(usuario.id);
     if (otorgada) return { ok: true, usuario };

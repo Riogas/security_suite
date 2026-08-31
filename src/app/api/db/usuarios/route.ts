@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
+import {
+  buscarColisionesDeIdentidad,
+  mensajeDeColisionDeIdentidad,
+} from "@/lib/permisos";
 
 // =============================================
 // GET /api/db/usuarios - Listar usuarios locales (PostgreSQL)
@@ -110,19 +114,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Otorgar root es la única escritura de esta ruta que no puede depender de
-    // "tener sesión": `esRoot='S'` es el bypass global del motor de permisos.
-    // Sin esto, cualquiera con una sesión válida se creaba un usuario root y
-    // entraba a todo — cerrar el endpoint al anónimo no alcanzaba.
-    const pideRoot = String(body.esRoot ?? "N").toUpperCase() === "S";
-    if (pideRoot && guard.usuario?.esRoot !== "S") {
+    // `esRoot` ya no otorga nada: root se resuelve por el ROL "Root" de cada
+    // aplicación (src/lib/permisos.ts). Antes acá se exigía ser root para poder
+    // mandar `esRoot='S'`, porque esa columna ERA el bypass del motor. Ahora el
+    // chequeo no tendría sentido: aunque el campo se guardara, el usuario creado
+    // no sería root de nada.
+    //
+    // Se RECHAZA en vez de ignorarlo en silencio. Aceptarlo y guardar la 'S'
+    // dejaría al administrador convencido de que otorgó privilegios que no
+    // otorgó — que es exactamente el problema que se viene a sacar del formulario.
+    // Mandar 'N' (o no mandar nada) sigue siendo válido: así no se rompe ningún
+    // cliente que hoy manda el campo con su valor por defecto.
+    if (String(body.esRoot ?? "N").toUpperCase() === "S") {
       return NextResponse.json(
-        { success: false, error: "Solo un usuario root puede crear otro usuario root" },
-        { status: 403 },
+        {
+          success: false,
+          error:
+            "El campo `esRoot` ya no otorga privilegios. Para hacer root a un usuario, " +
+            "asignale el rol \"Root\" de la aplicación que corresponda (PUT /api/db/usuarios/:id/roles).",
+        },
+        { status: 400 },
       );
     }
 
-    // Verificar si ya existe
+    // Verificar si ya existe (mismo username exacto). Sigue siendo 409: es el
+    // "ya existe" de toda la vida y hay clientes que lo distinguen.
     const existing = await prisma.usuario.findUnique({
       where: { username: body.username },
     });
@@ -131,6 +147,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: "El usuario ya existe" },
         { status: 409 },
+      );
+    }
+
+    /*
+     * Colisión de IDENTIDAD, que es más ancha que "ya existe el username".
+     *
+     * `resolveUsuario` busca el sujeto del token con
+     * `OR: [username ci, email ci]`, y los unique de `username` y de `email`
+     * son independientes: nada impide que el username de una fila sea el email
+     * de otra. Dar de alta un usuario cuyo username sea el email de un root
+     * hace que el token del root matchee DOS filas, y ahí no hay identidad.
+     * Lo mismo con dos usernames que difieren solo en mayúsculas: el unique de
+     * Postgres es case-sensitive y la búsqueda es case-insensitive.
+     *
+     * Contra los datos de hoy (agosto 2026) esto no rechaza a nadie: se midió y
+     * no hay ni una colisión. Lo que impide es que se cree la primera.
+     * 400 y no 409: el 409 de arriba es "ya existe ESTE usuario"; esto es
+     * "estos datos son inválidos porque chocan con otro".
+     */
+    const colisiones = await buscarColisionesDeIdentidad(prisma, {
+      username: body.username,
+      email: body.email,
+    });
+    if (colisiones.length > 0) {
+      return NextResponse.json(
+        { success: false, error: mensajeDeColisionDeIdentidad(colisiones) },
+        { status: 400 },
       );
     }
 
@@ -146,7 +189,9 @@ export async function POST(req: NextRequest) {
         tipoUsuario: body.tipoUsuario || "L",
         esExterno: body.esExterno || "N",
         usuarioExterno: body.usuarioExterno || null,
-        esRoot: body.esRoot || "N",
+        // La columna se queda en el schema pero no autoriza: los usuarios nuevos
+        // nacen en 'N' y root se otorga asignando el rol.
+        esRoot: "N",
         desdeSistema: body.desdeSistema || "N",
         modificaPermisos: body.modificaPermisos || "N",
         cambioPassword: body.cambioPassword || "N",

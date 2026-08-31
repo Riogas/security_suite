@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import {
   Select,
   SelectContent,
@@ -126,6 +127,11 @@ export default function FuncionalidadesTable() {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="space-x-2">
+          {/*
+            "Editar" queda habilitado: GET /api/db/funcionalidades/:id sigue en
+            AUTENTICADA y abrir la ficha es una lectura. El PUT es ROOT, así que
+            el que se apaga es el "Guardar" de FuncionalidadForm.
+          */}
           <Button
             variant="outline"
             size="sm"
@@ -136,7 +142,12 @@ export default function FuncionalidadesTable() {
           >
             <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
-          <Button
+          {/*
+            DELETE /api/db/funcionalidades/:id es ROOT: desactivarla corta el
+            acceso de todos los que la tenían.
+          */}
+          <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar funcionalidad ${row.original?.nombre ?? ""}`}
@@ -144,7 +155,7 @@ export default function FuncionalidadesTable() {
             onClick={() => handleDelete(row.original?.id)}
           >
             <Trash className="w-4 h-4" aria-hidden="true" />
-          </Button>
+          </BotonRoot>
         </div>
       ),
     },
@@ -203,10 +214,12 @@ export default function FuncionalidadesTable() {
   );
 
   const headerActions = (
-    <Button onClick={() => router.push("/dashboard/funcionalidades/crear")}>
+    // POST /api/db/funcionalidades es ROOT (ver el botón gemelo de la
+    // PageHeader en /dashboard/funcionalidades).
+    <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/funcionalidades/crear")}>
       <Plus className="w-4 h-4 mr-1" />
       Nueva Funcionalidad
-    </Button>
+    </BotonRoot>
   );
 
   return (

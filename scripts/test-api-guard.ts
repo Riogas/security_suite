@@ -26,8 +26,11 @@ import * as path from "path";
 import { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import {
+  accionPorMetodo,
+  alcanceAdminDeRuta,
   crearGuardApi,
   nivelDeRuta,
+  OBJETO_KEYS_ADMIN,
   POLITICAS,
   type ResultadoApiAuth,
 } from "../src/lib/auth/apiGuard";
@@ -120,8 +123,32 @@ async function sinRuido(fn: () => Promise<void>): Promise<void> {
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
-const ROOT: UsuarioAuth = { id: 1, esRoot: "S", username: "dmedaglia" };
-const COMUN: UsuarioAuth = { id: 3, esRoot: "N", username: "jperez" };
+// Root = rol "Root" de la aplicación 1 (SecuritySuite), ya resuelto por
+// `resolveUsuario`. La columna `usuarios.es_root` ya no entra en `UsuarioAuth`.
+const ROOT: UsuarioAuth = {
+  id: 1,
+  username: "dmedaglia",
+  esRootDeSecapi: true,
+  aplicacionesRoot: [1, 3, 5, 6],
+};
+const COMUN: UsuarioAuth = {
+  id: 3,
+  username: "jperez",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [],
+};
+/**
+ * Root de OTRA aplicación (GOYA, 3) pero no de SecuritySuite. El nivel ROOT del
+ * guard tiene que rechazarlo: administrar GOYA no habilita a importar usuarios
+ * en masa ni a reescribir preferencias de toda la base. Con el flag global
+ * `es_root='S'` esta distinción no existía.
+ */
+const ROOT_DE_OTRA_APP: UsuarioAuth = {
+  id: 4,
+  username: "root-de-goya",
+  esRootDeSecapi: false,
+  aplicacionesRoot: [3],
+};
 
 const SEGUNDOS_7_DIAS = 7 * 24 * 60 * 60;
 
@@ -145,17 +172,42 @@ function jwtSinFirmar(username: string): string {
 
 interface Espia {
   llamadas: number;
+  /** Consultas al motor de permisos: `["usuarios:view", ...]`. */
+  preguntas: string[];
   guard: ReturnType<typeof crearGuardApi>;
 }
 
-/** Guard con un `resolveUsuario` falso: nada de Prisma. */
-function espiar(opciones: { usuario?: UsuarioAuth | null; explota?: boolean } = {}): Espia {
-  const espia: Espia = { llamadas: 0, guard: null as never };
+/**
+ * Guard con un `resolveUsuario` y un motor de permisos falsos: nada de Prisma.
+ *
+ * `otorgadas` es lo que el usuario tiene, en formato `objeto:accion`. Es el
+ * resultado de `usuarioTieneFuncionalidad`, o sea "el motor ya resolvió objeto →
+ * acción → funcionalidad activa → rol o acceso directo, y dio esto". Cómo se
+ * otorgó (por rol o directo) no cambia nada del lado del guard, y por eso los
+ * tests que distinguen las dos vías ejercitan el motor, no esto.
+ */
+function espiar(
+  opciones: {
+    usuario?: UsuarioAuth | null;
+    explota?: boolean;
+    otorgadas?: string[];
+    motorExplota?: boolean;
+  } = {},
+): Espia {
+  const espia: Espia = { llamadas: 0, preguntas: [], guard: null as never };
+  const otorgadas = new Set(opciones.otorgadas ?? []);
   espia.guard = crearGuardApi({
     async resolveUsuario() {
       espia.llamadas++;
       if (opciones.explota) throw new Error("la base no contesta");
       return opciones.usuario ?? null;
+    },
+    async tieneFuncionalidad(usuario, objetoKey, accion) {
+      espia.preguntas.push(`${objetoKey}:${accion}`);
+      if (opciones.motorExplota) throw new Error("la base no contesta");
+      // Root nunca tendría que llegar acá: el guard corta antes.
+      if (usuario.esRootDeSecapi) throw new Error("root no debería consultar el motor");
+      return otorgadas.has(`${objetoKey}:${accion}`);
     },
   });
   return espia;
@@ -246,7 +298,7 @@ async function main(): Promise<void> {
   await test("token válido: pasa y devuelve el usuario resuelto", async () => {
     const e = espiar({ usuario: COMUN });
     const r = await e.guard.requireApiAuth(
-      pedido("GET", "/api/db/usuarios", conToken(jwtDe("jperez"))),
+      pedido("GET", "/api/db/usuarios/yo", conToken(jwtDe("jperez"))),
     );
     esperar(r.ok, "el token firmado y vigente tendría que pasar");
     if (r.ok) {
@@ -260,7 +312,7 @@ async function main(): Promise<void> {
     const e = espiar({ usuario: ROOT });
     esperarDenegado(
       await e.guard.requireApiAuth(
-        pedido("GET", "/api/db/usuarios", conToken(jwtSinFirmar("dmedaglia"))),
+        pedido("GET", "/api/db/usuarios/yo", conToken(jwtSinFirmar("dmedaglia"))),
       ),
       401,
       "TOKEN_INVALIDO",
@@ -274,7 +326,7 @@ async function main(): Promise<void> {
       await e.guard.requireApiAuth(
         pedido(
           "GET",
-          "/api/db/usuarios",
+          "/api/db/usuarios/yo",
           conToken(jwtDe("dmedaglia", { secreto: "otro-secreto-cualquiera-largo" })),
         ),
       ),
@@ -288,7 +340,7 @@ async function main(): Promise<void> {
     const e = espiar({ usuario: COMUN });
     esperarDenegado(
       await e.guard.requireApiAuth(
-        pedido("GET", "/api/db/usuarios", conToken(jwtDe("jperez", { expiraEnSegundos: -60 }))),
+        pedido("GET", "/api/db/usuarios/yo", conToken(jwtDe("jperez", { expiraEnSegundos: -60 }))),
       ),
       401,
       "TOKEN_VENCIDO",
@@ -301,7 +353,7 @@ async function main(): Promise<void> {
     // mismo origen. Un guard que mirara solo el header rompía el panel entero.
     const e = espiar({ usuario: COMUN });
     const r = await e.guard.requireApiAuth(
-      pedido("GET", "/api/db/usuarios", { cookie: `token=${jwtDe("jperez")}` }),
+      pedido("GET", "/api/db/usuarios/yo", { cookie: `token=${jwtDe("jperez")}` }),
     );
     esperar(r.ok, "la cookie tendría que alcanzar");
   });
@@ -309,7 +361,7 @@ async function main(): Promise<void> {
   await test("sin token: 401 SIN_TOKEN", async () => {
     const e = espiar({ usuario: COMUN });
     esperarDenegado(
-      await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios")),
+      await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios/yo")),
       401,
       "SIN_TOKEN",
     );
@@ -323,7 +375,7 @@ async function main(): Promise<void> {
     await conSecreto(undefined, () =>
       sinRuido(async () => {
         esperarDenegado(
-          await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios", conToken(token))),
+          await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios/yo", conToken(token))),
           503,
           "SECRETO_NO_CONFIGURADO",
         );
@@ -338,7 +390,7 @@ async function main(): Promise<void> {
       sinRuido(async () => {
         esperarDenegado(
           await e.guard.requireApiAuth(
-            pedido("GET", "/api/db/usuarios", conToken(jwtDe("dmedaglia", { secreto: "corta" }))),
+            pedido("GET", "/api/db/usuarios/yo", conToken(jwtDe("dmedaglia", { secreto: "corta" }))),
           ),
           503,
           "SECRETO_NO_CONFIGURADO",
@@ -367,7 +419,7 @@ async function main(): Promise<void> {
     await conSecreto(porDefecto, () =>
       sinRuido(async () => {
         esperarDenegado(
-          await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios", conToken(token))),
+          await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios/yo", conToken(token))),
           503,
           "SECRETO_NO_CONFIGURADO",
         );
@@ -389,11 +441,11 @@ async function main(): Promise<void> {
       });
       const comoSecapi = jwtDe("jperez", { secreto: secretoHex });
       esperar(
-        (await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios", conToken(comoGenexus)))).ok,
+        (await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios/yo", conToken(comoGenexus)))).ok,
         "el token estilo GeneXus tendría que pasar",
       );
       esperar(
-        (await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios", conToken(comoSecapi)))).ok,
+        (await e.guard.requireApiAuth(pedido("GET", "/api/db/usuarios/yo", conToken(comoSecapi)))).ok,
         "el token estilo /api/db/login tendría que pasar",
       );
     });
@@ -416,6 +468,7 @@ async function main(): Promise<void> {
       ["PUT", "/api/db/usuarios/7"],
       ["DELETE", "/api/db/usuarios/7"],
       ["PUT", "/api/db/usuarios/7/roles"],
+      ["POST", "/api/db/usuarios/importar"],
       ["DELETE", "/api/db/aplicaciones/3"],
       ["POST", "/api/db/accesos"],
       ["DELETE", "/api/db/accesos"],
@@ -464,11 +517,15 @@ async function main(): Promise<void> {
   await test("el segmento literal le gana al dinámico, como en el router de Next", async () => {
     // Si `/usuarios/:id` ganara sobre `/usuarios/externos`, la política aplicada
     // sería la equivocada sin que nadie se entere.
-    esperarIgual(nivelDeRuta("/api/db/usuarios/externos", "GET"), "AUTENTICADA", "externos");
-    esperarIgual(nivelDeRuta("/api/db/usuarios/importar", "POST"), "ROOT", "importar");
+    esperarIgual(nivelDeRuta("/api/db/usuarios/externos", "GET"), "ADMIN", "externos");
+    esperarIgual(nivelDeRuta("/api/db/usuarios/importar", "POST"), "ADMIN", "importar");
     esperarIgual(nivelDeRuta("/api/db/usuarios/por-username", "GET"), "SERVICIO", "por-username");
-    esperarIgual(nivelDeRuta("/api/db/usuarios/77", "GET"), "AUTENTICADA", "usuarios/:id");
-    esperarIgual(nivelDeRuta("/api/db/menu/builder", "GET"), "AUTENTICADA", "menu/builder");
+    esperarIgual(nivelDeRuta("/api/db/usuarios/yo", "GET"), "AUTENTICADA", "usuarios/yo");
+    esperarIgual(nivelDeRuta("/api/db/usuarios/77", "GET"), "ADMIN", "usuarios/:id");
+    esperarIgual(nivelDeRuta("/api/db/usuarios/77/atributos", "GET"), "AUTENTICADA", "atributos");
+    esperarIgual(nivelDeRuta("/api/db/menu/builder", "GET"), "ADMIN", "menu/builder");
+    // `/menu` y `/menu/builder` son rutas distintas: la primera la llama Goya.
+    esperarIgual(nivelDeRuta("/api/db/menu", "GET"), "AUTENTICADA", "menu");
   });
 
   await test("fuera de /api/db no hay política: se deniega", async () => {
@@ -481,21 +538,362 @@ async function main(): Promise<void> {
   await test("nivel ROOT: un usuario común recibe 403 NO_ROOT", async () => {
     const e = espiar({ usuario: COMUN });
     esperarDenegado(
-      await e.guard.requireApiAuth(
-        pedido("POST", "/api/db/usuarios/importar", conToken(jwtDe("jperez"))),
-      ),
+      await e.guard.requireApiAuth(pedido("POST", "/api/db/roles", conToken(jwtDe("jperez")))),
       403,
       "NO_ROOT",
     );
+    esperarIgual(
+      e.preguntas.length,
+      0,
+      "el nivel ROOT no consulta el motor: no es delegable, no hay nada que preguntar",
+    );
+  });
+
+  await test("nivel ROOT: root de OTRA aplicación recibe 403 NO_ROOT", async () => {
+    const e = espiar({ usuario: ROOT_DE_OTRA_APP });
+    await sinRuido(async () => {
+      esperarDenegado(
+        await e.guard.requireApiAuth(pedido("POST", "/api/db/roles", conToken(jwtDe("root-de-goya")))),
+        403,
+        "NO_ROOT",
+      );
+    });
   });
 
   await test("nivel ROOT: el root pasa", async () => {
     const e = espiar({ usuario: ROOT });
     const r = await e.guard.requireApiAuth(
-      pedido("POST", "/api/db/usuarios/importar", conToken(jwtDe("dmedaglia"))),
+      pedido("POST", "/api/db/roles", conToken(jwtDe("dmedaglia"))),
     );
     esperar(r.ok, "el root tendría que pasar");
     if (r.ok) esperarIgual(r.nivel, "ROOT", "nivel");
+  });
+
+  // ── Nivel ROOT: los endpoints que otorgan permisos ────────────────────────
+  //
+  // Este bloque es LA red que impide que vuelva la escalada a root. Desde que
+  // root es el rol "Root" y no la columna `usuarios.es_root`, el privilegio
+  // vive en `usuario_roles`; mientras estos endpoints estuvieron en nivel
+  // AUTENTICADA, cualquiera de los 854 usuarios se hacía root de todo con un
+  // request (`PUT /usuarios/<yo>/roles {"roles":[{"rolId":57}]}`), o fabricaba
+  // el rol (`POST /roles {"aplicacionId":1,"nombre":"root"}`) porque el rol se
+  // identifica por NOMBRE.
+
+  /** Las escrituras que pueden alterar quién tiene qué. Todas nivel ROOT. */
+  const ESCRITURAS_QUE_OTORGAN: Array<[string, string]> = [
+    ["PUT", "/api/db/usuarios/845/roles"],
+    ["PUT", "/api/db/usuarios/845/accesos"],
+    ["POST", "/api/db/accesos"],
+    ["DELETE", "/api/db/accesos?usuarioId=845&funcionalidadId=1"],
+    ["POST", "/api/db/roles"],
+    ["PUT", "/api/db/roles/57"],
+    ["DELETE", "/api/db/roles/57"],
+    ["POST", "/api/db/roles/57/clonar"],
+    ["POST", "/api/db/funcionalidades"],
+    ["PUT", "/api/db/funcionalidades/9"],
+    ["DELETE", "/api/db/funcionalidades/9"],
+    ["PUT", "/api/db/funcionalidades/9/acciones"],
+    ["POST", "/api/db/objetos"],
+    ["PUT", "/api/db/objetos/9"],
+    ["DELETE", "/api/db/objetos/9"],
+    ["POST", "/api/db/aplicaciones"],
+    ["PUT", "/api/db/aplicaciones/1"],
+    ["DELETE", "/api/db/aplicaciones/1"],
+    ["PUT", "/api/db/menu/builder"],
+    // Estas dos NO son "administrar usuarios" y por eso no bajaron a ADMIN:
+    // mientras un otorgamiento no distinga leer de escribir, habilitar a
+    // alguien a BUSCAR gente le daria de arrastre borrarla, y el barrido de
+    // import-sgm asigna un rol a lo largo de todo el padron.
+    ["DELETE", "/api/db/usuarios/845"],
+    ["POST", "/api/db/admin/import-sgm-preferences"],
+  ];
+
+  await test("un AUTENTICADO sin rol Root recibe 403 en todo lo que otorga permisos", async () => {
+    const e = espiar({ usuario: COMUN });
+    for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+      esperarDenegado(await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez")))), 403, "NO_ROOT");
+    }
+  });
+
+  await test("root de OTRA aplicación tampoco puede otorgar permisos en secapi", async () => {
+    // El Root de GOYA administra GOYA. Repartir roles del ecosistema es del
+    // Root de SecuritySuite, que es donde se configura quién es root de qué.
+    const e = espiar({ usuario: ROOT_DE_OTRA_APP });
+    await sinRuido(async () => {
+      for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+        esperarDenegado(
+          await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("root-de-goya")))),
+          403,
+          "NO_ROOT",
+        );
+      }
+    });
+  });
+
+  await test("el root sí puede otorgar permisos", async () => {
+    const e = espiar({ usuario: ROOT });
+    for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+      const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("dmedaglia"))));
+      esperar(r.ok, `${metodo} ${ruta} tendría que pasar para el root`);
+      if (r.ok) esperarIgual(r.nivel, "ROOT", `nivel de ${metodo} ${ruta}`);
+    }
+  });
+
+  await test("la escalada de un request ya no existe", async () => {
+    // El request textual del informe de revisión, contra el guard real.
+    const e = espiar({ usuario: COMUN });
+    esperarDenegado(
+      await e.guard.requireApiAuth(pedido("PUT", "/api/db/usuarios/3/roles", conToken(jwtDe("jperez")))),
+      403,
+      "NO_ROOT",
+    );
+    // Y la segunda puerta: fabricar un rol llamado "Root" para asignárselo.
+    esperarDenegado(
+      await e.guard.requireApiAuth(pedido("POST", "/api/db/roles", conToken(jwtDe("jperez")))),
+      403,
+      "NO_ROOT",
+    );
+    esperarIgual(e.llamadas, 2, "las dos veces se resolvió el usuario antes de denegar");
+  });
+
+  // ── Nivel ADMIN: secapi consultando su propio motor ───────────────────────
+  //
+  // El pedido del dueño: root accede a todo secapi; los demás acceden a lo que
+  // un root les OTORGUE. Antes de esto, el panel entero estaba en AUTENTICADA —
+  // alcanzaba una sesión de cualquiera de las cuatro aplicaciones para listar
+  // los 854 usuarios con sus mails y cédulas.
+
+  /** Una ruta ADMIN por objeto, con la funcionalidad que la abre. */
+  const RUTAS_ADMIN: Array<{ metodo: string; ruta: string; otorga: string }> = [
+    { metodo: "GET", ruta: "/api/db/usuarios", otorga: "usuarios:view" },
+    { metodo: "POST", ruta: "/api/db/usuarios", otorga: "usuarios:view" },
+    { metodo: "GET", ruta: "/api/db/usuarios/845", otorga: "usuarios:view" },
+    { metodo: "PUT", ruta: "/api/db/usuarios/845", otorga: "usuarios:view" },
+    { metodo: "GET", ruta: "/api/db/usuarios/845/roles", otorga: "usuarios:view" },
+    { metodo: "GET", ruta: "/api/db/usuarios/845/accesos", otorga: "usuarios:view" },
+    { metodo: "GET", ruta: "/api/db/usuarios/externos", otorga: "usuarios:view" },
+    { metodo: "POST", ruta: "/api/db/usuarios/importar", otorga: "usuarios:view" },
+    { metodo: "GET", ruta: "/api/db/roles/57", otorga: "roles:view" },
+    { metodo: "POST", ruta: "/api/db/roles/57/atributos", otorga: "roles:view" },
+    { metodo: "GET", ruta: "/api/db/aplicaciones/3", otorga: "aplicaciones:view" },
+    { metodo: "GET", ruta: "/api/db/aplicaciones/3/roles", otorga: "aplicaciones:view" },
+    { metodo: "GET", ruta: "/api/db/funcionalidades", otorga: "funcionalidades:view" },
+    { metodo: "GET", ruta: "/api/db/funcionalidades/9", otorga: "funcionalidades:view" },
+    { metodo: "GET", ruta: "/api/db/funcionalidades/9/acciones", otorga: "funcionalidades:view" },
+    { metodo: "GET", ruta: "/api/db/acciones", otorga: "acciones:view" },
+    { metodo: "POST", ruta: "/api/db/acciones", otorga: "acciones:view" },
+    { metodo: "PUT", ruta: "/api/db/acciones/4", otorga: "acciones:view" },
+    { metodo: "DELETE", ruta: "/api/db/acciones/4", otorga: "acciones:view" },
+    { metodo: "GET", ruta: "/api/db/objetos", otorga: "objetos:view" },
+    { metodo: "GET", ruta: "/api/db/objetos/9", otorga: "objetos:view" },
+    { metodo: "GET", ruta: "/api/db/menu/builder", otorga: "menu:view" },
+    { metodo: "GET", ruta: "/api/db/accesos", otorga: "permisos:view" },
+    { metodo: "POST", ruta: "/api/db/solicitudes/12/aprobar", otorga: "solicitudes:approve" },
+    { metodo: "POST", ruta: "/api/db/solicitudes/12/rechazar", otorga: "solicitudes:approve" },
+  ];
+
+  await test("ADMIN: el root pasa en todas, sin tener NINGUNA funcionalidad otorgada", async () => {
+    // Es lo que garantiza que una instalación sin funcionalidades sembradas
+    // siga teniendo quién la administre. El espía tira si root consulta el
+    // motor, así que esto también prueba que root ni toca la base.
+    const e = espiar({ usuario: ROOT, otorgadas: [] });
+    for (const { metodo, ruta } of RUTAS_ADMIN) {
+      const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("dmedaglia"))));
+      esperar(r.ok, `${metodo} ${ruta} tendría que pasar para el root`);
+      if (r.ok) esperarIgual(r.nivel, "ADMIN", `nivel de ${metodo} ${ruta}`);
+    }
+    esperarIgual(e.preguntas.length, 0, "root no consulta el motor de permisos");
+  });
+
+  await test("ADMIN: un usuario sin nada otorgado recibe 403 NO_ADMIN en TODAS", async () => {
+    const e = espiar({ usuario: COMUN, otorgadas: [] });
+    for (const { metodo, ruta } of RUTAS_ADMIN) {
+      esperarDenegado(
+        await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez")))),
+        403,
+        "NO_ADMIN",
+      );
+    }
+  });
+
+  await test("ADMIN: con la funcionalidad otorgada pasa en SU ruta y no en las otras", async () => {
+    // El otorgamiento es por objeto: tener `usuarios` no da `roles`. Si esto se
+    // rompe, "otorgar una pantalla" pasó a ser "otorgar el panel entero".
+    for (const objeto of OBJETO_KEYS_ADMIN) {
+      const accion = objeto === "solicitudes" ? "approve" : "view";
+      const e = espiar({ usuario: COMUN, otorgadas: [`${objeto}:${accion}`] });
+      for (const { metodo, ruta, otorga } of RUTAS_ADMIN) {
+        const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez"))));
+        const deberiaPasar = otorga === `${objeto}:${accion}`;
+        if (deberiaPasar) {
+          esperar(r.ok, `con ${objeto} otorgado, ${metodo} ${ruta} tendría que pasar`);
+        } else {
+          esperarDenegado(r, 403, "NO_ADMIN");
+        }
+      }
+    }
+  });
+
+  await test("ADMIN: el guard pregunta por el objeto y la acción de la política", async () => {
+    const e = espiar({ usuario: COMUN, otorgadas: [] });
+    for (const { metodo, ruta, otorga } of RUTAS_ADMIN) {
+      e.preguntas.length = 0;
+      await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez"))));
+      esperarIgual(e.preguntas.join("|"), otorga, `pregunta de ${metodo} ${ruta}`);
+    }
+  });
+
+  await test("ADMIN: si el motor no puede contestar, se deniega (503, no un pase libre)", async () => {
+    // Objeto inexistente, funcionalidad inactiva y acción que no existe los
+    // resuelve el motor devolviendo `false` → 403 (el caso de arriba). Lo que
+    // se prueba acá es el otro borde: la base no contesta.
+    const e = espiar({ usuario: COMUN, motorExplota: true });
+    await sinRuido(async () => {
+      esperarDenegado(
+        await e.guard.requireApiAuth(
+          pedido("GET", "/api/db/usuarios", conToken(jwtDe("jperez"))),
+        ),
+        503,
+        "ERROR_GUARD",
+      );
+    });
+  });
+
+  await test("ADMIN: root de OTRA aplicación no administra secapi", async () => {
+    // El Root de GOYA administra GOYA. Para secapi es un usuario común y tiene
+    // que pedir la funcionalidad como cualquiera.
+    const e = espiar({ usuario: ROOT_DE_OTRA_APP, otorgadas: [] });
+    esperarDenegado(
+      await e.guard.requireApiAuth(
+        pedido("GET", "/api/db/usuarios", conToken(jwtDe("root-de-goya"))),
+      ),
+      403,
+      "NO_ADMIN",
+    );
+  });
+
+  await test("ADMIN: toda política ADMIN declara objetoKey y resuelve a una acción", async () => {
+    // Una ruta ADMIN sin objeto no se puede evaluar. El tipo lo impide; esto lo
+    // vuelve a chequear sobre la tabla real, que es lo que se despliega.
+    const rotas: string[] = [];
+    for (const p of POLITICAS) {
+      if (p.nivel !== "ADMIN") continue;
+      for (const m of p.metodos) {
+        const alcance = alcanceAdminDeRuta("/api/db" + p.patron.replace(/:[^/]+/g, "123"), m);
+        if (!alcance?.objetoKey || !alcance?.accion) rotas.push(`${m} ${p.patron}`);
+      }
+    }
+    esperar(rotas.length === 0, `políticas ADMIN sin objeto/acción:\n      ${rotas.join("\n      ")}`);
+  });
+
+  await test("el mapeo método→acción es el declarado", async () => {
+    esperarIgual(accionPorMetodo("GET"), "view", "GET");
+    esperarIgual(accionPorMetodo("POST"), "create", "POST");
+    esperarIgual(accionPorMetodo("PUT"), "update", "PUT");
+    esperarIgual(accionPorMetodo("PATCH"), "update", "PATCH");
+    esperarIgual(accionPorMetodo("DELETE"), "delete", "DELETE");
+    // Un método que no mapea devuelve "", y el guard lo convierte en 403: no
+    // poder derivar la acción no puede ser un pase libre.
+    esperarIgual(accionPorMetodo("HEAD"), "", "HEAD");
+  });
+
+  // ── La línea roja: lo que consumen Goya, TrackMovil y el edge de Granel ────
+
+  await test("NO SE ROMPE GOYA NI TRACK: el servicio compartido sigue abierto a una sesión común", async () => {
+    /*
+     * Este test es el que impide que alguien cierre el panel y de paso se lleve
+     * puesta otra aplicación. Cada una de estas rutas aparece en el barrido de
+     * los repos goya / trackmovil / granel-app:
+     *
+     *   goya       → /permisos, /login, /menu, /solicitudes
+     *   trackmovil → + /usuarios/por-empresa-fletera, /usuarios/:id/permite-login
+     *   granel     → /login, /usuarios/por-username, GET /roles, /roles/:id/atributos
+     *
+     * El usuario del test NO tiene NINGUNA funcionalidad otorgada: es un chofer
+     * de TrackMovil, un operador de Goya, un gestor de Granel. Si alguna de
+     * estas empieza a exigir permiso, ellos se van a /no-autorizado.
+     */
+    const e = espiar({ usuario: COMUN, otorgadas: [] });
+    const compartido: Array<[string, string]> = [
+      ["POST", "/api/db/permisos"],
+      ["GET", "/api/db/menu?aplicacionId=3"],
+      ["GET", "/api/db/usuarios/yo"],
+      ["GET", "/api/db/solicitudes"],
+      ["POST", "/api/db/solicitudes"],
+      ["GET", "/api/db/solicitudes/mias"],
+      ["GET", "/api/db/usuarios/por-empresa-fletera"],
+      ["POST", "/api/db/usuarios/845/permite-login"],
+      ["GET", "/api/db/usuarios/845/atributos"],
+      ["PUT", "/api/db/usuarios/845/atributos"],
+      ["POST", "/api/db/usuarios/845/atributos"],
+      ["GET", "/api/db/usuario-preferencias/sugerencias"],
+      /*
+       * CATÁLOGO, no administración. Ocho pantallas del panel lo piden al
+       * montar, sólo para llenar un combo con seis nombres de aplicación. Si
+       * vuelve a ADMIN, otorgar "Roles" deja de alcanzar para usar la pantalla
+       * de roles: hay que otorgar TAMBIÉN "Aplicaciones", y la persona abre la
+       * pantalla y le falla la carga sin entender por qué. La ficha, el alta,
+       * la edición y la baja siguen cerradas, que es lo que de verdad importa.
+       */
+      ["GET", "/api/db/aplicaciones"],
+      // SERVICIO: también aceptan una sesión de usuario, no solo la api-key.
+      ["GET", "/api/db/usuarios/por-username?username=jperez"],
+      ["GET", "/api/db/roles?aplicacionId=6"],
+      ["GET", "/api/db/roles/12/atributos"],
+      ["PUT", "/api/db/roles/12/atributos"],
+    ];
+    for (const [metodo, ruta] of compartido) {
+      const r = await e.guard.requireApiAuth(pedido(metodo, ruta, conToken(jwtDe("jperez"))));
+      esperar(
+        r.ok,
+        `${metodo} ${ruta} es servicio compartido y tiene que seguir pasando con una sesión ` +
+          "común. Si lo subiste de nivel a propósito, revisá primero qué app lo llama.",
+      );
+    }
+    esperarIgual(
+      e.preguntas.length,
+      0,
+      "ninguna de estas puede consultar el motor: si lo hace, es que subió a ADMIN",
+    );
+  });
+
+  await test("NO SE ROMPE GOYA NI TRACK: y el login sigue sin pedir nada", async () => {
+    const e = espiar({ usuario: null });
+    const r = await e.guard.requireApiAuth(pedido("POST", "/api/db/login"));
+    esperar(r.ok, "el login es la puerta de entrada de las cuatro aplicaciones");
+  });
+
+  await test("el GET de /roles sigue siendo SERVICIO: no se rompe el edge de Granel", async () => {
+    // El POST subió a ROOT y el GET del MISMO path tiene que quedar en
+    // SERVICIO. Si al subir el POST alguien toca el GET, el login de Granel se
+    // cae con "secapi roles HTTP 401".
+    esperarIgual(nivelDeRuta("/api/db/roles", "GET"), "SERVICIO", "GET /roles");
+    esperarIgual(nivelDeRuta("/api/db/roles", "POST"), "ROOT", "POST /roles");
+    esperarIgual(nivelDeRuta("/api/db/roles/12/atributos", "GET"), "SERVICIO", "GET atributos");
+    esperarIgual(nivelDeRuta("/api/db/roles/12/atributos", "PUT"), "SERVICIO", "PUT atributos");
+
+    await conClaveServicio(CLAVE_SERVICIO, async () => {
+      const e = espiar({ usuario: null });
+      const r = await e.guard.requireApiAuth(
+        pedido("GET", "/api/db/roles?aplicacionId=6&pageSize=200", { "x-api-key": CLAVE_SERVICIO }),
+      );
+      esperar(r.ok, "el edge de Granel tiene que seguir leyendo los roles");
+    });
+  });
+
+  await test("la api-key de servicio NO alcanza las escrituras que otorgan permisos", async () => {
+    await conClaveServicio(CLAVE_SERVICIO, () =>
+      sinRuido(async () => {
+        const e = espiar({ usuario: ROOT });
+        for (const [metodo, ruta] of ESCRITURAS_QUE_OTORGAN) {
+          esperarDenegado(
+            await e.guard.requireApiAuth(pedido(metodo, ruta, { "x-api-key": CLAVE_SERVICIO })),
+            403,
+            "SERVICIO_FUERA_DE_ALCANCE",
+          );
+        }
+      }),
+    );
   });
 
   await test("import-sgm-preferences ya no entra con una cookie inventada", async () => {
@@ -509,6 +907,8 @@ async function main(): Promise<void> {
       401,
       "TOKEN_INVALIDO",
     );
+    // Bajó a ADMIN sobre `usuarios`: el que no tiene esa funcionalidad otorgada
+    // sigue sin entrar, ahora con NO_ADMIN en vez de NO_ROOT.
     const noRoot = espiar({ usuario: COMUN });
     esperarDenegado(
       await noRoot.guard.requireApiAuth(
@@ -642,7 +1042,7 @@ async function main(): Promise<void> {
     const e = espiar({ usuario: null });
     esperarDenegado(
       await e.guard.requireApiAuth(
-        pedido("GET", "/api/db/usuarios", conToken(jwtDe("fantasma"))),
+        pedido("GET", "/api/db/usuarios/yo", conToken(jwtDe("fantasma"))),
       ),
       401,
       "USUARIO_NO_ENCONTRADO",
@@ -654,7 +1054,7 @@ async function main(): Promise<void> {
     await sinRuido(async () => {
       esperarDenegado(
         await e.guard.requireApiAuth(
-          pedido("GET", "/api/db/usuarios", conToken(jwtDe("jperez"))),
+          pedido("GET", "/api/db/usuarios/yo", conToken(jwtDe("jperez"))),
         ),
         503,
         "ERROR_GUARD",

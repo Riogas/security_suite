@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Key, RotateCcw, Users, Settings, Shield } from "lucide-react";
 import { apiUsuarioDBById, apiCrearUsuarioDB, apiActualizarUsuarioDB } from "@/services/api";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import AsignarRolesModal from "./AsignarRolesModal";
 import AtributosModal from "./AtributosModal";
 import AsignarFuncionalidadesModal from "./AsignarFuncionalidadesModal";
@@ -37,7 +38,6 @@ type UsuarioFormFields = {
   tipoUsuario: string;
   esExterno: string;
   usuarioExterno: string;
-  esRoot: string;
   desdeSistema: string;
   modificaPermisos: string;
   cambioPassword: string;
@@ -60,7 +60,6 @@ const initialFormFields: UsuarioFormFields = {
   tipoUsuario: "L",
   esExterno: "N",
   usuarioExterno: "",
-  esRoot: "N",
   desdeSistema: "N",
   modificaPermisos: "N",
   cambioPassword: "N",
@@ -103,7 +102,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               tipoUsuario: u.tipoUsuario || "L",
               esExterno: u.esExterno || "N",
               usuarioExterno: u.usuarioExterno || "",
-              esRoot: u.esRoot || "N",
               desdeSistema: u.desdeSistema || "N",
               modificaPermisos: u.modificaPermisos || "N",
               cambioPassword: u.cambioPassword || "N",
@@ -169,7 +167,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           tipoUsuario: data.tipoUsuario,
           esExterno: data.esExterno,
           usuarioExterno: data.usuarioExterno || undefined,
-          esRoot: data.esRoot,
           desdeSistema: data.desdeSistema,
         });
         toast.success("Usuario creado exitosamente");
@@ -183,7 +180,6 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           tipoUsuario: data.tipoUsuario,
           esExterno: data.esExterno,
           usuarioExterno: data.usuarioExterno || null,
-          esRoot: data.esRoot,
           desdeSistema: data.desdeSistema,
           modificaPermisos: data.modificaPermisos,
           cambioPassword: data.cambioPassword,
@@ -231,6 +227,24 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
         <div className="flex gap-2">
           {mode === "edit" && (
             <>
+              {/*
+                Los tres botones de acá abajo abren modales y NO se gatean:
+                los GET de roles, accesos y atributos siguen en nivel
+                AUTENTICADA, así que un no-root tiene que poder abrirlos y VER
+                qué tiene asignado el usuario. Lo que está cerrado es guardar, y
+                el gate vive adentro de cada modal (botón apagado + cartel de
+                sólo lectura), que es donde llega antes de que la persona
+                marque un solo checkbox.
+
+                "Actualizar Usuario" SÍ se gatea ahora: POST /api/db/usuarios y
+                PUT /api/db/usuarios/:id pasaron a nivel ADMIN sobre el objeto
+                `usuarios`. Siguen sin poder elevar a root —para eso está
+                /usuarios/:id/roles, que es ROOT— pero administrar personas dejó
+                de ser algo que pueda hacer cualquiera con una sesión de
+                TrackMovil. El alcance es "usuarios" y no "ROOT": un root puede
+                otorgar esa funcionalidad, y si acá pidiéramos root el botón le
+                quedaría gris a quien SÍ la tiene.
+              */}
               <Button
                 type="button"
                 variant="outline"
@@ -278,7 +292,8 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
           >
             Cancelar
           </Button>
-          <Button
+          <BotonRoot
+            alcance="usuarios"
             onClick={handleSubmit}
             disabled={submitting}
             className="flex items-center gap-2"
@@ -289,9 +304,14 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               : mode === "edit"
                 ? "Actualizar Usuario"
                 : "Crear Usuario"}
-          </Button>
+          </BotonRoot>
         </div>
       </div>
+
+      {/* A esta pantalla se entra por URL y por el botón "Editar" de la grilla,
+          que sigue habilitado porque abrir la ficha es una lectura. Sin el
+          cartel, la persona se entera al final. */}
+      <AvisoSoloRoot que="la ficha del usuario" alcance="usuarios" />
 
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         {/* Información Básica */}
@@ -498,20 +518,23 @@ export default function UsuarioForm({ mode, userId }: UsuarioFormProps) {
               </Select>
             </div>
 
+            {/*
+              Acá vivía el switch "Usuario Root", que escribía `usuarios.es_root`.
+              Se sacó, no se deshabilitó: desde que root se resuelve por el ROL
+              "Root" de cada aplicación, ese switch le mentía al administrador —
+              lo prendía, guardaba, y el usuario no era root de nada. Un control
+              que aparenta dar privilegios que no da es peor que no tener control.
+              El lugar donde root SÍ se otorga es "Asignar roles", y para allá
+              apunta la nota.
+            */}
             <div className="space-y-3">
               <Label>Usuario Root</Label>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={data.esRoot === "S"}
-                  onCheckedChange={(checked) =>
-                    setField("esRoot", checked ? "S" : "N")
-                  }
-                  aria-label="Usuario root"
-                />
-                <span className="text-sm text-muted-foreground">
-                  {data.esRoot === "S" ? "Sí" : "No"}
-                </span>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Root se otorga asignándole al usuario el rol <strong>Root</strong> de la
+                aplicación correspondiente, desde <strong>Asignar roles</strong> en la
+                lista de usuarios. Es por aplicación: el Root de SecuritySuite no
+                da acceso a GOYA, TrackMovil ni Granel.
+              </p>
             </div>
 
             <div className="space-y-3">

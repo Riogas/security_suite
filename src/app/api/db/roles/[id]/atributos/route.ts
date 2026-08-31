@@ -66,31 +66,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           { status: 403 },
         );
       }
-      const ajenos = (atributos ?? []).filter(
-        (a: { atributo: string }) => a.atributo !== ATRIBUTO_SERVICIO,
+      // La clave de servicio SOLO puede tocar `GranelTiposDoc`. Los demás
+      // atributos del body se IGNORAN, no se rechazan: así el edge de Granel
+      // puede seguir mandando el juego completo (GranelTiposDoc + los que ya
+      // tenía el rol) como hace hoy para preservarlos contra el secapi viejo, y
+      // acá simplemente no los tocamos. Rechazar rompía ese cliente y obligaba a
+      // desplegar los dos repos en un orden exacto; ignorar los desacopla.
+      //
+      // El límite de seguridad se mantiene: el borrado y el alta se acotan a
+      // `GranelTiposDoc`, así que la clave NO puede borrar ni escribir Escenario
+      // (ni ningún otro atributo), que era el punto.
+      const propios = (atributos ?? []).filter(
+        (a: { atributo: string }) => a.atributo === ATRIBUTO_SERVICIO,
       );
-      if (ajenos.length > 0) {
-        return NextResponse.json(
-          { success: false, error: `SERVICIO_FUERA_DE_ALCANCE: solo puede escribir ${ATRIBUTO_SERVICIO}` },
-          { status: 403 },
-        );
-      }
-      // Y el borrado se acota a ese atributo: los demás quedan como estaban.
       await prisma.rolPreferencia.deleteMany({ where: { rolId, atributo: ATRIBUTO_SERVICIO } });
-      if (atributos?.length > 0) {
+      if (propios.length > 0) {
         await prisma.rolPreferencia.createMany({
-          data: atributos.map((a: { atributo: string; valor?: string | null }) => ({
+          data: propios.map((a: { atributo: string; valor?: string | null }) => ({
             rolId,
             atributo: a.atributo,
             valor: a.valor ?? null,
           })),
         });
       }
-      const soloDelServicio = await prisma.rolPreferencia.findMany({
+      const todos = await prisma.rolPreferencia.findMany({
         where: { rolId },
         orderBy: { atributo: "asc" },
       });
-      return NextResponse.json({ success: true, atributos: soloDelServicio });
+      return NextResponse.json({ success: true, atributos: todos });
     }
 
     // Borrar todos los atributos actuales

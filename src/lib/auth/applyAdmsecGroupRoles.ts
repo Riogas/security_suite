@@ -2,9 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { authLog } from "./logger";
 
 /**
- * Mapeo de GRUPOS de ADMSEC.GRPUSU a roles/flags en PG, según política RioGas:
+ * Mapeo de GRUPOS de ADMSEC.GRPUSU a roles en PG, según política RioGas:
  *   - Grupo 52 (despacho)         → ya lo maneja `assignDespachoIfEligible` (rol 49)
- *   - Grupo 1 (admin total)       → marca `esRoot = 'S'` en `usuarios` Y asigna rol 52 (Root)
+ *   - Grupo 1 (admin total)       → asigna rol 52 (Root)
  *   - Grupo 56 o 185 (operador)   → asigna rol 48 en `usuario_roles`
  *   - Grupo 422 (consulta)        → asigna rol 50 en `usuario_roles`
  *
@@ -16,7 +16,7 @@ import { authLog } from "./logger";
  *   PG_ROL_CONSULTA_ID      (default 50)
  *   PG_ROL_ROOT_ID          (default 52)
  *
- * El helper es idempotente: si el flag/rol ya está, no hace nada. Nunca
+ * El helper es idempotente: si el rol ya está, no hace nada. Nunca
  * remueve roles preexistentes — solo agrega los que la política indica.
  */
 
@@ -32,7 +32,9 @@ const ROL_CONSULTA_ID = parseInt(process.env.PG_ROL_CONSULTA_ID || "50", 10);
 const ROL_ROOT_ID = parseInt(process.env.PG_ROL_ROOT_ID || "52", 10);
 
 interface ApplyOpts {
-  usuario: { id: number; username: string; esRoot: string | null };
+  // `esRoot` salió de acá junto con la escritura de la columna: el helper ya no
+  // la lee ni la escribe.
+  usuario: { id: number; username: string };
   groups: number[];
 }
 
@@ -59,28 +61,25 @@ export async function applyAdmsecGroupRoles({ usuario, groups }: ApplyOpts): Pro
   if (!groups || groups.length === 0) return;
   const groupSet = new Set(groups);
 
-  // Grupo 1 → esRoot = 'S' (no toca otros campos del usuario).
+  // Grupo 1 → rol Root (id PG_ROL_ROOT_ID, default 52). Idempotente.
+  //
+  // Acá también se escribía `usuarios.es_root = 'S'`. Se sacó: desde que la
+  // autorización se resuelve por el ROL "Root" y no por esa columna, escribirla
+  // no otorga nada — es un dato muerto que además engaña al que lo lea después
+  // ("este usuario figura como root" cuando no lo es). Lo que SÍ da privilegios
+  // es la asignación de rol de acá abajo, y eso queda igual que siempre.
+  //
+  // ⚠ ATENCIÓN AL ENV: esta es la ÚNICA vía que otorga un rol Root sin pasar
+  // por el guard de /api/db — la dispara el LOGIN, a partir de la pertenencia
+  // a un grupo de ADMSEC, que se administra en GeneXus y no acá. Con el default
+  // (52) el rol otorgado es el Root de TrackMovil, que abre TrackMovil y nada
+  // más. Pero `PG_ROL_ROOT_ID` es una variable de ambiente: si alguien la
+  // apunta al rol Root de SecuritySuite (57 en producción), entonces cualquiera
+  // que ADMSEC ponga en el grupo 1 se convierte, con solo loguearse, en
+  // superusuario de las cuatro aplicaciones — sin que nadie de secapi lo
+  // apruebe. Esa variable es un control de seguridad, no un parámetro de
+  // configuración: no la cambies sin entender esto.
   if (groupSet.has(GROUP_ROOT)) {
-    if (usuario.esRoot?.trim() !== "S") {
-      try {
-        await prisma.usuario.update({
-          where: { id: usuario.id },
-          data: { esRoot: "S" },
-        });
-        authLog.info("usuario marcado esRoot por grupo ADMSEC", {
-          username: usuario.username,
-          usuarioId: usuario.id,
-          groupId: GROUP_ROOT,
-        });
-      } catch (err) {
-        authLog.error("no se pudo marcar esRoot por grupo ADMSEC", {
-          username: usuario.username,
-          usuarioId: usuario.id,
-          message: (err as Error).message,
-        });
-      }
-    }
-    // Grupo 1 → también asigna rol Root (id 52). Idempotente.
     await ensureRolAssigned(
       usuario.id,
       ROL_ROOT_ID,

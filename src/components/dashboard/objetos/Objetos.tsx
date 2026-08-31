@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import {
   Select,
   SelectContent,
@@ -145,6 +146,11 @@ export default function ObjetosTable() {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="space-x-2">
+          {/*
+            "Editar" queda habilitado: GET /api/db/objetos/:id sigue en
+            AUTENTICADA. El PUT es ROOT y el gate está en el "Confirmar" de
+            ObjetoForm, con su cartel de sólo lectura arriba.
+          */}
           <Button
             variant="outline"
             size="sm"
@@ -155,9 +161,12 @@ export default function ObjetosTable() {
           >
             <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
-          <Button
+          {/* DELETE /api/db/objetos/:id es nivel ROOT. */}
+          <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
+            aria-label={`Eliminar objeto ${row.original?.key ?? row.original?.id ?? ""}`}
             onClick={async () => {
               const obj = row.original;
               if (!obj?.id) return;
@@ -172,7 +181,7 @@ export default function ObjetosTable() {
             }}
           >
             <Trash className="w-4 h-4" aria-hidden="true" />
-          </Button>
+          </BotonRoot>
         </div>
       ),
     },

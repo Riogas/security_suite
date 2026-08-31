@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -115,6 +116,14 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/*
+        Sirve para los dos modos: /dashboard/aplicaciones/crear y
+        /editar/:id son rutas propias a las que se llega por URL o desde la
+        grilla, así que el aviso tiene que estar en el formulario y no sólo en
+        el botón que lo abre.
+      */}
+      <AvisoSoloRoot alcance="ROOT" que="la aplicación" />
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre *</Label>
@@ -183,14 +192,15 @@ export default function AplicacionForm({ mode, appId }: AplicacionFormProps) {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Volver
         </Button>
-        <Button type="submit" disabled={loading}>
+        {/* POST y PUT /api/db/aplicaciones son nivel ROOT. */}
+        <BotonRoot alcance="ROOT" type="submit" disabled={loading}>
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : (
             <Save className="w-4 h-4 mr-2" />
           )}
           {mode === "create" ? "Crear" : "Guardar"}
-        </Button>
+        </BotonRoot>
       </div>
     </form>
   );

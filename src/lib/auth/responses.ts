@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
 import type { VerifiedBy } from "./types";
 import { leerSecretoJwt } from "./verificarJwt";
+import { aplicacionIdDeSecapi, aplicacionesRootDeUsuario } from "@/lib/permisos";
 
 /*
  * El firmante usa EXACTAMENTE el mismo criterio que el verificador
@@ -129,6 +130,36 @@ export async function buildSuccessResponse(
     [usuario.nombre, usuario.apellido].filter(Boolean).join(" ").trim() ||
     usuario.username;
 
+  // `isRoot` viaja desde acá a GOYA, TrackMovil y Granel. Ya NO sale de la
+  // columna `usuarios.es_root`: se calcula con el rol "Root" vigente, igual que
+  // el guard (ver el bloque "Root por ROL" en src/lib/permisos.ts). Si siguiera
+  // leyendo la columna, el mismo usuario daría root para el endpoint y no-root
+  // para el front, que es exactamente el problema que se viene a cerrar.
+  //
+  // No se calcula con `roles` de más arriba a propósito: esa consulta puede
+  // venir filtrada por escenario (`applicableRolIds`) y no mira ni la vigencia
+  // de la asignación ni `roles.estado`. Root tiene que salir del mismo criterio
+  // que usa el guard, sin excepciones.
+  const aplicacionesRoot = await aplicacionesRootDeUsuario(usuario.id);
+
+  // `isRoot` = root de SecuritySuite, y eso es CORRECTO para las cuatro
+  // aplicaciones, no una aproximación.
+  //
+  // Vale la pena decirlo con todas las letras porque la lectura rápida es al
+  // revés ("le está mandando 'S' a Granel a alguien que no tiene el rol Root de
+  // Granel"): por decisión de alcance del dueño, el rol Root de secapi ES el
+  // superusuario del ecosistema y da acceso a todo, así que GOYA, TrackMovil y
+  // Granel tienen que recibir 'S'. Es el mismo alcance que tenía
+  // `usuarios.es_root='S'`, que es lo que este campo transportaba antes. El
+  // razonamiento largo está en `esRootDeAplicacion` (src/lib/permisos.ts).
+  //
+  // Lo que NO sabe este campo es la granularidad fina: es un char 'S'/'N' viejo
+  // y el `Sistema` del login es texto libre. Por eso al lado viaja
+  // `aplicacionesRoot`, que sí lleva el detalle por aplicación — un usuario con
+  // el Root de GOYA y sin el de secapi recibe `isRoot: 'N'` y
+  // `aplicacionesRoot: [3]`, y GOYA tiene con qué decidir bien.
+  const esRootDeSecapi = aplicacionesRoot.includes(aplicacionIdDeSecapi());
+
   return NextResponse.json({
     success: true,
     message: "",
@@ -141,7 +172,10 @@ export async function buildSuccessResponse(
       username: usuario.username.trim(),
       nombre,
       email: usuario.email || "",
-      isRoot: usuario.esRoot || "N",
+      isRoot: esRootDeSecapi ? "S" : "N",
+      // Aditivo: las aplicaciones donde el usuario tiene el rol Root. Es lo que
+      // GOYA/TrackMovil/Granel deberían mirar en vez de `isRoot`.
+      aplicacionesRoot,
     },
     escenario,
     roles: roles.map((ur) => ({

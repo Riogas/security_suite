@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BotonRoot } from "@/components/ui/solo-root";
 import {
   Select,
   SelectContent,
@@ -129,6 +130,12 @@ export default function RolesTable() {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="space-x-2">
+          {/*
+            "Editar" NO se gatea: abrir la ficha del rol es una LECTURA
+            (GET /api/db/roles/:id sigue en AUTENTICADA) y las lecturas quedan
+            abiertas. El PUT sí es ROOT, y por eso el que se apaga es el
+            "Guardar" de RoleForm, con su cartel de sólo lectura arriba.
+          */}
           <Button
             variant="outline"
             size="sm"
@@ -137,6 +144,12 @@ export default function RolesTable() {
           >
             <Pencil className="w-4 h-4" aria-hidden="true" />
           </Button>
+          {/*
+            Atributos tampoco: POST/PUT /api/db/roles/:id/atributos son
+            AUTENTICADA y SERVICIO respectivamente — no subieron a ROOT (los usa
+            el panel de Granel). Gatearlo sería bloquear algo que el servidor
+            acepta.
+          */}
           <Button
             variant="outline"
             size="sm"
@@ -147,7 +160,13 @@ export default function RolesTable() {
           >
             <Settings className="w-4 h-4" aria-hidden="true" />
           </Button>
-          <Button
+          {/*
+            POST /api/db/roles/:id/clonar es ROOT: el clon toma el NOMBRE del
+            body, así que clonar cualquier rol de la aplicación 1 llamándolo
+            "Root" fabrica el privilegio.
+          */}
+          <BotonRoot
+            alcance="ROOT"
             variant="outline"
             size="sm"
             aria-label={`Clonar rol ${row.original?.nombre}`}
@@ -156,15 +175,20 @@ export default function RolesTable() {
             }
           >
             <Copy className="w-4 h-4" aria-hidden="true" />
-          </Button>
-          <Button
+          </BotonRoot>
+          {/*
+            DELETE /api/db/roles/:id es ROOT: pasa el rol a estado "I", y un rol
+            Root inactivo deja al sistema sin administrador.
+          */}
+          <BotonRoot
+            alcance="ROOT"
             variant="destructive"
             size="sm"
             aria-label={`Eliminar rol ${row.original?.nombre}`}
             onClick={() => setDeleteConfirm(row.original)}
           >
             <Trash className="w-4 h-4" aria-hidden="true" />
-          </Button>
+          </BotonRoot>
         </div>
       ),
     },
@@ -213,9 +237,11 @@ export default function RolesTable() {
   );
 
   const headerActions = (
-    <Button onClick={() => router.push("/dashboard/roles/crear")}>
+    // POST /api/db/roles es ROOT (ver el botón gemelo en la PageHeader de
+    // /dashboard/roles).
+    <BotonRoot alcance="ROOT" onClick={() => router.push("/dashboard/roles/crear")}>
       <Plus className="w-4 h-4 mr-1" aria-hidden="true" /> Nuevo Rol
-    </Button>
+    </BotonRoot>
   );
 
   return (

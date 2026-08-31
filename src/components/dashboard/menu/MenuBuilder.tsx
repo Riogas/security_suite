@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AvisoSoloRoot, BotonRoot } from "@/components/ui/solo-root";
+import { usePuedeAdministrar } from "@/hooks/usePuedeAdministrar";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -170,6 +172,14 @@ export default function MenuBuilder() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Único caso del panel donde hace falta el hook crudo y no alcanza con
+  // `BotonRoot`: acá el trabajo NO es llenar un formulario, es rearmar el árbol
+  // entero en memoria (arrastrar, crear nodos, renombrar) y recién al final
+  // mandar UN `PUT /api/db/menu/builder`, que es el que está en nivel ROOT. Si
+  // sólo se apagara el "Guardar", la persona reordenaría treinta nodos para
+  // perderlo todo al final. Con esto el árbol queda de sólo lectura entero.
+  const { puede: puedeEditarMenu } = usePuedeAdministrar("ROOT");
+  const soloLectura = !puedeEditarMenu;
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // modal de edición
@@ -316,19 +326,27 @@ export default function MenuBuilder() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => openCreate("GROUP", null)}>
+          <BotonRoot alcance="ROOT" variant="outline" size="sm" onClick={() => openCreate("GROUP", null)}>
             <Plus className="w-4 h-4 mr-1" /> Grupo
-          </Button>
+          </BotonRoot>
+          {/* "Recargar" es una lectura (GET /menu/builder es AUTENTICADA). */}
           <Button variant="outline" size="sm" onClick={() => loadTree(aplicacionId)} disabled={loading}>
             <RotateCcw className="w-4 h-4 mr-1" /> Recargar
           </Button>
-          <Button size="sm" onClick={save} disabled={saving || !dirty}>
+          {/*
+            PUT /api/db/menu/builder es ROOT: reescribe `objetos` y
+            `objeto_acciones` de la aplicación, incluidos el `path` y el
+            `codigo` contra los que matchea el motor de permisos.
+          */}
+          <BotonRoot alcance="ROOT" size="sm" onClick={save} disabled={saving || !dirty}>
             <Save className="w-4 h-4 mr-1" />
             {saving ? "Guardando…" : "Guardar"}
             {dirty && !saving && <span className="ml-2 size-2 rounded-full bg-amber-400" />}
-          </Button>
+          </BotonRoot>
         </div>
       </div>
+
+      <AvisoSoloRoot alcance="ROOT" que="el árbol de menú" />
 
       {/* Árbol */}
       <div className="rounded-xl border p-3 min-h-[300px]">
@@ -345,9 +363,9 @@ export default function MenuBuilder() {
             <p className="text-sm text-muted-foreground mb-4">
               Empezá creando un grupo de nivel superior.
             </p>
-            <Button onClick={() => openCreate("GROUP", null)}>
+            <BotonRoot alcance="ROOT" onClick={() => openCreate("GROUP", null)}>
               <Plus className="w-4 h-4 mr-1" /> Crear grupo
-            </Button>
+            </BotonRoot>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -360,6 +378,7 @@ export default function MenuBuilder() {
               onAddChild={(parentUid, kind) => openCreate(kind, parentUid)}
               onEdit={openEdit}
               onDelete={deleteNode}
+              soloLectura={soloLectura}
             />
           </DndContext>
         )}
@@ -386,6 +405,7 @@ function NodeList({
   onAddChild,
   onEdit,
   onDelete,
+  soloLectura,
 }: {
   nodes: TNode[];
   parentUid: string | null;
@@ -395,6 +415,8 @@ function NodeList({
   onAddChild: (parentUid: string, kind: MenuNodeKind) => void;
   onEdit: (n: TNode) => void;
   onDelete: (uid: string) => void;
+  /** El PUT del builder es ROOT: sin permiso, el árbol se mira y no se toca. */
+  soloLectura: boolean;
 }) {
   return (
     <SortableContext items={nodes.map((n) => n.uid)} strategy={verticalListSortingStrategy}>
@@ -409,6 +431,7 @@ function NodeList({
             onAddChild={onAddChild}
             onEdit={onEdit}
             onDelete={onDelete}
+            soloLectura={soloLectura}
           />
         ))}
       </div>
@@ -425,6 +448,7 @@ function NodeRow({
   onAddChild,
   onEdit,
   onDelete,
+  soloLectura,
 }: {
   node: TNode;
   depth: number;
@@ -433,6 +457,7 @@ function NodeRow({
   onAddChild: (parentUid: string, kind: MenuNodeKind) => void;
   onEdit: (n: TNode) => void;
   onDelete: (uid: string) => void;
+  soloLectura: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.uid,
@@ -454,10 +479,17 @@ function NodeRow({
         className="group flex items-center gap-2 rounded-lg border bg-card px-2 py-2 hover:bg-muted/40 transition-colors"
         style={{ marginLeft: depth * 20 }}
       >
+        {/*
+          Deshabilitado y no escondido, misma decisión que los botones: el
+          manijero sigue a la vista para que el árbol se lea igual, pero un
+          <button disabled> no dispara los listeners de dnd-kit, así que no se
+          puede reordenar lo que después no se va a poder guardar.
+        */}
         <button
-          className="cursor-grab active:cursor-grabbing text-muted-foreground"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground disabled:cursor-default disabled:opacity-40"
           {...attributes}
           {...listeners}
+          disabled={soloLectura}
           aria-label="Arrastrar"
         >
           <GripVertical className="w-4 h-4" />
@@ -484,7 +516,8 @@ function NodeRow({
         <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {isContainer && (
             <>
-              <Button
+              <BotonRoot
+                alcance="ROOT"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -492,8 +525,9 @@ function NodeRow({
                 onClick={() => onAddChild(node.uid, "SUBMENU")}
               >
                 <FolderPlus className="w-4 h-4" />
-              </Button>
-              <Button
+              </BotonRoot>
+              <BotonRoot
+                alcance="ROOT"
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
@@ -501,13 +535,14 @@ function NodeRow({
                 onClick={() => onAddChild(node.uid, "LINK")}
               >
                 <FilePlus2 className="w-4 h-4" />
-              </Button>
+              </BotonRoot>
             </>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => onEdit(node)}>
+          <BotonRoot alcance="ROOT" variant="ghost" size="icon" className="h-7 w-7" title="Editar" onClick={() => onEdit(node)}>
             <Pencil className="w-4 h-4" />
-          </Button>
-          <Button
+          </BotonRoot>
+          <BotonRoot
+            alcance="ROOT"
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-destructive"
@@ -515,7 +550,7 @@ function NodeRow({
             onClick={() => onDelete(node.uid)}
           >
             <Trash2 className="w-4 h-4" />
-          </Button>
+          </BotonRoot>
         </div>
       </div>
 
@@ -537,6 +572,7 @@ function NodeRow({
               onAddChild={onAddChild}
               onEdit={onEdit}
               onDelete={onDelete}
+              soloLectura={soloLectura}
             />
           </motion.div>
         )}

@@ -53,7 +53,8 @@ endpoints:
       - "as400-api (Express :5000) es la dependencia, no el consumidor: este endpoint le pega para SGM y LDAP."
     notas:
       - "**El JWT no lleva el flag root.** Ninguna app puede decidir “es root” leyendo el token: hay que preguntarle a secapi. Es la razón de ser del gate de `/docs`."
-      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y **todo `/api/db/*` responde 503 igual**: desde que existe el guard central, sin secreto real no se autentica nadie. Este endpoint es la única excepción — sigue emitiendo tokens, porque si no nadie podría loguearse para arreglarlo."
+      - "**`user.isRoot` ya no sale de la columna `usuarios.es_root`** (2026-08-28): se calcula con el rol `Root` de la aplicación SecuritySuite, vigente y con el rol activo. Al lado viaja `user.aplicacionesRoot`, la lista de aplicaciones donde el usuario tiene ese rol — es lo que GOYA, TrackMovil y Granel deberían mirar, porque root es por aplicación y `isRoot` es un campo viejo que no sabe de eso."
+      - "**`JWT_SECRET` tiene un valor por defecto en el código:** si la variable no está seteada en el ambiente, el token se firma con un secreto que está en el repositorio y que, por lo tanto, conoce cualquiera con acceso al código. Hay que setearla en el ambiente (el valor no se transcribe acá a propósito; ver `docs/api/README.md`). Mientras no lo esté, el gate de `/docs` responde 503 `SECRETO_NO_CONFIGURADO` y **todo `/api/db/*` responde 503 igual**: desde que existe el guard central, sin secreto real no se autentica nadie. Este endpoint es la única excepción **al pedido de token** (es público: entra sin credencial y por eso el guard no lo frena), pero **no emite token igual**: valida las credenciales, y antes de firmar corta con 503 `SECRETO_NO_CONFIGURADO` (`src/lib/auth/responses.ts`). O sea: sin la variable configurada no se loguea nadie, tampoco para arreglarlo — se arregla en el ambiente del servidor y no desde la aplicación."
       - "**Cambiar `JWT_SECRET` desloguea a todo el mundo de golpe.** Los tokens vigentes duran 7 días y quedan invalidados en el mismo momento: secapi, GOYA, TrackMovil y el panel de Granel piden login de nuevo. Es esperable; lo que no conviene es hacerlo en el mismo deploy que otro cambio de auth, porque después no se distingue qué rompió qué."
       - "El filtro por escenario puede dejar a un usuario válido afuera con 403 `FORBIDDEN_SCENARIO` si ninguno de sus roles aplica al escenario activo."
     auth:
@@ -73,6 +74,8 @@ endpoints:
         description: Usuario deshabilitado, o `FORBIDDEN_SCENARIO` (ningún rol aplica al escenario activo).
       "500":
         description: 'Error interno; el cuerpo mantiene la forma de error, con `token` vacío.'
+      "503":
+        description: '`SECRETO_NO_CONFIGURADO`: las credenciales se validaron bien, pero falta `JWT_SECRET` (o tiene el default del código) y el token no se firma. No se resuelve reintentando el login.'
     ejemplos:
       - lenguaje: curl
         titulo: Login local
@@ -87,8 +90,9 @@ endpoints:
       El corazón del RBAC. Dado el JWT y una aplicación, responde si el usuario
       tiene acceso a un objeto + acción, en modo single o batch.
 
-      Orden de evaluación: `usuarios.es_root='S'` cortocircuita con `GRANTED`
-      razón `ROOT`; después objeto público, funcionalidad pública, `solo_root`,
+      Orden de evaluación: primero se resuelve la aplicación; tener el rol
+      **Root de esa aplicación** (vigente y con el rol activo) cortocircuita con
+      `GRANTED` razón `ROOT`; después objeto público, funcionalidad pública, `solo_root`,
       acceso directo vigente en `accesos` y por último `rol_funcionalidades` de
       los roles vigentes del usuario.
 
@@ -101,7 +105,9 @@ endpoints:
       - "El guard de `/docs` de GOYA y TrackMovil (fase 1 del portal). SecuritySuite no lo llama: consulta Postgres directo, sin salto de red."
     notas:
       - "La razón de la respuesta importa tanto como el veredicto: `ROOT`, `PUBLIC_OBJECT`, `PUBLIC_FUNCIONALIDAD`, `SOLO_ROOT`, `DIRECT_ACCESO`, `ROL_FUNCIONALIDAD`, `ACCESS_DENIED`, `OBJETO_NOT_FOUND`."
-      - "`solo_root='S'` deniega con razón `SOLO_ROOT` a todo el que no tenga `usuarios.es_root='S'` — hoy una sola cuenta. Por eso la funcionalidad `docs` se sembró con `'N'`."
+      - "`solo_root='S'` deniega con razón `SOLO_ROOT` a todo el que no tenga el rol Root de esa aplicación. Por eso la funcionalidad `docs` se sembró con `'N'`."
+      - "**Desde el 2026-08-28 el bypass de root es POR APLICACIÓN.** Antes lo daba la columna `usuarios.es_root='S'`: un flag global que abría el motor de las cuatro aplicaciones de una y que, en producción, tenía UN solo usuario de 854. Ahora cada aplicación exige su propio rol `Root`. Es deliberadamente más estrecho: ser root de SecuritySuite ya no otorga nada en GOYA, TrackMovil ni Granel."
+      - "Efecto lateral del cambio de orden: con una aplicación inexistente ahora también un root recibe `APP_NOT_FOUND` — sin aplicación no hay root de nada."
       - "La firma del JWT **se verifica** (HS256 contra `JWT_SECRET`, más vencimiento) en el guard central de `/api/db` antes de entrar al handler; recién después se resuelve el usuario por `username`/`email` contra la base. Hasta el 2026-08-27 se decodificaba el payload en base64 sin mirar la firma: cualquiera se hacía pasar por root en el gate de CADA pantalla de GOYA y TrackMovil."
       - "El batch reusa los roles vigentes calculados una sola vez, pero evalúa cada ítem con su propio round-trip a Postgres."
     ejemplos:
@@ -138,8 +144,10 @@ endpoints:
       funcionalidad.
 
       Con usuario identificado solo se incluyen los puntos accesibles; un
-      submenú aparece únicamente si le queda algún hijo visible. Un usuario con
-      `es_root='S'` ve el árbol completo.
+      submenú aparece únicamente si le queda algún hijo visible. Quien tenga el
+      rol `Root` **de la aplicación que se está pidiendo** ve el árbol completo
+      (hasta el 2026-08-28 lo daba `usuarios.es_root='S'`, que abría el árbol de
+      las cuatro aplicaciones a la vez).
     consumidores:
       - "`src/components/dashboard/Sidebar.tsx` de SecuritySuite."
       - "El sidebar de GOYA (aplicación 3, menú raíz 10)."
@@ -357,6 +365,41 @@ endpoints:
       verificaFirma: true
       detalle: "`x-api-key` con el valor de `SECAPI_SERVICE_KEY`, **o** JWT en `Authorization: Bearer` / cookie `token` (firma y vencimiento verificados)."
 
+  "GET /api/db/usuarios/yo":
+    summary: Quién soy y de qué aplicaciones soy root, resuelto del token
+    description: |
+      Devuelve la identidad del portador del JWT y su condición de root, tal
+      como la calcula el guard: `esRootDeSecapi` (rol `Root` de la aplicación
+      SecuritySuite) y `aplicacionesRoot` (todas las aplicaciones donde tiene
+      ese rol, vigente y con el rol activo).
+
+      No devuelve la ficha del usuario — para eso está `GET /api/db/usuarios/{id}`.
+      Solo identidad y root, que es lo que hace falta para gatear una pantalla.
+    consumidores:
+      - "Panel de SecuritySuite: `src/hooks/useEsRoot.ts`, que gatea el botón de \"Importación masiva\" y el de importar de a uno."
+    notas:
+      - "**Existe por una discrepancia real de producción.** El panel decidía con `localStorage.user.isRoot`, que no sale de esta base: lo escribe el login que va por el passthrough a GeneXus, leyendo `SERVICIOS.USEREXTENDED.USEREXTENDEDESROOT`. Ese campo está INVERTIDO respecto de secapi, así que el botón y el endpoint decidían distinto — a un root le salía bloqueado y a un no-root habilitado hasta comerse el 403."
+      - "**Nivel AUTENTICADA, no ROOT, a propósito**: preguntar si sos root no puede exigir ser root. Con nivel ROOT el no-root recibiría 403 y el front no podría distinguir \"no sos root\" de \"se rompió algo\"."
+      - "`isRoot` es un alias `'S'`/`'N'` de `esRootDeSecapi`, con la forma que ya usa el resto del ecosistema. **No** es la columna `usuarios.es_root`, que desde el 2026-08-28 no autoriza nada."
+      - "Root es POR APLICACIÓN: `esRootDeSecapi` no dice nada sobre GOYA, TrackMovil ni Granel. Para eso está `aplicacionesRoot`."
+    auth:
+      modo: jwt
+      verificaFirma: true
+      detalle: "JWT en `Authorization: Bearer` o cookie `token` (firma HS256 y vencimiento verificados por el guard de `/api/db`)."
+    responses:
+      "200":
+        description: |
+          `{ success: true, usuario: { id, username, esRootDeSecapi, aplicacionesRoot, isRoot } }`.
+      "401":
+        description: Sin token, token inválido/vencido, o el usuario no está activo.
+      "503":
+        description: '`SECRETO_NO_CONFIGURADO`: falta `JWT_SECRET` en el ambiente.'
+    ejemplos:
+      - lenguaje: curl
+        titulo: Preguntar si soy root
+        codigo: |
+          curl -H "Authorization: Bearer $TOKEN" "{{ORIGEN}}/api/db/usuarios/yo"
+
   "GET /api/db/usuarios/por-username":
     summary: Ficha del usuario por username, con sus empresas fleteras normalizadas
     description: |
@@ -453,7 +496,7 @@ endpoints:
     notas:
       - "**Escribe sobre datos existentes.** El paso 1 es DELETE + INSERT sobre `usuario_preferencias`: correrlo sin `dryRun` no se deshace solo."
       - "Empezá siempre por `?dryRun=true`: devuelve exactamente el mismo resumen y detalle sin tocar la base."
-      - "**Exige ser root desde el 2026-08-27** (nivel ROOT del guard de `/api/db`): JWT verificado y `usuarios.es_root='S'`. Antes solo miraba que la cookie `token` EXISTIERA — ni firma, ni vencimiento, ni usuario —, o sea que alcanzaba con `--cookie \"token=x\"` para disparar un barrido de escrituras sobre toda la base."
+      - "**Exige ser root desde el 2026-08-27** (nivel ROOT del guard de `/api/db`): JWT verificado y, desde el 2026-08-28, el rol `Root` de la aplicación SecuritySuite — ya no la columna `usuarios.es_root`. Antes solo miraba que la cookie `token` EXISTIERA — ni firma, ni vencimiento, ni usuario —, o sea que alcanzaba con `--cookie \"token=x\"` para disparar un barrido de escrituras sobre toda la base."
       - "El JWT sale de la cookie `token` o del header `Authorization`."
       - "Depende del AS400 API levantado. Si no contesta, los usuarios de esa tanda quedan contados como errores en el resumen y el proceso sigue."
     parameters:
@@ -865,12 +908,12 @@ endpoints:
     consumidores:
       - "Pantalla de importación de usuarios externos de SecuritySuite."
     notas:
-      - "**Doble gate**: además de `requireRoot` (el mismo guard que `/docs`), exige `es_root='S'` explícito. El rol Root no alcanza: esto crea usuarios."
+      - "Nivel ROOT del guard de `/api/db`: exige el rol `Root` de la aplicación SecuritySuite, vigente y con el rol activo. Hasta el 2026-08-28 exigía `usuarios.es_root='S'`, que en producción tenía una sola cuenta de 854 — por eso la pantalla quedaba inutilizable para el resto de los administradores."
       - "El tope de `usernames` por request lo pone el **servidor** (2000), no el cliente."
       - "`detalles` viene recortado a 200 entradas. En una corrida real trae solo lo que no salió bien (omitidos y errores); con `dryRun: true` también incluye lo que se crearía."
     auth:
       modo: root
-      detalle: "`requireRoot` (firma HS256 + `exp` + permiso `docs:view` contra secapi) y encima `es_root='S'`."
+      detalle: "Nivel ROOT del guard de `/api/db`: firma HS256 + `exp` + usuario activo + rol `Root` de la aplicación SecuritySuite."
     requestBody:
       requerido: true
       descripcion: "Qué importar y con qué."
@@ -894,7 +937,7 @@ endpoints:
         cuando: "`origen` desconocido, o más de 2000 usernames."
       - status: 403
         code: "La importación de usuarios requiere ser root"
-        cuando: "Pasó el guard pero el usuario no tiene `es_root='S'`."
+        cuando: "Pasó la verificación del token pero el usuario no tiene el rol `Root` de SecuritySuite."
       - status: 500
         code: "-"
         cuando: "Falla la lectura del origen externo o la escritura en PostgreSQL."

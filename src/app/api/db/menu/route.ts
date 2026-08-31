@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { EFECTOS_ALLOW } from "@/lib/permisos";
+import { EFECTOS_ALLOW, esRootDeAplicacion } from "@/lib/permisos";
 import { requireApiAuth } from "@/lib/auth/apiGuard";
 
 // Mapeo de nombre de funcionalidad → ruta + ícono (fallback plano, apps sin árbol MENU)
@@ -54,20 +54,52 @@ export async function GET(request: NextRequest) {
         0,
     );
 
+    // Sin aplicación no hay menú que construir. Antes esto seguía de largo con
+    // `aplicacionId = 0`, y el resultado era peor que un error: el filtro
+    // `if (aplicacionId) funcWhere.aplicacionId = ...` no se aplicaba, así que
+    // el árbol salía mezclando funcionalidades de las CUATRO aplicaciones, y
+    // encima `esRootDeAplicacion(u, 0)` es false (fail-closed a propósito), o
+    // sea que al root le salía el sidebar vacío. Dos síntomas raros del mismo
+    // dato faltante, los dos difíciles de diagnosticar. Hoy no dispara porque
+    // NEXT_PUBLIC_APLICACION_ID está en los tres .env, pero es exactamente el
+    // patrón que ya mordió en goya-dev ("todo salía con defaults").
+    if (!Number.isFinite(aplicacionId) || aplicacionId <= 0) {
+      console.error(
+        "[API/db/menu GET] no se pudo resolver la aplicación: no vino ?aplicacionId= " +
+          "y NEXT_PUBLIC_APLICACION_ID / APLICACION_ID no están seteadas en el ambiente.",
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "No se pudo determinar de qué aplicación es el menú. Falta el parámetro aplicacionId " +
+            "(o la variable de ambiente APLICACION_ID); avisá a sistemas.",
+        },
+        { status: 400 },
+      );
+    }
+
     // Usuario para el gateo. Lo trae el guard ya verificado y resuelto contra
     // Postgres; acá se hacía a mano un `jwt.verify` con el secreto por defecto
     // del código y, si fallaba, se seguía de largo con userId=null — que en
     // esta ruta significaba "devolvele el árbol entero". Ese era el bug: la
     // única ruta que verificaba la firma era también la que fallaba abierta.
     //
-    // De paso se ahorra una consulta: `resolveUsuario` ya trae `esRoot`.
+    // De paso se ahorra una consulta: `resolveUsuario` ya trae los roles Root.
     const userId: number | null = guard.usuario?.id ?? null;
 
-    // Un usuario con es_root='S' ve el menú completo sin depender de roles.
-    // Sin esto, un root entra a cualquier pantalla escribiendo la URL (el
-    // chequeo de permisos sí lo contempla) pero el sidebar le queda vacío,
-    // que es justo la inconsistencia que se veía en GOYA.
-    const esRoot = guard.usuario?.esRoot === "S";
+    // El root ve el menú completo sin depender de roles. Sin esto, un root
+    // entra a cualquier pantalla escribiendo la URL (el chequeo de permisos sí
+    // lo contempla) pero el sidebar le queda vacío, que es justo la
+    // inconsistencia que se veía en GOYA.
+    //
+    // "Root" acá es el rol Root de ESTA aplicación **o** el rol Root de secapi,
+    // que vale para todas (ver `esRootDeAplicacion` en src/lib/permisos.ts): es
+    // el alcance que pidió el dueño y el mismo que tenía `usuarios.es_root='S'`,
+    // con la diferencia de que ahora sale de una tabla auditable en vez de una
+    // columna suelta. La granularidad por aplicación no se perdió: el Root de
+    // GOYA sigue abriendo el menú de GOYA y solamente ese.
+    const esRoot = esRootDeAplicacion(guard.usuario, aplicacionId);
 
     // Funcionalidades accesibles por el usuario (roles + accesos directos).
     // null = no se identificó usuario, o es root → no se filtra (árbol completo).
