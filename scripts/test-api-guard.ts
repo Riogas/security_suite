@@ -600,6 +600,12 @@ async function main(): Promise<void> {
     ["PUT", "/api/db/aplicaciones/1"],
     ["DELETE", "/api/db/aplicaciones/1"],
     ["PUT", "/api/db/menu/builder"],
+    // Estas dos NO son "administrar usuarios" y por eso no bajaron a ADMIN:
+    // mientras un otorgamiento no distinga leer de escribir, habilitar a
+    // alguien a BUSCAR gente le daria de arrastre borrarla, y el barrido de
+    // import-sgm asigna un rol a lo largo de todo el padron.
+    ["DELETE", "/api/db/usuarios/845"],
+    ["POST", "/api/db/admin/import-sgm-preferences"],
   ];
 
   await test("un AUTENTICADO sin rol Root recibe 403 en todo lo que otorga permisos", async () => {
@@ -663,12 +669,10 @@ async function main(): Promise<void> {
     { metodo: "POST", ruta: "/api/db/usuarios", otorga: "usuarios:view" },
     { metodo: "GET", ruta: "/api/db/usuarios/845", otorga: "usuarios:view" },
     { metodo: "PUT", ruta: "/api/db/usuarios/845", otorga: "usuarios:view" },
-    { metodo: "DELETE", ruta: "/api/db/usuarios/845", otorga: "usuarios:view" },
     { metodo: "GET", ruta: "/api/db/usuarios/845/roles", otorga: "usuarios:view" },
     { metodo: "GET", ruta: "/api/db/usuarios/845/accesos", otorga: "usuarios:view" },
     { metodo: "GET", ruta: "/api/db/usuarios/externos", otorga: "usuarios:view" },
     { metodo: "POST", ruta: "/api/db/usuarios/importar", otorga: "usuarios:view" },
-    { metodo: "POST", ruta: "/api/db/admin/import-sgm-preferences", otorga: "usuarios:view" },
     { metodo: "GET", ruta: "/api/db/roles/57", otorga: "roles:view" },
     { metodo: "POST", ruta: "/api/db/roles/57/atributos", otorga: "roles:view" },
     { metodo: "GET", ruta: "/api/db/aplicaciones/3", otorga: "aplicaciones:view" },
@@ -911,7 +915,7 @@ async function main(): Promise<void> {
         pedido("POST", "/api/db/admin/import-sgm-preferences", conToken(jwtDe("jperez"))),
       ),
       403,
-      "NO_ADMIN",
+      "NO_ROOT",
     );
   });
 

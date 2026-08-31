@@ -381,13 +381,21 @@ export const POLITICAS: readonly Politica[] = [
   // quedó en AUTENTICADA/SERVICIO/PÚBLICA a propósito y NO se toca. Cerrar el
   // panel no los roza.
   //
-  // Tres de estas BAJARON de ROOT, y es deliberado: son administración de
-  // usuarios, no de privilegios. Delegar "Usuarios" no permite asignar roles ni
-  // accesos (siguen en ROOT), así que un admin de usuarios no se puede hacer
-  // root. Las tres son `DELETE /usuarios/:id`, `POST /usuarios/importar` y
-  // `POST /admin/import-sgm-preferences`; las dos primeras conservan además la
-  // red de `verificarQueQuedaRoot`, que impide dejar el sistema sin
-  // administrador.
+  // Una de estas BAJÓ de ROOT, y es deliberada: `POST /usuarios/importar` es
+  // administración de usuarios, no de privilegios — dar de alta a los 426 que
+  // faltan migrar es justamente el trabajo que se quiere poder delegar a la
+  // mesa de ayuda. Delegar "Usuarios" no permite asignar roles ni accesos
+  // (siguen en ROOT), así que un admin de usuarios no se puede hacer root, y
+  // `verificarQueQuedaRoot` queda además como red.
+  //
+  // Las otras dos que se habían considerado NO bajaron, y conviene saber por
+  // qué: mientras todas las políticas ADMIN chequean la misma acción (`view`,
+  // la única sembrada), un otorgamiento no distingue leer de escribir. O sea
+  // que habilitar a alguien a BUSCAR gente en la grilla le daría de arrastre
+  // `DELETE /usuarios/:id` y el barrido masivo de `import-sgm-preferences`,
+  // que asigna un rol a lo largo de todo el padrón. Cuando se siembren las
+  // acciones finas y un otorgamiento pueda decir "ver pero no borrar", esto se
+  // puede revisar; hasta entonces las dos se quedan en ROOT.
   {
     patron: "/usuarios",
     metodos: ["GET", "POST"],
@@ -399,12 +407,19 @@ export const POLITICAS: readonly Politica[] = [
   },
   {
     patron: "/usuarios/:id",
-    metodos: ["GET", "PUT", "DELETE"],
+    metodos: ["GET", "PUT"],
     nivel: "ADMIN",
     objetoKey: "usuarios",
     accion: ACCION_VIEW,
     motivo:
-      "Ficha de usuario: ver, editar y dar de baja. El PUT no puede elevar a root (`esRoot` dejó de autorizar) y sus campos sensibles —estado, clave ajena, modifica_permisos— los sigue exigiendo el handler a nivel root. El DELETE bajó de ROOT: es baja lógica de una persona, no un privilegio; `verificarQueQuedaRoot` sigue impidiendo que deje al sistema sin administrador.",
+      "Ficha de usuario: ver y editar. El PUT no puede elevar a root (`esRoot` dejó de autorizar) y sus campos sensibles —estado, clave ajena, modifica_permisos— los sigue exigiendo el handler a nivel root.",
+  },
+  {
+    patron: "/usuarios/:id",
+    metodos: ["DELETE"],
+    nivel: "ROOT",
+    motivo:
+      "La baja se declara aparte del GET/PUT y NO es delegable. Mientras todas las políticas ADMIN chequean la misma acción (`view`, la única sembrada), otorgar la funcionalidad 'Usuarios' para que alguien pueda BUSCAR gente le daría de arrastre la baja de cualquiera. Ver y editar es lo que necesita una mesa de ayuda; borrar es otra conversación. `verificarQueQuedaRoot` sigue como red, pero la red es el último recurso, no el permiso.",
   },
   {
     patron: "/usuarios/:id/roles",
@@ -445,11 +460,9 @@ export const POLITICAS: readonly Politica[] = [
   {
     patron: "/admin/import-sgm-preferences",
     metodos: ["POST"],
-    nivel: "ADMIN",
-    objetoKey: "usuarios",
-    accion: ACCION_VIEW,
+    nivel: "ROOT",
     motivo:
-      "Barrido masivo que reescribe preferencias sobre toda la base. Bajó de ROOT junto con el resto de la administración de usuarios. Antes de todo esto solo exigía que la cookie `token` EXISTIERA — ni firma ni vencimiento — así que alcanzaba con mandar `Cookie: token=x`.",
+      "NO es administrar usuarios: es una herramienta de migración que hace un `createMany` sobre `usuario_roles` asignando el rol Distribuidor a lo largo de todo el padrón (route.ts:171). Que el rol sea fijo evita la escalada, pero una asignación masiva de roles no puede venir de arrastre con el permiso de buscar gente en una grilla. Antes de todo esto solo exigía que la cookie `token` EXISTIERA — ni firma ni vencimiento — así que alcanzaba con mandar `Cookie: token=x`.",
   },
   {
     patron: "/roles/:id",
