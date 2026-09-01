@@ -9,6 +9,14 @@ export interface RespuestaLista<T> {
   rows?: T[];
   reason?: string;
   error?: string;
+  /**
+   * Solo /admsec/list: el CURRENT TIMESTAMP del AS400 al momento de la
+   * consulta, ya formateado 'YYYY-MM-DD HH:MM:SS.ffffff'. Es la marca que el
+   * sync horario guarda para la corrida siguiente. STRING a propósito: sale
+   * del mismo reloj y del mismo formato que USUDTUPD, y se comparan como
+   * texto (ver la spec del sync, §2.3).
+   */
+  reloj?: string;
 }
 
 async function postLista<T>(path: string, body: unknown): Promise<RespuestaLista<T>> {

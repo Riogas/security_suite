@@ -74,8 +74,15 @@ router.post('/admsec/list', async (req, res) => {
   const filtro = soloHabilitados ? "WHERE TRIM(u.USUHABILITADO) = 'S'" : '';
 
   try {
+    // El VARCHAR_FORMAT de USUDTUPD no es cosmético: node-jt400 devuelve todo
+    // como texto, y sin formato fijo DB2 manda ".0" y ".000000" para el mismo
+    // instante, con lo que la comparación de strings del sync fallaría.
     const rows = await query(
-      `SELECT u.USUID AS ID, TRIM(u.USULOGIN) AS L, u.USUHABILITADO AS HAB, u.USUAUTAD AS AUTAD
+      `SELECT u.USUID AS ID,
+              TRIM(u.USULOGIN) AS L,
+              u.USUHABILITADO AS HAB,
+              u.USUAUTAD AS AUTAD,
+              VARCHAR_FORMAT(u.USUDTUPD, 'YYYY-MM-DD HH24:MI:SS.FF6') AS DTUPD
          FROM ADMSEC.USUARIOS u
          ${filtro}
         ORDER BY u.USULOGIN`,
@@ -89,9 +96,24 @@ router.post('/admsec/list', async (req, res) => {
       porId.get(k).push(Number(g.GRPID));
     }
 
-    const conGrupos = rows.map(({ ID, ...r }) => ({ ...r, GRUPOS: porId.get(String(ID)) || [] }));
+    // El USUID va en la fila de salida (antes se descartaba): el sync horario
+    // lo necesita para poder auditar contra el origen.
+    const conGrupos = rows.map((r) => ({ ...r, GRUPOS: porId.get(String(r.ID)) || [] }));
+
+    // El reloj del PROPIO AS400, con el mismo VARCHAR_FORMAT de ancho fijo que
+    // USUDTUPD. Va acá y no en un endpoint aparte porque el sync horario lo
+    // necesita en la misma corrida y comparado contra el mismo reloj: si la
+    // marca saliera de otro lado (el reloj de Node, o el máximo USUDTUPD de
+    // las filas), la comparación deja de significar "modificado desde la
+    // última corrida". Se pide DESPUÉS de las filas a propósito: así la marca
+    // nunca es anterior a un cambio que ya vino en esta respuesta.
+    const [{ RELOJ }] = await query(
+      `SELECT VARCHAR_FORMAT(CURRENT TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS.FF6') AS RELOJ
+         FROM SYSIBM.SYSDUMMY1`,
+    );
+
     console.log(`[Users ADMSEC] ${conGrupos.length} usuarios (soloHabilitados=${soloHabilitados})`);
-    res.json({ ok: true, rows: conGrupos });
+    res.json({ ok: true, rows: conGrupos, reloj: RELOJ });
   } catch (err) {
     console.error('[Users ADMSEC] Error:', err.message);
     res.status(500).json({ ok: false, outcome: 'UNAVAILABLE', error: 'Error consultando ADMSEC' });
