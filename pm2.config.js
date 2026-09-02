@@ -152,9 +152,11 @@ module.exports = {
       env: {
         ...envSecapi,
         TZ: 'America/Montevideo',
-        // Arranca en seco. Se pone en 'si' recién cuando la corrida en seco se
-        // revisó: dev y prod apuntan a la MISMA Postgres de producción.
-        SYNC_ADMSEC_ESCRIBE: 'no',
+        // En 'si' desde el 2026-09-02, con la corrida en seco revisada
+        // (1.106 filas leídas, altas=1072, cambios=0, omitidos=20). Ojo que dev
+        // y prod apuntan a la MISMA Postgres de producción: correr este script
+        // desde el repo con esta variante escribe en el padrón real.
+        SYNC_ADMSEC_ESCRIBE: 'si',
       },
 
       error_file: './logs/sync-admsec-error.log',
