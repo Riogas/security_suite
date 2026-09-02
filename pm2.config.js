@@ -29,11 +29,13 @@ const envSecapi = {
   DESPACHO_ROL_ID: '49',
   DESPACHO_APLICACION_ID: '5',
 
-  // API key de SALIDA hacia el as400-api (/api/users, que es de donde leen el
-  // wizard de importación y el job sync-admsec). TODAVÍA SIN VALOR: hay que
-  // ponerle el mismo string que USERS_API_KEY del proceso as400-api, si no el
-  // origen ADMSEC contesta SIN_USERS_API_KEY y no se lee una sola fila.
-  USERS_API_KEY: '',
+  // USERS_API_KEY (salida hacia el as400-api) y SECAPI_SERVICE_KEY NO van acá:
+  // este archivo está versionado, así que un secreto puesto acá termina en el
+  // repo. Van en /var/www/secapi/.env.production (lo lee Next) y en
+  // /var/www/secapi/.env (lo lee el as400-api, cuyo cwd es este directorio).
+  // Y ojo: definirlas acá aunque sea VACÍAS las silencia, porque el env de pm2
+  // le gana a dotenv — que no pisa lo que ya está en process.env. Eso fue
+  // exactamente lo que hizo fallar la primera corrida con SIN_USERS_API_KEY.
 
   // Middleware Debug (0 = off, 1 = on)
   DEBUG_MW: '0',
@@ -132,8 +134,13 @@ module.exports = {
 
       // Va por pm2 y no por /etc/cron.d porque en producción no hay .env: pm2
       // es lo único que inyecta DATABASE_URL, AS400_API_URL y USERS_API_KEY.
-      script: 'node_modules/.bin/tsx',
-      args: 'scripts/sync-admsec.ts',
+      // `interpreter` y no `script: '.bin/tsx'`: el bin de tsx que instala pnpm
+      // es un shell script POSIX, y pm2 en fork mode intenta cargar el `script`
+      // con el loader de Node — revienta con un SyntaxError de módulo antes de
+      // ejecutar nada. Así pm2 hace `tsx scripts/sync-admsec.ts`, que es lo que
+      // corresponde.
+      script: 'scripts/sync-admsec.ts',
+      interpreter: './node_modules/.bin/tsx',
       instances: 1,
       exec_mode: 'fork',
       watch: false,
