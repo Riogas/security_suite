@@ -27,12 +27,20 @@ export interface FilaSgm {
 }
 
 export interface FilaAdmsec {
+  /** USUID */
+  ID?: number | string | null;
   /** USULOGIN */
   L: string;
   /** USUHABILITADO */
   HAB?: string | null;
   /** USUAUTAD */
   AUTAD?: string | null;
+  /**
+   * USUDTUPD ya formateada por VARCHAR_FORMAT como 'YYYY-MM-DD HH24:MI:SS.FF6'.
+   * Es un string A PROPÓSITO y nunca hay que convertirlo a Date: node-jt400
+   * devuelve todo como texto, y compararlo contra un Date da false siempre.
+   */
+  DTUPD?: string | null;
   /** GRPIDs de ADMSEC.GRPUSU */
   GRUPOS?: number[];
 }
@@ -100,7 +108,12 @@ export function mapearFilaAdmsec(row: FilaAdmsec): ExternalUser {
     email: null,
     habilitado: habilitado(row.HAB),
     esCuentaSistema: esCuentaSistema(username),
-    extras: { grupos: row.GRUPOS ?? [], usuAutAd },
+    extras: {
+      grupos: row.GRUPOS ?? [],
+      usuAutAd,
+      usuId: entero(row.ID),
+      dtUpd: texto(row.DTUPD),
+    },
   };
 }
 

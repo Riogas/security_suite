@@ -8,14 +8,14 @@ datasource db {
 }
 
 model Aplicacion {
-  id              Int             @id @default(autoincrement())
-  nombre          String          @db.VarChar(60)
-  descripcion     String?         @db.VarChar(120)
-  estado          String          @default("A") @db.Char(1)
-  url             String?         @db.VarChar(120)
-  tecnologia      String?         @db.VarChar(60)
-  fechaCreacion   DateTime        @default(now()) @map("fecha_creacion") @db.Timestamp(6)
-  sistemaId       Int?            @map("sistema_id")
+  id              Int                @id @default(autoincrement())
+  nombre          String             @db.VarChar(60)
+  descripcion     String?            @db.VarChar(120)
+  estado          String             @default("A") @db.Char(1)
+  url             String?            @db.VarChar(120)
+  tecnologia      String?            @db.VarChar(60)
+  fechaCreacion   DateTime           @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  sistemaId       Int?               @map("sistema_id")
   funcionalidades Funcionalidad[]
   objetos         Objeto[]
   roles           Rol[]
@@ -115,24 +115,24 @@ model UsuarioRol {
 }
 
 model Funcionalidad {
-  id            Int                   @id @default(autoincrement())
-  aplicacionId  Int                   @map("aplicacion_id")
-  nombre        String                @db.VarChar(60)
-  estado        String                @default("A") @db.Char(1)
-  fechaCreacion DateTime              @default(now()) @map("fecha_creacion") @db.Timestamp(6)
-  esPublico     String                @default("N") @map("es_publico") @db.Char(1)
-  soloRoot      String                @default("N") @map("solo_root") @db.Char(1)
-  fechaDesde    DateTime?             @map("fecha_desde") @db.Date
-  fechaHasta    DateTime?             @map("fecha_hasta") @db.Date
+  id             Int                         @id @default(autoincrement())
+  aplicacionId   Int                         @map("aplicacion_id")
+  nombre         String                      @db.VarChar(60)
+  estado         String                      @default("A") @db.Char(1)
+  fechaCreacion  DateTime                    @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  esPublico      String                      @default("N") @map("es_publico") @db.Char(1)
+  soloRoot       String                      @default("N") @map("solo_root") @db.Char(1)
+  fechaDesde     DateTime?                   @map("fecha_desde") @db.Date
+  fechaHasta     DateTime?                   @map("fecha_hasta") @db.Date
   // Link explícito al Objeto y AccionKey que esta funcionalidad otorga
-  objetoKey     String?               @map("objeto_key") @db.VarChar(120)
-  accionKey     String?               @map("accion_key") @db.VarChar(60)
-  accesos       Acceso[]
-  acciones      FuncionalidadAccion[]
+  objetoKey      String?                     @map("objeto_key") @db.VarChar(120)
+  accionKey      String?                     @map("accion_key") @db.VarChar(60)
+  accesos        Acceso[]
+  acciones       FuncionalidadAccion[]
   objetoAcciones FuncionalidadObjetoAccion[]
-  aplicacion    Aplicacion            @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  roles         RolFuncionalidad[]
-  solicitudes   SolicitudPermiso[]
+  aplicacion     Aplicacion                  @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles          RolFuncionalidad[]
+  solicitudes    SolicitudPermiso[]
 
   @@index([aplicacionId], map: "idx_funcionalidades_aplicacion")
   @@index([estado], map: "idx_funcionalidades_estado")
@@ -175,25 +175,25 @@ model Acceso {
 }
 
 model Objeto {
-  id            Int            @id @default(autoincrement())
-  aplicacionId  Int            @map("aplicacion_id")
-  tipo          String         @db.VarChar(20)
-  key           String         @db.VarChar(120)
-  label         String?        @db.VarChar(120)
-  path          String?        @db.VarChar(255)
-  icon          String?        @db.VarChar(60)
-  orden         Int            @default(0)
-  estado        String         @default("A") @db.Char(1)
-  esPublico     String         @default("N") @map("es_publico") @db.Char(1)
-  parentId      Int?           @map("parent_id")
-  creadoEn      String?        @map("creado_en") @db.VarChar(60)
-  fechaCreacion DateTime       @default(now()) @map("fecha_creacion") @db.Timestamp(6)
-  aplicacion    Aplicacion     @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  parent        Objeto?        @relation("ObjetoHijos", fields: [parentId], references: [id])
-  hijos         Objeto[]       @relation("ObjetoHijos")
-  acciones      ObjetoAccion[]
+  id              Int                         @id @default(autoincrement())
+  aplicacionId    Int                         @map("aplicacion_id")
+  tipo            String                      @db.VarChar(20)
+  key             String                      @db.VarChar(120)
+  label           String?                     @db.VarChar(120)
+  path            String?                     @db.VarChar(255)
+  icon            String?                     @db.VarChar(60)
+  orden           Int                         @default(0)
+  estado          String                      @default("A") @db.Char(1)
+  esPublico       String                      @default("N") @map("es_publico") @db.Char(1)
+  parentId        Int?                        @map("parent_id")
+  creadoEn        String?                     @map("creado_en") @db.VarChar(60)
+  fechaCreacion   DateTime                    @default(now()) @map("fecha_creacion") @db.Timestamp(6)
+  aplicacion      Aplicacion                  @relation(fields: [aplicacionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent          Objeto?                     @relation("ObjetoHijos", fields: [parentId], references: [id])
+  hijos           Objeto[]                    @relation("ObjetoHijos")
+  acciones        ObjetoAccion[]
   funcionalidades FuncionalidadObjetoAccion[]
-  solicitudes   SolicitudPermiso[]
+  solicitudes     SolicitudPermiso[]
 
   @@index([aplicacionId], map: "idx_objetos_aplicacion")
   @@index([estado], map: "idx_objetos_estado")
@@ -201,18 +201,18 @@ model Objeto {
 }
 
 model ObjetoAccion {
-  id          Int     @id @default(autoincrement())
-  objetoId    Int     @map("objeto_id")
-  key         String  @db.VarChar(120)
-  descripcion String? @db.VarChar(255)
-  codigo      String? @db.VarChar(20)
-  label       String? @db.VarChar(120)
-  path        String? @db.VarChar(255)
-  icon        String? @db.VarChar(60)
-  relacion    Int?
-  orden       Int     @default(0)
-  creadoEn    String? @map("creado_en") @db.VarChar(60)
-  objeto      Objeto  @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id              Int                         @id @default(autoincrement())
+  objetoId        Int                         @map("objeto_id")
+  key             String                      @db.VarChar(120)
+  descripcion     String?                     @db.VarChar(255)
+  codigo          String?                     @db.VarChar(20)
+  label           String?                     @db.VarChar(120)
+  path            String?                     @db.VarChar(255)
+  icon            String?                     @db.VarChar(60)
+  relacion        Int?
+  orden           Int                         @default(0)
+  creadoEn        String?                     @map("creado_en") @db.VarChar(60)
+  objeto          Objeto                      @relation(fields: [objetoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   funcionalidades FuncionalidadObjetoAccion[]
 
   @@index([objetoId], map: "idx_objeto_acciones_objeto")
@@ -273,4 +273,30 @@ model SolicitudPermiso {
   @@index([usuarioId], map: "idx_solicitudes_permiso_usuario")
   @@index([objetoId], map: "idx_solicitudes_permiso_objeto")
   @@map("solicitudes_permiso")
+}
+
+// Una fila por corrida del job de sync con ADMSEC.USUARIOS (Gestión de Sistemas).
+// Es la bitácora y, a la vez, el candado: el índice único parcial
+// ux_sync_admsec_una_en_curso (database/2026-09-01-sync-admsec.sql) impide que
+// existan dos corridas EN_CURSO a la vez. Prisma no sabe expresar un índice
+// único parcial, así que ese índice vive en el SQL suelto, no acá.
+model SyncAdmsecCorrida {
+  id          Int       @id @default(autoincrement())
+  inicio      DateTime  @default(now()) @db.Timestamp(6)
+  fin         DateTime? @db.Timestamp(6)
+  /// EN_CURSO | OK | FALLIDA
+  resultado   String    @default("EN_CURSO") @db.VarChar(12)
+  /// El reloj del AS400 al arrancar, COMO TEXTO. USUDTUPD llega como string
+  /// desde node-jt400 y se compara contra esta marca como texto: pasarla a
+  /// DateTime reintroduce el bug de tipos y le mete zona horaria. Nullable
+  /// porque una corrida que falla antes de leer el reloj igual tiene que
+  /// poder registrarse.
+  relojOrigen String?   @map("reloj_origen") @db.VarChar(32)
+  altas       Int       @default(0)
+  cambios     Int       @default(0)
+  omitidos    Int       @default(0)
+  /// Los ES_ROOT, los BAJA_LOCAL y cualquier error: texto plano, para leer.
+  nota        String?
+
+  @@map("sync_admsec_corridas")
 }

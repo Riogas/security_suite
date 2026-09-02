@@ -24,6 +24,14 @@ export interface ExternalUser {
     /** ROLIDs de GXICAGEO.USUMOBILEROLES. */
     rolesSgm?: number[];
     usuAutAd?: "A" | "G";
+    /** ADMSEC.USUARIOS.USUID. */
+    usuId?: number | null;
+    /**
+     * USUDTUPD ya formateada como 'YYYY-MM-DD HH:MM:SS.ffffff'. String A
+     * PROPÓSITO: compararla contra un Date da false siempre, así que se
+     * compara como texto contra la marca de la última corrida.
+     */
+    dtUpd?: string | null;
   };
 }
 
