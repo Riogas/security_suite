@@ -32,7 +32,7 @@ export function badRequest(message: string) {
   return NextResponse.json(emptyAuthBody(message), { status: 400 });
 }
 
-export function unauthorized(message = "Usuario sin privilegios para acceder al sistema.") {
+export function unauthorized(message = "Usuario o contraseña incorrectos.") {
   return NextResponse.json(emptyAuthBody(message), { status: 401 });
 }
 
