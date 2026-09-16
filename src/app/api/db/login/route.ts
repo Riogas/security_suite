@@ -68,6 +68,14 @@ export async function POST(request: NextRequest) {
     const result = await resolveCredentials(username, String(Password));
 
     if (!result.ok) {
+      // Un rechazo nunca sale mudo: hasta acá el 401 por clave incorrecta no
+      // dejaba rastro y el operador buscaba el problema en roles/atributos.
+      authLog.warn("login rechazado", {
+        username,
+        status: result.status,
+        outcome: result.outcome,
+        message: result.message,
+      });
       if (result.outcome === "FORBIDDEN_SCENARIO") {
         authLog.warn("login rechazado: FORBIDDEN_SCENARIO", { username });
         return forbidden(result.message || "No tenés permisos para el escenario actual");

@@ -509,6 +509,11 @@ async function resolveExistingUser(
       };
     }
     if (sgm.outcome === "INVALID_CREDS") {
+      // La clave vive en SGM (USUMOBILE): si difiere de la que el usuario escribe,
+      // secapi no puede arreglarlo — se resetea en SGM.
+      authLog.info("SGM INVALID_CREDS para usuario existente, sin fallback", {
+        username: usuario.username,
+      });
       return { ok: false, status: 401 };
     }
     // NOT_FOUND / DISABLED / UNAVAILABLE → fallback a clave PG.
@@ -581,6 +586,9 @@ async function resolveExistingUser(
       };
     }
     if (ldap.outcome === "INVALID_CREDS") {
+      authLog.info("LDAP INVALID_CREDS para usuario existente, sin fallback", {
+        username: usuario.username,
+      });
       return { ok: false, status: 401 };
     }
     // NOT_FOUND / UNAVAILABLE → fallback a PG.
@@ -652,6 +660,9 @@ async function resolveExistingUser(
       };
     }
     if (branch.reason === "INVALID") {
+      authLog.info("GSIST/LDAP INVALID para usuario existente, sin fallback", {
+        username: usuario.username,
+      });
       return { ok: false, status: 401 };
     }
     // NOT_RESOLVABLE → fallback a PG.

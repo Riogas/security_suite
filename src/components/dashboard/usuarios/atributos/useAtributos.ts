@@ -8,11 +8,11 @@ import {
   apiObtenerSugerenciasAtributosDB,
   SugerenciasAtributosResponse,
 } from "@/services/api";
-
-interface CampoValor {
-  id: string;
-  valor: string;
-}
+import {
+  type CampoValor,
+  generarJsonValor,
+  parsearValorAtributo,
+} from "./valorAtributo";
 
 interface Atributo {
   id: string;
@@ -31,67 +31,7 @@ export function useAtributos(userId: number, isOpen: boolean) {
   const [loading, setLoading] = useState(false);
   const [sugerencias, setSugerencias] = useState<SugerenciasAtributosResponse | null>(null);
 
-  // Generar JSON a partir de los campos
-  const generarJsonValor = (campos: CampoValor[]): string => {
-    const obj = campos.reduce(
-      (acc, campo) => {
-        if (campo.id && campo.valor) {
-          acc[campo.id] = campo.valor;
-        }
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
-
-    return JSON.stringify(obj, null, 2);
-  };
-
-  // Parsear valor de atributo (puede venir como "{16: Rivera}" o JSON válido)
-  const parsearValorAtributo = (valor: string): CampoValor[] => {
-    try {
-      const valorParseado = JSON.parse(valor);
-
-      // Si es un array de objetos (ej. [{"Nombre": "X", "Valor": 70}])
-      if (Array.isArray(valorParseado)) {
-        return valorParseado.map((item, idx) => ({
-          id: String(idx),
-          valor: typeof item === "object" ? JSON.stringify(item) : String(item),
-        }));
-      }
-
-      // Si es un objeto plano { clave: valor }
-      if (typeof valorParseado === "object" && valorParseado !== null) {
-        return Object.entries(valorParseado).map(([id, val]) => ({
-          id,
-          valor: typeof val === "object" ? JSON.stringify(val) : String(val),
-        }));
-      }
-    } catch {
-      // Si falla el parse estándar, intentar parsear formato "{16: Rivera}"
-      try {
-        const contenido = valor.replace(/^\{|\}$/g, "").trim();
-        const pares = contenido.split(",").map((par) => par.trim());
-
-        const campos: CampoValor[] = [];
-        for (const par of pares) {
-          const [id, ...valorParts] = par.split(":");
-          if (id && valorParts.length > 0) {
-            campos.push({
-              id: id.trim(),
-              valor: valorParts.join(":").trim(),
-            });
-          }
-        }
-
-        if (campos.length > 0) return campos;
-      } catch (e) {
-        console.log("Error parseando formato alternativo:", e);
-      }
-    }
-
-    // Si todo falla, retornar como campo simple
-    return [{ id: "valor", valor: valor }];
-  };
+  // generarJsonValor / parsearValorAtributo viven en ./valorAtributo.ts (puras, testeadas).
 
   // Cargar sugerencias para comboboxes (una sola vez cuando el modal se abre)
   const cargarSugerencias = async () => {
